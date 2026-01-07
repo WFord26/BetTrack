@@ -113,6 +113,38 @@ NHL_TEAMS = {
 }
 
 
+def get_team_logo_url(team_name: str, league: str = "nfl", size: int = 500, dark: bool = False) -> Optional[str]:
+    """
+    Get ESPN CDN logo URL for a team.
+    
+    Args:
+        team_name: Full team name (e.g., "Kansas City Chiefs")
+        league: League (nfl, nba, nhl)
+        size: Logo size (500 or 65, default: 500)
+        dark: Whether to get dark version (default: False)
+    
+    Returns:
+        Logo URL or None if team not found
+    """
+    league = league.lower()
+    
+    # Get team abbreviation
+    teams_dict = {
+        "nfl": NFL_TEAMS,
+        "nba": NBA_TEAMS,
+        "nhl": NHL_TEAMS
+    }.get(league)
+    
+    if not teams_dict or team_name not in teams_dict:
+        return None
+    
+    abbr = teams_dict[team_name]["abbr"].lower()
+    dark_suffix = "-dark" if dark else ""
+    
+    # ESPN CDN pattern: https://a.espncdn.com/i/teamlogos/{league}/{size}/{abbr}.png
+    return f"https://a.espncdn.com/i/teamlogos/{league}/{size}{dark_suffix}/{abbr}.png"
+
+
 def get_team_reference_table(league: str) -> str:
     """
     Get formatted team reference table for a league.

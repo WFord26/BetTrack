@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Pre-Built Artifact Tool**: `get_odds_card_artifact()` - Returns COMPLETE HTML artifacts
+  - Generates fully-populated React component with real odds data
+  - **Includes real team logos** from ESPN CDN (500px high-quality PNGs)
+  - No more building from scratch - Claude renders directly
+  - Just call: `get_odds_card_artifact("Nuggets")` → instant odds comparison card
+  - Includes odds from 5 bookmakers with best odds highlighted in green
+  - Much faster than instructing Claude to build artifacts manually
+  - Template includes modern styling, team logos, and live data
+  - Fallback to emoji if logo not found
+
+- **Team Logo URLs**: All teams now include ESPN CDN logo URLs
+  - `get_team_logo_url()` helper function generates logo URLs by team name
+  - Visual scoreboard includes `home_team_logo` and `away_team_logo` fields
+  - Logos displayed in HTML scoreboard example (500px PNG format)
+  - Supports NFL, NBA, NHL with both standard and dark mode logos
+
 - **Visual Scoreboard Cards in Claude**: New `get_visual_scoreboard()` tool
   - Returns structured data that automatically triggers React artifact rendering in Claude Desktop
   - Interactive visual scoreboards with team colors, live scores, and expandable betting odds
@@ -15,6 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No more ASCII text art - get beautiful ESPN-style visual components
   - Includes render instructions that prompt Claude to create interactive artifacts
   - Example HTML scoreboard template in `examples/nfl-scoreboard.html`
+
+### Changed
+- **BREAKING: ESPN Tools Streamlined** to prevent message overflow
+  - `get_espn_scoreboard()`: Now returns only essential game data (scores, teams, status)
+    - Default limit reduced from 50 to 10 games, max 25
+    - Removed verbose ESPN API response fields
+    - Added note directing users to `get_formatted_scoreboard()` for visual output
+  - `get_espn_teams()`: Returns concise team list (name, id, abbreviation, logo only)
+    - Removed full team objects with extensive metadata
+    - Logo URL included for each team
+  - `get_espn_team_details()`: Added warning about verbose output
+  - `get_espn_game_summary()`: Added warning about massive data size
+  - All tools now include usage notes directing to more appropriate alternatives
 
 - **Beta Build from Git Hash**: Build script improvements
   - `-Beta` flag now works WITHOUT requiring `-VersionBump`
