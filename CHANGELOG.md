@@ -8,14 +8,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release of Sports Data MCP
-- Integration with The Odds API for betting odds
-- Integration with ESPN API for sports information
-- Natural language query support for team/matchup search
-- 15 MCP tools for comprehensive sports data access
-- PowerShell build script for MCPB packaging
-- Environment-based configuration
-- Comprehensive documentation and examples
+- **Formatted Output Tools**: 7 new tools for visual display of sports data
+  - `get_formatted_scoreboard`: Compact table view of games (replaces verbose JSON)
+  - `get_matchup_cards`: ESPN-style matchup cards with ASCII art borders
+  - `get_formatted_standings`: League standings in table format
+  - `get_odds_comparison`: Side-by-side odds from multiple bookmakers
+  - `get_team_reference`: Quick lookup tables for NFL/NBA/NHL teams with IDs
+  - `find_team`: Search teams by name or abbreviation across leagues
+  - `get_odds_comparison`: Formatted odds comparison across bookmakers
+
+- **Team Reference Database**: Complete team data for major leagues
+  - NFL: 32 teams with ESPN IDs, abbreviations, divisions
+  - NBA: 30 teams with ESPN IDs, abbreviations, divisions
+  - NHL: 32 teams with ESPN IDs, abbreviations, divisions
+  - Quick team ID lookup for API calls
+
+- **Enhanced Matchup Cards**: Visual improvements and new features
+  - TV broadcast information from ESPN API (TNT, ESPN, ABC, etc.)
+  - Multiple bookmaker odds display (up to 3 bookmakers per card)
+  - Cleaner single-line box drawing characters (┌─┐├┤│└┘)
+  - Wider card format (66 characters) for better readability
+  - Smart team name truncation preserving team names (e.g., "Golden St... Warriors")
+  - Fixed-width odds column for consistent alignment
+  - Support for spread with point displays
+  - Live score display for in-progress games
+
+- **Beta Release Support**: Build script enhancements
+  - `-Beta` flag for creating beta releases (e.g., v0.1.8-beta.1)
+  - Sequential beta versioning (beta.1, beta.2, etc.)
+  - Beta releases excluded from GitHub releases
+  - Promotion from beta to stable version
+
+- **Persistent Configuration**: Environment file preservation
+  - `.env` file stored in persistent config directory (`%APPDATA%/Claude/sports-mcp-config/`)
+  - Configuration survives all package updates
+  - First-time setup creates `.env` from `.env.example` with helpful instructions
+  - API keys never overwritten on updates
+
+### Changed
+- Improved matchup card visual design with better spacing and alignment
+- Enhanced odds display with bookmaker labels and consistent formatting
+- Positive odds now display with `+` prefix (e.g., `+185` instead of `185`)
+- Matchup cards now merge ESPN broadcast data with Odds API betting odds
+- Build script now supports both stable and beta version bumps
+
+### Fixed
+- Missing `Optional` and `Dict` type imports in `team_reference.py`
+- Odds column alignment pushing outside box borders
+- Team name truncation cutting names awkwardly mid-word
+- `.env` file being overwritten on package updates
+- Import errors preventing module loading
+
+### Technical
+- Formatter module with 4 formatting functions for cards and tables
+- Team reference module with complete league databases
+- Persistent config directory support via `SPORTS_MCP_CONFIG_DIR` env var
+- Enhanced build script with beta versioning logic
+- Auto-creation of config directory on first run
 
 ## [0.1.0] - 2026-01-07
 

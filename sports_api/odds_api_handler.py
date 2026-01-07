@@ -87,7 +87,7 @@ class OddsAPIHandler:
                 "error": str(e)
             }
     
-    def get_sports(self, all_sports: bool = False) -> Dict:
+    async def get_sports(self, all_sports: bool = False) -> Dict:
         """
         Get list of available sports.
         
@@ -101,10 +101,10 @@ class OddsAPIHandler:
         if all_sports:
             params["all"] = "true"
         
-        result = asyncio.run(self._make_request("/v4/sports", params))
+        result = await self._make_request("/v4/sports", params)
         return result
     
-    def get_odds(
+    async def get_odds(
         self,
         sport: str,
         regions: str = "us",
@@ -135,10 +135,10 @@ class OddsAPIHandler:
             params["markets"] = markets
         
         endpoint = f"/v4/sports/{sport}/odds"
-        result = asyncio.run(self._make_request(endpoint, params))
+        result = await self._make_request(endpoint, params)
         return result
     
-    def get_scores(self, sport: str, days_from: int = 3) -> Dict:
+    async def get_scores(self, sport: str, days_from: int = 3) -> Dict:
         """
         Get scores for recent, live, and upcoming games.
         
@@ -154,10 +154,10 @@ class OddsAPIHandler:
         }
         
         endpoint = f"/v4/sports/{sport}/scores"
-        result = asyncio.run(self._make_request(endpoint, params))
+        result = await self._make_request(endpoint, params)
         return result
     
-    def get_event_odds(
+    async def get_event_odds(
         self,
         sport: str,
         event_id: str,
@@ -187,10 +187,10 @@ class OddsAPIHandler:
             params["markets"] = markets
         
         endpoint = f"/v4/sports/{sport}/events/{event_id}/odds"
-        result = asyncio.run(self._make_request(endpoint, params))
+        result = await self._make_request(endpoint, params)
         return result
     
-    def search_odds(
+    async def search_odds(
         self,
         query: str,
         sport: Optional[str] = None,
@@ -228,7 +228,7 @@ class OddsAPIHandler:
         matching_games = []
         
         for sport_key in sports_to_check:
-            odds_result = self.get_odds(
+            odds_result = await self.get_odds(
                 sport=sport_key,
                 regions=regions,
                 markets=markets

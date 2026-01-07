@@ -69,7 +69,7 @@ class ESPNAPIHandler:
                 "error": str(e)
             }
     
-    def get_scoreboard(
+    async def get_scoreboard(
         self,
         sport: str,
         league: str,
@@ -93,10 +93,10 @@ class ESPNAPIHandler:
             params["dates"] = date
         
         endpoint = f"/apis/site/v2/sports/{sport}/{league}/scoreboard"
-        result = asyncio.run(self._make_request(self.SITE_API, endpoint, params))
+        result = await self._make_request(self.SITE_API, endpoint, params)
         return result
     
-    def get_standings(
+    async def get_standings(
         self,
         sport: str,
         league: str,
@@ -118,10 +118,10 @@ class ESPNAPIHandler:
             params["season"] = season
         
         endpoint = f"/apis/site/v2/sports/{sport}/{league}/standings"
-        result = asyncio.run(self._make_request(self.SITE_API, endpoint, params))
+        result = await self._make_request(self.SITE_API, endpoint, params)
         return result
     
-    def get_teams(self, sport: str, league: str) -> Dict:
+    async def get_teams(self, sport: str, league: str) -> Dict:
         """
         Get list of teams.
         
@@ -133,10 +133,10 @@ class ESPNAPIHandler:
             Dictionary with teams list
         """
         endpoint = f"/apis/site/v2/sports/{sport}/{league}/teams"
-        result = asyncio.run(self._make_request(self.SITE_API, endpoint))
+        result = await self._make_request(self.SITE_API, endpoint)
         return result
     
-    def get_team_details(
+    async def get_team_details(
         self,
         sport: str,
         league: str,
@@ -160,10 +160,10 @@ class ESPNAPIHandler:
             params["enable"] = "roster,projection,stats"
         
         endpoint = f"/apis/site/v2/sports/{sport}/{league}/teams/{team_id}"
-        result = asyncio.run(self._make_request(self.SITE_API, endpoint, params))
+        result = await self._make_request(self.SITE_API, endpoint, params)
         return result
     
-    def get_team_schedule(
+    async def get_team_schedule(
         self,
         sport: str,
         league: str,
@@ -187,10 +187,10 @@ class ESPNAPIHandler:
             params["season"] = season
         
         endpoint = f"/apis/site/v2/sports/{sport}/{league}/teams/{team_id}/schedule"
-        result = asyncio.run(self._make_request(self.SITE_API, endpoint, params))
+        result = await self._make_request(self.SITE_API, endpoint, params)
         return result
     
-    def get_news(self, sport: str, league: str, limit: int = 20) -> Dict:
+    async def get_news(self, sport: str, league: str, limit: int = 20) -> Dict:
         """
         Get news articles.
         
@@ -205,10 +205,10 @@ class ESPNAPIHandler:
         params = {"limit": limit}
         
         endpoint = f"/apis/site/v2/sports/{sport}/{league}/news"
-        result = asyncio.run(self._make_request(self.SITE_API, endpoint, params))
+        result = await self._make_request(self.SITE_API, endpoint, params)
         return result
     
-    def search(self, query: str, limit: int = 10) -> Dict:
+    async def search(self, query: str, limit: int = 10) -> Dict:
         """
         Search ESPN.
         
@@ -225,10 +225,10 @@ class ESPNAPIHandler:
         }
         
         endpoint = "/apis/common/v3/search"
-        result = asyncio.run(self._make_request(self.WEB_API, endpoint, params))
+        result = await self._make_request(self.WEB_API, endpoint, params)
         return result
     
-    def get_game_summary(self, sport: str, league: str, event_id: str) -> Dict:
+    async def get_game_summary(self, sport: str, league: str, event_id: str) -> Dict:
         """
         Get detailed game summary.
         
@@ -243,7 +243,7 @@ class ESPNAPIHandler:
         params = {"event": event_id}
         
         endpoint = f"/apis/site/v2/sports/{sport}/{league}/summary"
-        result = asyncio.run(self._make_request(self.SITE_API, endpoint, params))
+        result = await self._make_request(self.SITE_API, endpoint, params)
         return result
     
     async def close(self):
