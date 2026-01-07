@@ -1,0 +1,53 @@
+name: Publish Wiki Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/wiki/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/publish-wiki.yml'
+
+concurrency:
+  group: publish-wiki
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish-wiki:
+    runs-on: ubuntu-latest
+    name: Update GitHub Wiki
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Prepare wiki content
+        run: |
+          # Create wiki directory structure
+          mkdir -p wiki
+          
+          # Copy wiki documentation from docs/wiki
+          if [ -d docs/wiki ]; then
+            # Copy all markdown files from docs/wiki
+            cp docs/wiki/*.md wiki/ 2>/dev/null || true
+            
+            echo "📚 Wiki contents prepared:"
+            ls -lh wiki/
+          else
+            echo "⚠️ No docs/wiki directory found"
+            exit 1
+          fi
+      
+      - name: Publish to GitHub Wiki
+        uses: Andrew-Chen-Wang/github-wiki-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: wiki/
+          strategy: init
+          commit-message: 'Update wiki from ${{ github.sha }}'
