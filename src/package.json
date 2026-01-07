@@ -20,16 +20,16 @@
     "nhl",
     "api"
   ],
-  "author": "Your Name",
+  "author": "William Ford",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/sports-odds-mcp.git"
+    "url": "https://github.com/WFord26/Sports-Odds-MCP.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/sports-odds-mcp/issues"
+    "url": "https://github.com/WFord26/Sports-Odds-MCP/issues"
   },
-  "homepage": "https://github.com/yourusername/sports-odds-mcp#readme",
+  "homepage": "https://github.com/WFord26/Sports-Odds-MCP#readme",
   "dependencies": {
     "mcp": "^1.0.0",
     "aiohttp": "^3.9.0",
