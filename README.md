@@ -134,21 +134,6 @@ This returns structured data that Claude automatically renders as an **interacti
 
 ## Available Tools
 
-### Visual Display Tools (NEW!)
-- `get_visual_scoreboard` - Returns data formatted for interactive visual cards in Claude
-  - Automatically triggers React artifact rendering
-  - Includes scores, odds, and styling instructions
-  - Supports NFL, NBA, NHL, and more
-
-- `get_odds_card_artifact` - **Returns COMPLETE pre-built HTML artifact** (FASTEST!)
-  - No building from scratch - artifact is ready to render immediately
-  - Pre-populated with real odds data from multiple bookmakers
-  - **Includes real team logos from ESPN CDN** (500px high-res PNGs)
-  - Just specify team name: `get_odds_card_artifact("Lakers")`
-  - Claude renders it directly - no reconstruction needed
-  - Beautiful odds comparison card with best odds highlighted in green
-  - Supports NFL, NBA, NHL with automatic logo fetching
-
 ### The Odds API Tools
 - `get_available_sports` - List available sports and their keys
 - `get_odds` - Get betting odds for games
