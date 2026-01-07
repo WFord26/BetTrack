@@ -1,0 +1,985 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ESPN Public API (Unofficial)",
+    "description": "Community-discovered ESPN API endpoints. **DISCLAIMER:** This is an unofficial, undocumented API. ESPN may change or remove endpoints without notice. Use at your own risk.",
+    "version": "2.0",
+    "contact": {
+      "name": "Community Documentation",
+      "url": "https://github.com/pseudo-r/Public-ESPN-API"
+    }
+  },
+  "servers": [
+    {"url": "https://site.api.espn.com", "description": "Site API - Scores, news, teams, standings"},
+    {"url": "https://sports.core.api.espn.com", "description": "Core API - Athletes, seasons, odds, detailed stats"},
+    {"url": "https://site.web.api.espn.com", "description": "Web API - Search, athlete overviews"},
+    {"url": "https://cdn.espn.com", "description": "CDN - Fast scoreboards, schedules"},
+    {"url": "https://fantasy.espn.com", "description": "Fantasy API - Fantasy sports data"},
+    {"url": "https://now.core.api.espn.com", "description": "Now API - Real-time news"}
+  ],
+  "tags": [
+    {"name": "General", "description": "Cross-sport endpoints"},
+    {"name": "Football", "description": "NFL and College Football"},
+    {"name": "Basketball", "description": "NBA, WNBA, College Basketball"},
+    {"name": "Baseball", "description": "MLB and College Baseball"},
+    {"name": "Hockey", "description": "NHL"},
+    {"name": "Soccer", "description": "Various soccer leagues"},
+    {"name": "Fantasy", "description": "Fantasy sports endpoints"},
+    {"name": "Betting", "description": "Odds and betting data"}
+  ],
+  "paths": {
+    "/apis/site/v2/sports": {
+      "get": {
+        "operationId": "listAllSports",
+        "summary": "List All Sports",
+        "description": "Returns list of all available sports",
+        "tags": ["General"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "responses": {
+          "200": {
+            "description": "List of sports",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SportsListResponse"}}}
+          }
+        }
+      }
+    },
+    "/apis/site/v2/sports/{sport}": {
+      "get": {
+        "operationId": "listLeagues",
+        "summary": "List Leagues for Sport",
+        "tags": ["General"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [{"$ref": "#/components/parameters/sport"}],
+        "responses": {"200": {"description": "List of leagues for the sport"}}
+      }
+    },
+    "/apis/common/v3/search": {
+      "get": {
+        "operationId": "search",
+        "summary": "General Search",
+        "tags": ["General"],
+        "servers": [{"url": "https://site.web.api.espn.com"}],
+        "parameters": [
+          {"name": "query", "in": "query", "required": true, "schema": {"type": "string"}},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 10}},
+          {"name": "mode", "in": "query", "schema": {"type": "string", "enum": ["prefix", "exact"]}}
+        ],
+        "responses": {"200": {"description": "Search results"}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/scoreboard": {
+      "get": {
+        "operationId": "getScoreboard",
+        "summary": "Get Scoreboard",
+        "description": "Returns current/scheduled games with scores",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/dates"},
+          {"name": "week", "in": "query", "schema": {"type": "integer"}},
+          {"name": "seasontype", "in": "query", "schema": {"type": "integer", "enum": [1, 2, 3]}, "description": "1=preseason, 2=regular, 3=postseason"},
+          {"name": "groups", "in": "query", "schema": {"type": "integer"}, "description": "Conference/group ID filter"},
+          {"name": "calendar", "in": "query", "schema": {"type": "string", "enum": ["blacklist"]}}
+        ],
+        "responses": {"200": {"description": "Scoreboard data", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ScoreboardResponse"}}}}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/standings": {
+      "get": {
+        "operationId": "getStandings",
+        "summary": "Get Standings",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey", "Soccer"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"name": "season", "in": "query", "schema": {"type": "integer"}, "example": 2024}
+        ],
+        "responses": {"200": {"description": "Standings data"}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/teams": {
+      "get": {
+        "operationId": "listTeams",
+        "summary": "List Teams",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey", "Soccer"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"}
+        ],
+        "responses": {"200": {"description": "List of teams", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TeamsListResponse"}}}}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/teams/{teamId}": {
+      "get": {
+        "operationId": "getTeam",
+        "summary": "Get Team Details",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey", "Soccer"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/teamId"},
+          {"name": "enable", "in": "query", "schema": {"type": "string"}, "description": "Comma-separated: roster,projection,stats", "example": "roster,projection,stats"}
+        ],
+        "responses": {"200": {"description": "Team details", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Team"}}}}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/teams/{teamId}/roster": {
+      "get": {
+        "operationId": "getTeamRoster",
+        "summary": "Get Team Roster",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/teamId"},
+          {"name": "enable", "in": "query", "schema": {"type": "string"}, "example": "roster,projection,stats"}
+        ],
+        "responses": {"200": {"description": "Team roster"}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/teams/{teamId}/schedule": {
+      "get": {
+        "operationId": "getTeamSchedule",
+        "summary": "Get Team Schedule",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey", "Soccer"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/teamId"},
+          {"name": "season", "in": "query", "schema": {"type": "integer"}}
+        ],
+        "responses": {"200": {"description": "Team schedule"}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/news": {
+      "get": {
+        "operationId": "getNews",
+        "summary": "Get News",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey", "Soccer"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"name": "team", "in": "query", "schema": {"type": "integer"}, "description": "Filter by team ID"},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "News articles", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NewsResponse"}}}}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/summary": {
+      "get": {
+        "operationId": "getGameSummary",
+        "summary": "Get Game Summary",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey", "Soccer"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"name": "event", "in": "query", "required": true, "schema": {"type": "string"}, "description": "Game/Event ID"}
+        ],
+        "responses": {"200": {"description": "Game summary with box score"}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/rankings": {
+      "get": {
+        "operationId": "getRankings",
+        "summary": "Get Rankings (College)",
+        "description": "AP Top 25, Coaches Poll, CFP Rankings for college sports",
+        "tags": ["Football", "Basketball"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"name": "league", "in": "path", "required": true, "schema": {"type": "string", "enum": ["college-football", "mens-college-basketball", "womens-college-basketball"]}}
+        ],
+        "responses": {"200": {"description": "Rankings data"}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/players": {
+      "get": {
+        "operationId": "listPlayers",
+        "summary": "List Players",
+        "tags": ["General", "Basketball", "Baseball", "Hockey", "Soccer"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"}
+        ],
+        "responses": {"200": {"description": "List of players"}}
+      }
+    },
+    "/apis/site/v2/sports/{sport}/{league}/statistics/players": {
+      "get": {
+        "operationId": "getPlayerStats",
+        "summary": "Get Player Statistics",
+        "tags": ["General", "Basketball", "Baseball", "Hockey", "Soccer"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"}
+        ],
+        "responses": {"200": {"description": "Aggregate player statistics"}}
+      }
+    },
+    "/apis/site/v3/sports/{sport}/{league}/leaders": {
+      "get": {
+        "operationId": "getLeaders",
+        "summary": "Get League Leaders",
+        "tags": ["General", "Football", "Basketball", "Baseball", "Hockey"],
+        "servers": [{"url": "https://site.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"name": "season", "in": "query", "schema": {"type": "integer"}},
+          {"name": "seasontype", "in": "query", "schema": {"type": "integer"}}
+        ],
+        "responses": {"200": {"description": "League leaders by stat category"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/events": {
+      "get": {
+        "operationId": "listEvents",
+        "summary": "List Events/Games",
+        "tags": ["General"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/dates"},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "List of events"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/seasons": {
+      "get": {
+        "operationId": "listSeasons",
+        "summary": "List Seasons",
+        "tags": ["General"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "List of seasons"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/seasons/{year}": {
+      "get": {
+        "operationId": "getSeasonDetails",
+        "summary": "Get Season Details",
+        "tags": ["General"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/year"}
+        ],
+        "responses": {"200": {"description": "Season details"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/seasons/{year}/types/{seasontype}/weeks": {
+      "get": {
+        "operationId": "listWeeks",
+        "summary": "List Weeks for Season",
+        "tags": ["Football"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/year"},
+          {"$ref": "#/components/parameters/seasontype"}
+        ],
+        "responses": {"200": {"description": "List of weeks"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/venues": {
+      "get": {
+        "operationId": "listVenues",
+        "summary": "List Venues",
+        "tags": ["General"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "List of venues"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/franchises": {
+      "get": {
+        "operationId": "listFranchises",
+        "summary": "List Franchises",
+        "tags": ["General"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "List of franchises"}}
+      }
+    },
+    "/v3/sports/{sport}/{league}/athletes": {
+      "get": {
+        "operationId": "listAthletes",
+        "summary": "List Athletes (Core v3)",
+        "tags": ["General"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/limit"},
+          {"name": "active", "in": "query", "schema": {"type": "boolean"}, "description": "Filter to active players only"},
+          {"name": "page", "in": "query", "schema": {"type": "integer"}}
+        ],
+        "responses": {"200": {"description": "List of athletes"}}
+      }
+    },
+    "/apis/common/v3/sports/{sport}/{league}/athletes/{athleteId}/overview": {
+      "get": {
+        "operationId": "getAthleteOverview",
+        "summary": "Get Athlete Overview",
+        "tags": ["General"],
+        "servers": [{"url": "https://site.web.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/athleteId"}
+        ],
+        "responses": {"200": {"description": "Comprehensive athlete overview"}}
+      }
+    },
+    "/apis/common/v3/sports/{sport}/{league}/athletes/{athleteId}/gamelog": {
+      "get": {
+        "operationId": "getAthleteGamelog",
+        "summary": "Get Athlete Game Log",
+        "tags": ["General"],
+        "servers": [{"url": "https://site.web.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/athleteId"}
+        ],
+        "responses": {"200": {"description": "Player stats per game"}}
+      }
+    },
+    "/apis/common/v3/sports/{sport}/{league}/athletes/{athleteId}/splits": {
+      "get": {
+        "operationId": "getAthleteSplits",
+        "summary": "Get Athlete Splits",
+        "tags": ["General"],
+        "servers": [{"url": "https://site.web.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/athleteId"}
+        ],
+        "responses": {"200": {"description": "Player stats broken down by conditions"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/teams/{teamId}/injuries": {
+      "get": {
+        "operationId": "getTeamInjuries",
+        "summary": "Get Team Injuries",
+        "tags": ["Football", "Basketball", "Baseball", "Hockey"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/teamId"}
+        ],
+        "responses": {"200": {"description": "Team injury report"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/seasons/{year}/teams/{teamId}/depthcharts": {
+      "get": {
+        "operationId": "getDepthChart",
+        "summary": "Get Team Depth Chart",
+        "tags": ["Football"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/year"},
+          {"$ref": "#/components/parameters/teamId"}
+        ],
+        "responses": {"200": {"description": "Team depth chart"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/seasons/{year}/draft": {
+      "get": {
+        "operationId": "getDraft",
+        "summary": "Get Draft Results",
+        "tags": ["Football", "Basketball", "Baseball", "Hockey"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/year"}
+        ],
+        "responses": {"200": {"description": "Draft results"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/events/{eventId}/competitions/{eventId}/plays": {
+      "get": {
+        "operationId": "getGamePlays",
+        "summary": "Get Game Plays",
+        "tags": ["Football", "Basketball"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/eventId"},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 300}}
+        ],
+        "responses": {"200": {"description": "Play-by-play data"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/events/{eventId}/competitions/{eventId}/drives": {
+      "get": {
+        "operationId": "getGameDrives",
+        "summary": "Get Game Drives (Football)",
+        "tags": ["Football"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/eventId"}
+        ],
+        "responses": {"200": {"description": "Drive summaries"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/events/{eventId}/competitions/{eventId}/probabilities": {
+      "get": {
+        "operationId": "getWinProbabilities",
+        "summary": "Get Win Probabilities",
+        "tags": ["Betting"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/eventId"},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "Win probability data"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/events/{eventId}/competitions/{eventId}/odds": {
+      "get": {
+        "operationId": "getGameOdds",
+        "summary": "Get Game Odds",
+        "tags": ["Betting"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/eventId"}
+        ],
+        "responses": {"200": {"description": "Odds from multiple providers"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/events/{eventId}/competitions/{eventId}/odds/{providerId}": {
+      "get": {
+        "operationId": "getGameOddsByProvider",
+        "summary": "Get Game Odds by Provider",
+        "tags": ["Betting"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/eventId"},
+          {"$ref": "#/components/parameters/providerId"}
+        ],
+        "responses": {"200": {"description": "Odds from specific provider"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/events/{eventId}/competitions/{eventId}/odds/{providerId}/history/0/movement": {
+      "get": {
+        "operationId": "getOddsMovement",
+        "summary": "Get Odds Movement/History",
+        "tags": ["Betting"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/eventId"},
+          {"$ref": "#/components/parameters/providerId"},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "Odds movement over time"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/seasons/{year}/futures": {
+      "get": {
+        "operationId": "getFutures",
+        "summary": "Get Futures/Season Bets",
+        "tags": ["Betting"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/year"}
+        ],
+        "responses": {"200": {"description": "Futures odds (championship winner, etc.)"}}
+      }
+    },
+    "/v2/sports/{sport}/leagues/{league}/seasons/{year}/types/{seasontype}/teams/{teamId}/ats": {
+      "get": {
+        "operationId": "getTeamATS",
+        "summary": "Get Team Against-the-Spread Record",
+        "tags": ["Betting"],
+        "servers": [{"url": "https://sports.core.api.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/sport"},
+          {"$ref": "#/components/parameters/league"},
+          {"$ref": "#/components/parameters/year"},
+          {"$ref": "#/components/parameters/seasontype"},
+          {"$ref": "#/components/parameters/teamId"}
+        ],
+        "responses": {"200": {"description": "Team ATS performance"}}
+      }
+    },
+    "/core/{league}/scoreboard": {
+      "get": {
+        "operationId": "getCDNScoreboard",
+        "summary": "Get Scoreboard (CDN - Fast)",
+        "tags": ["General"],
+        "servers": [{"url": "https://cdn.espn.com"}],
+        "parameters": [
+          {"name": "league", "in": "path", "required": true, "schema": {"type": "string", "enum": ["nfl", "nba", "mlb", "nhl"]}},
+          {"name": "xhr", "in": "query", "schema": {"type": "integer", "enum": [1]}, "required": true},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "Fast scoreboard data"}}
+      }
+    },
+    "/core/{league}/schedule": {
+      "get": {
+        "operationId": "getCDNSchedule",
+        "summary": "Get Schedule (CDN)",
+        "tags": ["General"],
+        "servers": [{"url": "https://cdn.espn.com"}],
+        "parameters": [
+          {"name": "league", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"name": "xhr", "in": "query", "schema": {"type": "integer", "enum": [1]}, "required": true},
+          {"name": "year", "in": "query", "schema": {"type": "integer"}},
+          {"name": "week", "in": "query", "schema": {"type": "integer"}}
+        ],
+        "responses": {"200": {"description": "Schedule data"}}
+      }
+    },
+    "/core/{league}/boxscore": {
+      "get": {
+        "operationId": "getCDNBoxscore",
+        "summary": "Get Box Score (CDN)",
+        "tags": ["General"],
+        "servers": [{"url": "https://cdn.espn.com"}],
+        "parameters": [
+          {"name": "league", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"name": "xhr", "in": "query", "schema": {"type": "integer", "enum": [1]}, "required": true},
+          {"name": "gameId", "in": "query", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {"200": {"description": "Box score data"}}
+      }
+    },
+    "/core/{league}/playbyplay": {
+      "get": {
+        "operationId": "getCDNPlayByPlay",
+        "summary": "Get Play-by-Play (CDN)",
+        "tags": ["General"],
+        "servers": [{"url": "https://cdn.espn.com"}],
+        "parameters": [
+          {"name": "league", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"name": "xhr", "in": "query", "schema": {"type": "integer", "enum": [1]}, "required": true},
+          {"name": "gameId", "in": "query", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {"200": {"description": "Play-by-play data"}}
+      }
+    },
+    "/apis/v3/games/ffl/seasons/{year}/segments/0/leagues/{leagueId}": {
+      "get": {
+        "operationId": "getFantasyLeague",
+        "summary": "Get Fantasy League Data (2018+)",
+        "description": "Retrieve fantasy league data. Use 'view' parameter to specify data type. Private leagues require authentication cookies.",
+        "tags": ["Fantasy"],
+        "servers": [{"url": "https://fantasy.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/year"},
+          {"name": "leagueId", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"$ref": "#/components/parameters/fantasyView"}
+        ],
+        "responses": {"200": {"description": "Fantasy league data based on view parameter"}}
+      }
+    },
+    "/apis/v3/games/ffl/leagueHistory/{leagueId}": {
+      "get": {
+        "operationId": "getFantasyLeagueHistory",
+        "summary": "Get Fantasy League History (<2018)",
+        "tags": ["Fantasy"],
+        "servers": [{"url": "https://fantasy.espn.com"}],
+        "parameters": [
+          {"name": "leagueId", "in": "path", "required": true, "schema": {"type": "integer"}},
+          {"name": "seasonId", "in": "query", "required": true, "schema": {"type": "integer"}},
+          {"$ref": "#/components/parameters/fantasyView"}
+        ],
+        "responses": {"200": {"description": "Historical fantasy league data"}}
+      }
+    },
+    "/apis/v3/games/ffl/seasons/{year}/players": {
+      "get": {
+        "operationId": "getFantasyPlayers",
+        "summary": "Get Fantasy Player List",
+        "tags": ["Fantasy"],
+        "servers": [{"url": "https://fantasy.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/year"},
+          {"name": "view", "in": "query", "schema": {"type": "string", "default": "players_wl"}}
+        ],
+        "responses": {"200": {"description": "List of fantasy players"}}
+      }
+    },
+    "/apis/v3/games/ffl/seasons/{year}": {
+      "get": {
+        "operationId": "getFantasySeasonInfo",
+        "summary": "Get Fantasy Season Info",
+        "tags": ["Fantasy"],
+        "servers": [{"url": "https://fantasy.espn.com"}],
+        "parameters": [
+          {"$ref": "#/components/parameters/year"},
+          {"name": "view", "in": "query", "schema": {"type": "string", "enum": ["proTeamSchedules_wl"]}, "description": "Use proTeamSchedules_wl for bye weeks"}
+        ],
+        "responses": {"200": {"description": "Season info including bye weeks"}}
+      }
+    },
+    "/v1/sports/news": {
+      "get": {
+        "operationId": "getRealTimeNews",
+        "summary": "Get Real-Time News Feed",
+        "tags": ["General"],
+        "servers": [{"url": "https://now.core.api.espn.com"}],
+        "parameters": [
+          {"name": "sport", "in": "query", "schema": {"type": "string"}},
+          {"$ref": "#/components/parameters/limit"}
+        ],
+        "responses": {"200": {"description": "Real-time news feed"}}
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "sport": {
+        "name": "sport",
+        "in": "path",
+        "required": true,
+        "description": "Sport type",
+        "schema": {"type": "string", "enum": ["football", "basketball", "baseball", "hockey", "soccer", "golf", "racing", "tennis"]}
+      },
+      "league": {
+        "name": "league",
+        "in": "path",
+        "required": true,
+        "description": "League identifier",
+        "schema": {"type": "string"},
+        "examples": {
+          "nfl": {"value": "nfl"},
+          "college-football": {"value": "college-football"},
+          "nba": {"value": "nba"},
+          "wnba": {"value": "wnba"},
+          "mens-college-basketball": {"value": "mens-college-basketball"},
+          "mlb": {"value": "mlb"},
+          "nhl": {"value": "nhl"},
+          "eng.1": {"value": "eng.1", "summary": "Premier League"},
+          "usa.1": {"value": "usa.1", "summary": "MLS"}
+        }
+      },
+      "teamId": {
+        "name": "teamId",
+        "in": "path",
+        "required": true,
+        "description": "Team ID (numeric) or abbreviation",
+        "schema": {"type": "string"}
+      },
+      "athleteId": {
+        "name": "athleteId",
+        "in": "path",
+        "required": true,
+        "description": "Athlete/Player ID",
+        "schema": {"type": "integer"}
+      },
+      "eventId": {
+        "name": "eventId",
+        "in": "path",
+        "required": true,
+        "description": "Game/Event ID",
+        "schema": {"type": "string"}
+      },
+      "year": {
+        "name": "year",
+        "in": "path",
+        "required": true,
+        "description": "Season year",
+        "schema": {"type": "integer"},
+        "example": 2024
+      },
+      "seasontype": {
+        "name": "seasontype",
+        "in": "path",
+        "required": true,
+        "description": "Season type: 1=preseason, 2=regular, 3=postseason",
+        "schema": {"type": "integer", "enum": [1, 2, 3]}
+      },
+      "providerId": {
+        "name": "providerId",
+        "in": "path",
+        "required": true,
+        "description": "Betting provider ID",
+        "schema": {"type": "integer"},
+        "examples": {
+          "caesars": {"value": 38},
+          "williamhill": {"value": 31},
+          "bet365": {"value": 2000}
+        }
+      },
+      "dates": {
+        "name": "dates",
+        "in": "query",
+        "description": "Date filter (YYYYMMDD, YYYYMMDD-YYYYMMDD, or YYYY)",
+        "schema": {"type": "string"},
+        "example": "20240115"
+      },
+      "limit": {
+        "name": "limit",
+        "in": "query",
+        "description": "Maximum items to return",
+        "schema": {"type": "integer", "default": 25}
+      },
+      "fantasyView": {
+        "name": "view",
+        "in": "query",
+        "description": "Fantasy data view type",
+        "schema": {
+          "type": "string",
+          "enum": ["mTeam", "mRoster", "mMatchup", "mSettings", "mDraftDetail", "mLiveScoring", "mPendingTransactions", "kona_player_info", "players_wl", "proTeamSchedules_wl"]
+        }
+      }
+    },
+    "schemas": {
+      "SportsListResponse": {
+        "type": "object",
+        "properties": {
+          "sports": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/Sport"}
+          }
+        }
+      },
+      "Sport": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "uid": {"type": "string"},
+          "name": {"type": "string"},
+          "slug": {"type": "string"},
+          "leagues": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/League"}
+          }
+        }
+      },
+      "League": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "uid": {"type": "string"},
+          "name": {"type": "string"},
+          "abbreviation": {"type": "string"},
+          "slug": {"type": "string"}
+        }
+      },
+      "ScoreboardResponse": {
+        "type": "object",
+        "properties": {
+          "leagues": {"type": "array", "items": {"$ref": "#/components/schemas/League"}},
+          "season": {"$ref": "#/components/schemas/Season"},
+          "week": {"$ref": "#/components/schemas/Week"},
+          "events": {"type": "array", "items": {"$ref": "#/components/schemas/Event"}}
+        }
+      },
+      "Season": {
+        "type": "object",
+        "properties": {
+          "year": {"type": "integer"},
+          "type": {"type": "integer"},
+          "name": {"type": "string"}
+        }
+      },
+      "Week": {
+        "type": "object",
+        "properties": {
+          "number": {"type": "integer"},
+          "text": {"type": "string"}
+        }
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "uid": {"type": "string"},
+          "date": {"type": "string", "format": "date-time"},
+          "name": {"type": "string"},
+          "shortName": {"type": "string"},
+          "competitions": {"type": "array", "items": {"$ref": "#/components/schemas/Competition"}},
+          "status": {"$ref": "#/components/schemas/Status"}
+        }
+      },
+      "Competition": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "date": {"type": "string", "format": "date-time"},
+          "competitors": {"type": "array", "items": {"$ref": "#/components/schemas/Competitor"}},
+          "venue": {"$ref": "#/components/schemas/Venue"},
+          "odds": {"type": "array", "items": {"$ref": "#/components/schemas/Odds"}}
+        }
+      },
+      "Competitor": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "type": {"type": "string"},
+          "homeAway": {"type": "string", "enum": ["home", "away"]},
+          "winner": {"type": "boolean"},
+          "score": {"type": "string"},
+          "team": {"$ref": "#/components/schemas/Team"}
+        }
+      },
+      "TeamsListResponse": {
+        "type": "object",
+        "properties": {
+          "sports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "leagues": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "teams": {"type": "array", "items": {"type": "object", "properties": {"team": {"$ref": "#/components/schemas/Team"}}}}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Team": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "uid": {"type": "string"},
+          "slug": {"type": "string"},
+          "abbreviation": {"type": "string"},
+          "displayName": {"type": "string"},
+          "shortDisplayName": {"type": "string"},
+          "name": {"type": "string"},
+          "location": {"type": "string"},
+          "color": {"type": "string"},
+          "alternateColor": {"type": "string"},
+          "logo": {"type": "string", "format": "uri"},
+          "logos": {"type": "array", "items": {"$ref": "#/components/schemas/Logo"}}
+        }
+      },
+      "Logo": {
+        "type": "object",
+        "properties": {
+          "href": {"type": "string", "format": "uri"},
+          "width": {"type": "integer"},
+          "height": {"type": "integer"},
+          "rel": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "Venue": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "fullName": {"type": "string"},
+          "address": {"type": "object", "properties": {"city": {"type": "string"}, "state": {"type": "string"}}},
+          "indoor": {"type": "boolean"}
+        }
+      },
+      "Status": {
+        "type": "object",
+        "properties": {
+          "clock": {"type": "number"},
+          "displayClock": {"type": "string"},
+          "period": {"type": "integer"},
+          "type": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "name": {"type": "string", "enum": ["STATUS_SCHEDULED", "STATUS_IN_PROGRESS", "STATUS_FINAL"]},
+              "state": {"type": "string", "enum": ["pre", "in", "post"]},
+              "completed": {"type": "boolean"}
+            }
+          }
+        }
+      },
+      "Odds": {
+        "type": "object",
+        "properties": {
+          "provider": {"type": "object", "properties": {"id": {"type": "string"}, "name": {"type": "string"}}},
+          "details": {"type": "string"},
+          "overUnder": {"type": "number"},
+          "spread": {"type": "number"},
+          "homeTeamOdds": {"type": "object"},
+          "awayTeamOdds": {"type": "object"}
+        }
+      },
+      "NewsResponse": {
+        "type": "object",
+        "properties": {
+          "header": {"type": "string"},
+          "articles": {"type": "array", "items": {"$ref": "#/components/schemas/Article"}}
+        }
+      },
+      "Article": {
+        "type": "object",
+        "properties": {
+          "headline": {"type": "string"},
+          "description": {"type": "string"},
+          "published": {"type": "string", "format": "date-time"},
+          "lastModified": {"type": "string", "format": "date-time"},
+          "images": {"type": "array", "items": {"type": "object", "properties": {"url": {"type": "string", "format": "uri"}}}},
+          "links": {"type": "object"}
+        }
+      },
+      "Athlete": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "uid": {"type": "string"},
+          "fullName": {"type": "string"},
+          "displayName": {"type": "string"},
+          "firstName": {"type": "string"},
+          "lastName": {"type": "string"},
+          "jersey": {"type": "string"},
+          "position": {"type": "object", "properties": {"abbreviation": {"type": "string"}, "name": {"type": "string"}}},
+          "team": {"$ref": "#/components/schemas/Team"},
+          "headshot": {"type": "object", "properties": {"href": {"type": "string", "format": "uri"}}}
+        }
+      }
+    }
+  }
+}

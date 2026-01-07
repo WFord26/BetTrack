@@ -1,0 +1,1216 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "The Odds API",
+    "description": "Live and historical sports odds from multiple bookmakers. Get odds for NFL, NBA, MLB, NHL, soccer, and many more sports.",
+    "version": "4",
+    "contact": {
+      "name": "The Odds API",
+      "email": "team@the-odds-api.com",
+      "url": "https://the-odds-api.com"
+    },
+    "termsOfService": "https://the-odds-api.com/terms-and-conditions.html"
+  },
+  "servers": [
+    {
+      "url": "https://api.the-odds-api.com",
+      "description": "Production server"
+    },
+    {
+      "url": "https://ipv6-api.the-odds-api.com",
+      "description": "IPv6 Production server"
+    }
+  ],
+  "security": [
+    {
+      "apiKey": []
+    }
+  ],
+  "paths": {
+    "/v4/sports": {
+      "get": {
+        "operationId": "getSports",
+        "summary": "Get Sports",
+        "description": "Returns a list of in-season sport objects. The sport key can be used as the sport parameter in other endpoints. This endpoint does not count against the usage quota.",
+        "tags": ["Sports"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "description": "If set to true, a list of both in and out of season sports will be returned",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Sport"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/sports/{sport}/odds": {
+      "get": {
+        "operationId": "getOdds",
+        "summary": "Get Odds",
+        "description": "Returns a list of upcoming and live games with recent odds for a given sport, region and market",
+        "tags": ["Current Events"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "$ref": "#/components/parameters/regions"
+          },
+          {
+            "$ref": "#/components/parameters/markets"
+          },
+          {
+            "$ref": "#/components/parameters/dateFormat"
+          },
+          {
+            "$ref": "#/components/parameters/oddsFormat"
+          },
+          {
+            "$ref": "#/components/parameters/eventIds"
+          },
+          {
+            "$ref": "#/components/parameters/bookmakers"
+          },
+          {
+            "$ref": "#/components/parameters/commenceTimeFrom"
+          },
+          {
+            "$ref": "#/components/parameters/commenceTimeTo"
+          },
+          {
+            "name": "includeLinks",
+            "in": "query",
+            "description": "If true, the response will include bookmaker links to events, markets, and betslips if available",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "includeSids",
+            "in": "query",
+            "description": "If true, the response will include source ids (bookmaker ids) for events, markets and outcomes if available",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "includeBetLimits",
+            "in": "query",
+            "description": "If true, the response will include the bet limit of each betting option",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "includeRotationNumbers",
+            "in": "query",
+            "description": "If true, the response will include home and away rotation numbers if available",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/sports/{sport}/scores": {
+      "get": {
+        "operationId": "getScores",
+        "summary": "Get Scores",
+        "description": "Returns a list of upcoming, live and recently completed games for a given sport. Live and recently completed games contain scores.",
+        "tags": ["Current Events"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "name": "daysFrom",
+            "in": "query",
+            "description": "The number of days in the past from which to return completed games. Valid values are 1-3.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          },
+          {
+            "$ref": "#/components/parameters/dateFormat"
+          },
+          {
+            "$ref": "#/components/parameters/eventIds"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScoreEvent"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/sports/{sport}/events": {
+      "get": {
+        "operationId": "getEvents",
+        "summary": "Get Events",
+        "description": "Returns a list of in-play and pre-match events for a specified sport. Does not count against usage quota.",
+        "tags": ["Current Events"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "$ref": "#/components/parameters/dateFormat"
+          },
+          {
+            "$ref": "#/components/parameters/eventIds"
+          },
+          {
+            "$ref": "#/components/parameters/commenceTimeFrom"
+          },
+          {
+            "$ref": "#/components/parameters/commenceTimeTo"
+          },
+          {
+            "name": "includeRotationNumbers",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BasicEvent"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/sports/{sport}/events/{eventId}/odds": {
+      "get": {
+        "operationId": "getEventOdds",
+        "summary": "Get Event Odds",
+        "description": "Returns odds for a single event. Accepts any available betting markets using the markets parameter.",
+        "tags": ["Current Events"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/eventId"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "$ref": "#/components/parameters/regions"
+          },
+          {
+            "$ref": "#/components/parameters/markets"
+          },
+          {
+            "$ref": "#/components/parameters/dateFormat"
+          },
+          {
+            "$ref": "#/components/parameters/oddsFormat"
+          },
+          {
+            "$ref": "#/components/parameters/bookmakers"
+          },
+          {
+            "name": "includeMultipliers",
+            "in": "query",
+            "description": "If true, include multipliers in bet selection outcomes (US DFS sites)",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/sports/{sport}/events/{eventId}/markets": {
+      "get": {
+        "operationId": "getEventMarkets",
+        "summary": "Get Event Markets",
+        "description": "Returns available market keys for each bookmaker for a single event. Costs 1 usage credit.",
+        "tags": ["Current Events"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/eventId"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "$ref": "#/components/parameters/regions"
+          },
+          {
+            "$ref": "#/components/parameters/bookmakers"
+          },
+          {
+            "$ref": "#/components/parameters/dateFormat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventMarkets"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/sports/{sport}/participants": {
+      "get": {
+        "operationId": "getParticipants",
+        "summary": "Get Participants",
+        "description": "Returns list of participants (teams or players) for a given sport. Costs 1 usage credit.",
+        "tags": ["Sports"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Participant"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/historical/sports/{sport}/odds": {
+      "get": {
+        "operationId": "getHistoricalOdds",
+        "summary": "Get Historical Odds",
+        "description": "Returns a snapshot of games with bookmaker odds at a given historical timestamp. Available from June 6th 2020.",
+        "tags": ["Historical Events"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "$ref": "#/components/parameters/regions"
+          },
+          {
+            "$ref": "#/components/parameters/markets"
+          },
+          {
+            "$ref": "#/components/parameters/date"
+          },
+          {
+            "$ref": "#/components/parameters/dateFormat"
+          },
+          {
+            "$ref": "#/components/parameters/oddsFormat"
+          },
+          {
+            "$ref": "#/components/parameters/eventIds"
+          },
+          {
+            "$ref": "#/components/parameters/bookmakers"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalOddsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/historical/sports/{sport}/events": {
+      "get": {
+        "operationId": "getHistoricalEvents",
+        "summary": "Get Historical Events",
+        "description": "Returns a list of historical events as they appeared in the API at the given timestamp.",
+        "tags": ["Historical Events"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "$ref": "#/components/parameters/date"
+          },
+          {
+            "$ref": "#/components/parameters/dateFormat"
+          },
+          {
+            "$ref": "#/components/parameters/eventIds"
+          },
+          {
+            "$ref": "#/components/parameters/commenceTimeFrom"
+          },
+          {
+            "$ref": "#/components/parameters/commenceTimeTo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalEventsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/v4/historical/sports/{sport}/events/{eventId}/odds": {
+      "get": {
+        "operationId": "getHistoricalEventOdds",
+        "summary": "Get Historical Event Odds",
+        "description": "Returns historical odds for a single event at a specified timestamp. Supports all betting markets.",
+        "tags": ["Historical Events"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/sport"
+          },
+          {
+            "$ref": "#/components/parameters/eventId"
+          },
+          {
+            "$ref": "#/components/parameters/apiKey"
+          },
+          {
+            "$ref": "#/components/parameters/regions"
+          },
+          {
+            "$ref": "#/components/parameters/markets"
+          },
+          {
+            "$ref": "#/components/parameters/date"
+          },
+          {
+            "$ref": "#/components/parameters/dateFormat"
+          },
+          {
+            "$ref": "#/components/parameters/oddsFormat"
+          },
+          {
+            "$ref": "#/components/parameters/bookmakers"
+          },
+          {
+            "name": "includeMultipliers",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "x-requests-remaining": {
+                "$ref": "#/components/headers/x-requests-remaining"
+              },
+              "x-requests-used": {
+                "$ref": "#/components/headers/x-requests-used"
+              },
+              "x-requests-last": {
+                "$ref": "#/components/headers/x-requests-last"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalEventOddsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "apiKey",
+        "description": "API key for authentication"
+      }
+    },
+    "parameters": {
+      "apiKey": {
+        "name": "apiKey",
+        "in": "query",
+        "required": true,
+        "description": "The API key associated with your subscription",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "sport": {
+        "name": "sport",
+        "in": "path",
+        "required": true,
+        "description": "The sport key obtained from the /sports endpoint. Use 'upcoming' for next 8 games across all sports.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "eventId": {
+        "name": "eventId",
+        "in": "path",
+        "required": true,
+        "description": "The event ID",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "regions": {
+        "name": "regions",
+        "in": "query",
+        "required": true,
+        "description": "Comma-separated bookmaker regions: us, us2, uk, au, eu",
+        "schema": {
+          "type": "string"
+        },
+        "example": "us,uk"
+      },
+      "markets": {
+        "name": "markets",
+        "in": "query",
+        "description": "Comma-separated markets: h2h, spreads, totals, outrights, or player prop markets",
+        "schema": {
+          "type": "string",
+          "default": "h2h"
+        }
+      },
+      "dateFormat": {
+        "name": "dateFormat",
+        "in": "query",
+        "description": "Timestamp format in response",
+        "schema": {
+          "type": "string",
+          "enum": ["iso", "unix"],
+          "default": "iso"
+        }
+      },
+      "oddsFormat": {
+        "name": "oddsFormat",
+        "in": "query",
+        "description": "Odds format in response",
+        "schema": {
+          "type": "string",
+          "enum": ["decimal", "american"],
+          "default": "decimal"
+        }
+      },
+      "eventIds": {
+        "name": "eventIds",
+        "in": "query",
+        "description": "Comma-separated event IDs to filter results",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "bookmakers": {
+        "name": "bookmakers",
+        "in": "query",
+        "description": "Comma-separated list of bookmaker keys",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "commenceTimeFrom": {
+        "name": "commenceTimeFrom",
+        "in": "query",
+        "description": "Filter games commencing on/after this time (ISO 8601)",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "commenceTimeTo": {
+        "name": "commenceTimeTo",
+        "in": "query",
+        "description": "Filter games commencing on/before this time (ISO 8601)",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "date": {
+        "name": "date",
+        "in": "query",
+        "required": true,
+        "description": "Historical snapshot timestamp (ISO 8601)",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "example": "2021-10-18T12:00:00Z"
+      }
+    },
+    "headers": {
+      "x-requests-remaining": {
+        "description": "Usage credits remaining until quota resets",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "x-requests-used": {
+        "description": "Usage credits used since last quota reset",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "x-requests-last": {
+        "description": "Usage cost of the last API call",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Invalid or missing API key",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Rate limit exceeded. Space out requests.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Sport": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Unique sport key used in API calls",
+            "example": "americanfootball_nfl"
+          },
+          "group": {
+            "type": "string",
+            "description": "Sport category",
+            "example": "American Football"
+          },
+          "title": {
+            "type": "string",
+            "description": "Display name",
+            "example": "NFL"
+          },
+          "description": {
+            "type": "string",
+            "description": "Sport description",
+            "example": "US Football"
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Whether the sport is currently in season"
+          },
+          "has_outrights": {
+            "type": "boolean",
+            "description": "Whether outright/futures markets are available"
+          }
+        },
+        "required": ["key", "group", "title", "description", "active", "has_outrights"]
+      },
+      "BasicEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique event identifier"
+          },
+          "sport_key": {
+            "type": "string"
+          },
+          "sport_title": {
+            "type": "string"
+          },
+          "commence_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "home_team": {
+            "type": "string"
+          },
+          "away_team": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "sport_key", "sport_title", "commence_time", "home_team", "away_team"]
+      },
+      "Event": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BasicEvent"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "bookmakers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Bookmaker"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ScoreEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BasicEvent"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "completed": {
+                "type": "boolean"
+              },
+              "scores": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "$ref": "#/components/schemas/Score"
+                }
+              },
+              "last_update": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "Score": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Team name"
+          },
+          "score": {
+            "type": "string",
+            "description": "Current score"
+          }
+        },
+        "required": ["name", "score"]
+      },
+      "Bookmaker": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "draftkings"
+          },
+          "title": {
+            "type": "string",
+            "example": "DraftKings"
+          },
+          "last_update": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "markets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Market"
+            }
+          }
+        },
+        "required": ["key", "title", "markets"]
+      },
+      "Market": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Market type (h2h, spreads, totals, etc.)",
+            "example": "h2h"
+          },
+          "last_update": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Outcome"
+            }
+          }
+        },
+        "required": ["key", "outcomes"]
+      },
+      "Outcome": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Team/selection name or Over/Under"
+          },
+          "price": {
+            "type": "number",
+            "description": "Odds price (decimal or american format)"
+          },
+          "point": {
+            "type": "number",
+            "description": "Point spread or total line (for spreads/totals markets)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Player name (for player prop markets)"
+          }
+        },
+        "required": ["name", "price"]
+      },
+      "EventMarkets": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sport_key": {
+            "type": "string"
+          },
+          "sport_title": {
+            "type": "string"
+          },
+          "commence_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "home_team": {
+            "type": "string"
+          },
+          "away_team": {
+            "type": "string"
+          },
+          "bookmakers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "markets": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "last_update": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Participant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique participant ID"
+          },
+          "full_name": {
+            "type": "string",
+            "description": "Team or player name"
+          }
+        },
+        "required": ["id", "full_name"]
+      },
+      "HistoricalOddsResponse": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Actual snapshot timestamp"
+          },
+          "previous_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Previous available timestamp"
+          },
+          "next_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Next available timestamp"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        },
+        "required": ["timestamp", "data"]
+      },
+      "HistoricalEventsResponse": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "previous_timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "next_timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BasicEvent"
+            }
+          }
+        },
+        "required": ["timestamp", "data"]
+      },
+      "HistoricalEventOddsResponse": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "previous_timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "next_timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Event"
+          }
+        },
+        "required": ["timestamp", "data"]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Sports",
+      "description": "Sports and participants information"
+    },
+    {
+      "name": "Current Events",
+      "description": "Live and upcoming events with odds and scores"
+    },
+    {
+      "name": "Historical Events",
+      "description": "Historical odds snapshots (paid plans only)"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "name": "sports-data-mcp",
+  "version": "0.1.0",
+  "description": "MCP server providing sports data from The Odds API and ESPN API with natural language query support",
+  "main": "sports_mcp_server.py",
+  "scripts": {
+    "build": "python -m mcpb build",
+    "test": "python -m pytest tests/",
+    "lint": "python -m pylint sports_api/ sports_mcp_server.py"
+  },
+  "keywords": [
+    "mcp",
+    "sports",
+    "odds",
+    "espn",
+    "betting",
+    "nfl",
+    "nba",
+    "mlb",
+    "nhl",
+    "api"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/sports-odds-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/sports-odds-mcp/issues"
+  },
+  "homepage": "https://github.com/yourusername/sports-odds-mcp#readme",
+  "dependencies": {
+    "mcp": "^1.0.0",
+    "aiohttp": "^3.9.0",
+    "python-dotenv": "^1.0.0"
+  },
+  "engines": {
+    "python": ">=3.11"
+  }
+}

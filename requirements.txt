@@ -1,0 +1,19 @@
+# Sports Data MCP - Python Dependencies
+# ======================================
+
+# Core MCP framework
+mcp>=1.0.0
+
+# HTTP client for API requests
+aiohttp>=3.9.0
+aiofiles>=23.0.0
+
+# Environment configuration
+python-dotenv>=1.0.0
+
+# Optional: Development dependencies
+# Uncomment for development work
+# pytest>=7.4.0
+# pytest-asyncio>=0.21.0
+# pylint>=3.0.0
+# black>=23.0.0

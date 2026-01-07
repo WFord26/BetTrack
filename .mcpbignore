@@ -1,0 +1,49 @@
+# MCPB Ignore File
+# Files and directories to exclude from MCPB package
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+*.swp
+
+# Documentation source (include built docs if needed)
+docs/
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+releases/
+
+# OpenAPI specs (reference only, not needed in package)
+odds-api-spec.json
+espn-api-spec.json
+
+# Scripts (not needed in final package)
+scripts/
+
+# Misc
+*.log
+.DS_Store
+Thumbs.db
+README.md
+LICENSE
+CHANGELOG.md
