@@ -90,7 +90,23 @@ Model Context Protocol (MCP) server providing comprehensive sports data from mul
 
 ## Usage
 
-Once installed, you can query sports data using natural language in Claude Desktop:
+Once installed, you can query sports data using natural language in Claude Desktop. **New:** Visual scoreboard cards render automatically!
+
+### Visual Scoreboards (NEW! 🎨)
+
+Get beautiful, interactive scoreboard cards rendered directly in Claude:
+
+**Example:**
+- "Show me a visual scoreboard for NFL games" → Uses `get_visual_scoreboard()`
+- "Create an interactive card for today's NBA games"
+- "Display NHL scores with betting odds visually"
+
+This returns structured data that Claude automatically renders as an **interactive React artifact** with:
+- Team colors and logos
+- Live scores and game status
+- Expandable betting odds (spreads, totals)
+- Smooth animations and hover effects
+- Auto-refresh capabilities
 
 ### Example Queries
 
@@ -117,6 +133,12 @@ Once installed, you can query sports data using natural language in Claude Deskt
 - "Give me comprehensive info on the next Lakers game including odds and team stats"
 
 ## Available Tools
+
+### Visual Display Tools (NEW!)
+- `get_visual_scoreboard` - Returns data formatted for interactive visual cards in Claude
+  - Automatically triggers React artifact rendering
+  - Includes scores, odds, and styling instructions
+  - Supports NFL, NBA, NHL, and more
 
 ### The Odds API Tools
 - `get_available_sports` - List available sports and their keys

@@ -14,6 +14,7 @@ import sys
 import logging
 from typing import Optional
 from pathlib import Path
+from datetime import datetime
 from dotenv import load_dotenv
 from mcp.server import FastMCP
 
@@ -851,9 +852,65 @@ async def get_odds_comparison(
     return {"success": False, "message": "No odds found"}
 
 
-# ============================================================================
-# SERVER ENTRY POINT
-# ============================================================================
+@mcp.tool()
+async def get_visual_scoreboard(
+    sport: str = "americanfootball_nfl",
+    include_odds: bool = True
+) -> dict:
+    """
+    Get NFL/NBA/NHL games formatted for visual rendering as an interactive card.
+    This tool returns structured data that Claude will render as a beautiful visual component.
+    
+    Args:
+        sport: Sport key (americanfootball_nfl, basketball_nba, icehockey_nhl)
+        include_odds: Whether to include betting odds (default: True)
+    
+    Returns:
+        Structured data optimized for visual card rendering with instruction to create artifact
+    
+    Example:
+        get_visual_scoreboard("americanfootball_nfl") -> Returns data for NFL scoreboard card
+    """
+    if not odds_handler:
+        return {
+            "success": False,
+            "error": "Odds API not configured. Please set ODDS_API_KEY environment variable.",
+            "render_instruction": "text"
+        }
+    
+    # Fetch scores
+    scores_result = await odds_handler.get_scores(sport=sport, days_from=3)
+    games_data = scores_result.get("data", []) if scores_result.get("success") else []
+    
+    # Fetch odds if requested
+    if include_odds:
+        odds_result = await odds_handler.get_odds(
+            sport=sport,
+            regions="us",
+            markets="spreads,totals",
+            odds_format="american"
+        )
+        odds_data = odds_result.get("data", []) if odds_result.get("success") else []
+        
+        # Merge odds into games data
+        for game in games_data:
+            game_id = game.get("id")
+            matching_odds = next((o for o in odds_data if o.get("id") == game_id), None)
+            if matching_odds:
+                game["bookmakers"] = matching_odds.get("bookmakers", [])
+    
+    # Format for visual rendering
+    return {
+        "success": True,
+        "sport": sport,
+        "games": games_data,
+        "total_games": len(games_data),
+        "last_updated": datetime.now().isoformat(),
+        "render_instruction": "Please create an interactive React artifact displaying these games as a visual scoreboard with team colors, scores, and expandable betting odds. Use a card-based grid layout with smooth animations and hover effects. Style it similar to modern sports apps like ESPN or The Score.",
+        "visual_hint": "scoreboard_card"
+    }
+
+
 # ============================================================================
 # SERVER ENTRY POINT
 # ============================================================================

@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Visual Scoreboard Cards in Claude**: New `get_visual_scoreboard()` tool
+  - Returns structured data that automatically triggers React artifact rendering in Claude Desktop
+  - Interactive visual scoreboards with team colors, live scores, and expandable betting odds
+  - Smooth animations, hover effects, and modern card-based layouts
+  - No more ASCII text art - get beautiful ESPN-style visual components
+  - Includes render instructions that prompt Claude to create interactive artifacts
+  - Example HTML scoreboard template in `examples/nfl-scoreboard.html`
+
+- **Beta Build from Git Hash**: Build script improvements
+  - `-Beta` flag now works WITHOUT requiring `-VersionBump`
+  - Beta versions use git commit hash (e.g., `v0.1.10-beta.928845c`)
+  - No version bump needed for quick beta testing iterations
+  - Fallback to timestamp if git not available
+
 - **Formatted Output Tools**: 7 new tools for visual display of sports data
   - `get_formatted_scoreboard`: Compact table view of games (replaces verbose JSON)
   - `get_matchup_cards`: ESPN-style matchup cards with ASCII art borders

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFL Live Scoreboard with Betting Odds</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 24px;
+        }
+        
+        #root {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            color: white;
+            text-align: center;
+            font-size: 24px;
+            margin-top: 50px;
+        }
+
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Team data with colors (expand as needed)
+        const NFL_TEAMS = {
+            "Kansas City Chiefs": { abbr: "KC", color: "#E31837" },
+            "Buffalo Bills": { abbr: "BUF", color: "#00338D" },
+            "San Francisco 49ers": { abbr: "SF", color: "#AA0000" },
+            "Los Angeles Rams": { abbr: "LAR", color: "#003594" },
+            "Dallas Cowboys": { abbr: "DAL", color: "#041E42" },
+            "Philadelphia Eagles": { abbr: "PHI", color: "#004C54" },
+            "Green Bay Packers": { abbr: "GB", color: "#203731" },
+            "Minnesota Vikings": { abbr: "MIN", color: "#4F2683" },
+            "Baltimore Ravens": { abbr: "BAL", color: "#241773" },
+            "Cincinnati Bengals": { abbr: "CIN", color: "#FB4F14" },
+            "Miami Dolphins": { abbr: "MIA", color: "#008E97" },
+            "New England Patriots": { abbr: "NE", color: "#002244" },
+            "New York Jets": { abbr: "NYJ", color: "#125740" },
+            "Pittsburgh Steelers": { abbr: "PIT", color: "#FFB612" },
+            "Cleveland Browns": { abbr: "CLE", color: "#311D00" },
+            "Houston Texans": { abbr: "HOU", color: "#03202F" },
+            "Indianapolis Colts": { abbr: "IND", color: "#002C5F" },
+            "Jacksonville Jaguars": { abbr: "JAX", color: "#006778" },
+            "Tennessee Titans": { abbr: "TEN", color: "#0C2340" },
+            "Denver Broncos": { abbr: "DEN", color: "#FB4F14" },
+            "Las Vegas Raiders": { abbr: "LV", color: "#000000" },
+            "Los Angeles Chargers": { abbr: "LAC", color: "#0080C6" },
+            "Arizona Cardinals": { abbr: "ARI", color: "#97233F" },
+            "Atlanta Falcons": { abbr: "ATL", color: "#A71930" },
+            "Carolina Panthers": { abbr: "CAR", color: "#0085CA" },
+            "Chicago Bears": { abbr: "CHI", color: "#0B162A" },
+            "Detroit Lions": { abbr: "DET", color: "#0076B6" },
+            "New Orleans Saints": { abbr: "NO", color: "#D3BC8D" },
+            "New York Giants": { abbr: "NYG", color: "#0B2265" },
+            "Seattle Seahawks": { abbr: "SEA", color: "#002244" },
+            "Tampa Bay Buccaneers": { abbr: "TB", color: "#D50A0A" },
+            "Washington Commanders": { abbr: "WAS", color: "#5A1414" }
+        };
+
+        function getTeamInfo(teamName) {
+            return NFL_TEAMS[teamName] || { abbr: teamName.substring(0, 3).toUpperCase(), color: "#666666" };
+        }
+
+        function GameCard({ game, selectedGame, onSelect }) {
+            const homeTeam = getTeamInfo(game.home_team);
+            const awayTeam = getTeamInfo(game.away_team);
+            const isExpanded = selectedGame === game.id;
+
+            // Parse game status
+            const isCompleted = game.completed;
+            const isLive = !isCompleted && game.scores && (game.scores.some(s => s.score !== null && s.score !== "0"));
+            
+            let statusText = "Scheduled";
+            let statusColor = "#6b7280";
+            
+            if (isCompleted) {
+                statusText = "FINAL";
+                statusColor = "#10b981";
+            } else if (isLive) {
+                statusText = "LIVE";
+                statusColor = "#f59e0b";
+            } else {
+                // Show game time
+                const gameTime = new Date(game.commence_time);
+                statusText = gameTime.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    timeZoneName: 'short'
+                });
+            }
+
+            // Get scores
+            const homeScore = game.scores?.find(s => s.name === game.home_team)?.score || "0";
+            const awayScore = game.scores?.find(s => s.name === game.away_team)?.score || "0";
+
+            // Get best odds from bookmakers
+            let spreadInfo = null;
+            let totalInfo = null;
+            
+            if (game.bookmakers && game.bookmakers.length > 0) {
+                const bookmaker = game.bookmakers[0];
+                
+                const spreadMarket = bookmaker.markets?.find(m => m.key === 'spreads');
+                const totalMarket = bookmaker.markets?.find(m => m.key === 'totals');
+                
+                if (spreadMarket) {
+                    const homeOutcome = spreadMarket.outcomes.find(o => o.name === game.home_team);
+                    spreadInfo = homeOutcome ? `${homeOutcome.name} ${homeOutcome.point > 0 ? '+' : ''}${homeOutcome.point} (${homeOutcome.price > 0 ? '+' : ''}${homeOutcome.price})` : null;
+                }
+                
+                if (totalMarket) {
+                    const overOutcome = totalMarket.outcomes.find(o => o.name === 'Over');
+                    totalInfo = overOutcome ? {
+                        total: overOutcome.point,
+                        over: overOutcome.price,
+                        under: totalMarket.outcomes.find(o => o.name === 'Under')?.price
+                    } : null;
+                }
+            }
+
+            return (
+                <div
+                    onClick={() => onSelect(game.id)}
+                    style={{
+                        background: 'white',
+                        borderRadius: '16px',
+                        padding: '20px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        transform: isExpanded ? 'scale(1.02)' : 'scale(1)',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.02)';
+                        e.currentTarget.style.boxShadow = '0 15px 35px rgba(0,0,0,0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                        if (!isExpanded) {
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
+                        }
+                    }}
+                >
+                    {/* Status Badge */}
+                    <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginBottom: '16px'
+                    }}>
+                        <span style={{
+                            background: statusColor,
+                            color: 'white',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            animation: isLive ? 'pulse 2s infinite' : 'none'
+                        }}>
+                            {statusText}
+                        </span>
+                        {game.bookmakers && game.bookmakers.length > 0 && (
+                            <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                                {game.bookmakers[0].title}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Away Team */}
+                    <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        marginBottom: '8px',
+                        background: '#f9fafb'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '8px',
+                                background: awayTeam.color,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '14px'
+                            }}>
+                                {awayTeam.abbr}
+                            </div>
+                            <span style={{ fontSize: '18px', fontWeight: '600' }}>
+                                {game.away_team}
+                            </span>
+                        </div>
+                        <span style={{ 
+                            fontSize: '28px', 
+                            fontWeight: 'bold',
+                            color: parseInt(awayScore) > parseInt(homeScore) ? '#10b981' : '#374151'
+                        }}>
+                            {awayScore}
+                        </span>
+                    </div>
+
+                    {/* Home Team */}
+                    <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        background: '#f9fafb'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '8px',
+                                background: homeTeam.color,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '14px'
+                            }}>
+                                {homeTeam.abbr}
+                            </div>
+                            <span style={{ fontSize: '18px', fontWeight: '600' }}>
+                                {game.home_team}
+                            </span>
+                        </div>
+                        <span style={{ 
+                            fontSize: '28px', 
+                            fontWeight: 'bold',
+                            color: parseInt(homeScore) > parseInt(awayScore) ? '#10b981' : '#374151'
+                        }}>
+                            {homeScore}
+                        </span>
+                    </div>
+
+                    {/* Betting Odds - Expandable */}
+                    {isExpanded && (spreadInfo || totalInfo) && (
+                        <div style={{
+                            marginTop: '16px',
+                            padding: '16px',
+                            background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+                            borderRadius: '8px',
+                            animation: 'slideDown 0.3s ease-out'
+                        }}>
+                            <div style={{ 
+                                fontSize: '14px', 
+                                fontWeight: 'bold', 
+                                color: '#065f46',
+                                marginBottom: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}>
+                                💰 Betting Lines
+                            </div>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {spreadInfo && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: '#047857', fontWeight: '600' }}>Spread:</span>
+                                        <span style={{ color: '#065f46', fontWeight: 'bold', fontSize: '14px' }}>
+                                            {spreadInfo}
+                                        </span>
+                                    </div>
+                                )}
+                                
+                                {totalInfo && (
+                                    <>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: '#047857', fontWeight: '600' }}>Total:</span>
+                                            <span style={{ color: '#065f46' }}>
+                                                {totalInfo.total}
+                                            </span>
+                                        </div>
+                                        
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                            <span style={{ color: '#059669' }}>Over {totalInfo.over > 0 ? '+' : ''}{totalInfo.over}</span>
+                                            <span style={{ color: '#059669' }}>Under {totalInfo.under > 0 ? '+' : ''}{totalInfo.under}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Click hint */}
+                    <div style={{ 
+                        marginTop: '12px', 
+                        textAlign: 'center', 
+                        color: '#9ca3af',
+                        fontSize: '12px'
+                    }}>
+                        {isExpanded ? '↑ Click to collapse' : '↓ Click for betting odds'}
+                    </div>
+                </div>
+            );
+        }
+
+        function NFLScoreboard() {
+            const [games, setGames] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [selectedGame, setSelectedGame] = useState(null);
+            const [lastUpdate, setLastUpdate] = useState(new Date());
+
+            // Instructions for using with MCP
+            const [showInstructions, setShowInstructions] = useState(true);
+
+            useEffect(() => {
+                loadGames();
+                // Auto-refresh every 60 seconds
+                const interval = setInterval(() => {
+                    loadGames();
+                }, 60000);
+                
+                return () => clearInterval(interval);
+            }, []);
+
+            async function loadGames() {
+                try {
+                    // This is where you'd integrate with your MCP server
+                    // For now, using sample data structure that matches The Odds API format
+                    
+                    // To use with real data:
+                    // 1. Run your Sports MCP server
+                    // 2. Use Claude Desktop to call: get_odds("americanfootball_nfl", markets="h2h,spreads,totals")
+                    // 3. Also call: get_scores("americanfootball_nfl")
+                    // 4. Replace SAMPLE_DATA below with the actual response
+                    
+                    const SAMPLE_DATA = [
+                        {
+                            id: "sample_1",
+                            sport_key: "americanfootball_nfl",
+                            commence_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+                            home_team: "Kansas City Chiefs",
+                            away_team: "Buffalo Bills",
+                            completed: false,
+                            scores: [
+                                { name: "Kansas City Chiefs", score: "24" },
+                                { name: "Buffalo Bills", score: "17" }
+                            ],
+                            bookmakers: [{
+                                title: "DraftKings",
+                                markets: [
+                                    {
+                                        key: "spreads",
+                                        outcomes: [
+                                            { name: "Kansas City Chiefs", price: -110, point: -3 },
+                                            { name: "Buffalo Bills", price: -110, point: 3 }
+                                        ]
+                                    },
+                                    {
+                                        key: "totals",
+                                        outcomes: [
+                                            { name: "Over", price: -110, point: 47.5 },
+                                            { name: "Under", price: -110, point: 47.5 }
+                                        ]
+                                    }
+                                ]
+                            }]
+                        },
+                        {
+                            id: "sample_2",
+                            sport_key: "americanfootball_nfl",
+                            commence_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                            home_team: "San Francisco 49ers",
+                            away_team: "Los Angeles Rams",
+                            completed: true,
+                            scores: [
+                                { name: "San Francisco 49ers", score: "31" },
+                                { name: "Los Angeles Rams", score: "28" }
+                            ],
+                            bookmakers: [{
+                                title: "FanDuel",
+                                markets: [
+                                    {
+                                        key: "spreads",
+                                        outcomes: [
+                                            { name: "San Francisco 49ers", price: -110, point: -7 },
+                                            { name: "Los Angeles Rams", price: -110, point: 7 }
+                                        ]
+                                    },
+                                    {
+                                        key: "totals",
+                                        outcomes: [
+                                            { name: "Over", price: -105, point: 52.5 },
+                                            { name: "Under", price: -115, point: 52.5 }
+                                        ]
+                                    }
+                                ]
+                            }]
+                        },
+                        {
+                            id: "sample_3",
+                            sport_key: "americanfootball_nfl",
+                            commence_time: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+                            home_team: "Dallas Cowboys",
+                            away_team: "Philadelphia Eagles",
+                            completed: false,
+                            scores: null,
+                            bookmakers: [{
+                                title: "BetMGM",
+                                markets: [
+                                    {
+                                        key: "spreads",
+                                        outcomes: [
+                                            { name: "Dallas Cowboys", price: -108, point: 3.5 },
+                                            { name: "Philadelphia Eagles", price: -112, point: -3.5 }
+                                        ]
+                                    },
+                                    {
+                                        key: "totals",
+                                        outcomes: [
+                                            { name: "Over", price: -110, point: 45.5 },
+                                            { name: "Under", price: -110, point: 45.5 }
+                                        ]
+                                    }
+                                ]
+                            }]
+                        }
+                    ];
+
+                    setGames(SAMPLE_DATA);
+                    setLoading(false);
+                    setLastUpdate(new Date());
+                } catch (err) {
+                    setError(err.message);
+                    setLoading(false);
+                }
+            }
+
+            if (loading) {
+                return <div className="loading">Loading NFL games...</div>;
+            }
+
+            if (error) {
+                return <div className="error">Error loading games: {error}</div>;
+            }
+
+            return (
+                <div>
+                    <h1 style={{ 
+                        color: 'white', 
+                        fontSize: '32px', 
+                        fontWeight: 'bold', 
+                        marginBottom: '24px',
+                        textAlign: 'center',
+                        textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+                    }}>
+                        🏈 NFL Live Scoreboard
+                    </h1>
+
+                    {showInstructions && (
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.95)',
+                            borderRadius: '12px',
+                            padding: '20px',
+                            marginBottom: '24px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                                <div>
+                                    <h3 style={{ color: '#1f2937', marginBottom: '12px', fontSize: '18px' }}>
+                                        📡 Using Real-Time Data
+                                    </h3>
+                                    <div style={{ color: '#4b5563', fontSize: '14px', lineHeight: '1.6' }}>
+                                        <p style={{ marginBottom: '8px' }}>
+                                            <strong>To fetch live NFL data with your Sports MCP:</strong>
+                                        </p>
+                                        <ol style={{ marginLeft: '20px', marginBottom: '12px' }}>
+                                            <li>Open Claude Desktop with Sports-Odds-MCP installed</li>
+                                            <li>Run: <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>get_scores("americanfootball_nfl")</code></li>
+                                            <li>Run: <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>get_odds("americanfootball_nfl", markets="h2h,spreads,totals")</code></li>
+                                            <li>Replace SAMPLE_DATA in the code with the API responses</li>
+                                        </ol>
+                                        <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '8px' }}>
+                                            💡 Currently showing sample data for demonstration
+                                        </p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setShowInstructions(false)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#9ca3af',
+                                        cursor: 'pointer',
+                                        fontSize: '20px',
+                                        padding: '4px'
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                        gap: '20px',
+                        marginBottom: '32px'
+                    }}>
+                        {games.map(game => (
+                            <GameCard 
+                                key={game.id}
+                                game={game}
+                                selectedGame={selectedGame}
+                                onSelect={(id) => setSelectedGame(selectedGame === id ? null : id)}
+                            />
+                        ))}
+                    </div>
+
+                    <div style={{
+                        textAlign: 'center',
+                        color: 'white',
+                        fontSize: '14px',
+                        opacity: 0.8
+                    }}>
+                        <p>🎯 Interactive NFL Scoreboard with Live Odds</p>
+                        <p style={{ marginTop: '8px' }}>
+                            Click any game card to view betting lines • Last updated: {lastUpdate.toLocaleTimeString()}
+                        </p>
+                        <button 
+                            onClick={loadGames}
+                            style={{
+                                marginTop: '16px',
+                                background: 'rgba(255, 255, 255, 0.2)',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                color: 'white',
+                                padding: '8px 20px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '600'
+                            }}
+                        >
+                            🔄 Refresh
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<NFLScoreboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
