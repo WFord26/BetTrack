@@ -79,7 +79,7 @@ Model Context Protocol (MCP) server providing comprehensive sports data from mul
      "mcpServers": {
        "sports-data": {
          "command": "python",
-         "args": ["C:/path/to/sports-odds-mcp/sports_mcp_server.py"],
+         "args": ["C:/path/to/sports-odds-mcp/mcp/sports_mcp_server.py"],
          "env": {
            "ODDS_API_KEY": "your_api_key_here"
          }
@@ -156,31 +156,85 @@ This returns structured data that Claude automatically renders as an **interacti
 
 ## Building from Source
 
-### Build MCPB Package
+The project includes a comprehensive PowerShell build script that supports both MCP server and dashboard builds.
+
+### Quick Start
 
 ```powershell
-# Patch version bump
-.\scripts\build\build.ps1 -VersionBump patch
+# Build MCP package (MCPB)
+cd mcp
+.\scripts\build\build.ps1 -MCP -VersionBump patch
 
-# Minor version bump with GitHub release
-.\scripts\build\build.ps1 -VersionBump minor -Release
+# Build web dashboard
+.\scripts\build\build.ps1 -Dashboard
 
-# Clean build artifacts
-.\scripts\build\build.ps1 -Clean
+# Build both
+.\scripts\build\build.ps1 -MCP -Dashboard -VersionBump minor
 ```
 
-### Build Options
+### Build Documentation
 
-- `-VersionBump` - Bump version (major/minor/patch)
-- `-Release` - Create GitHub release
-- `-Clean` - Clean build artifacts
+For complete build documentation, see:
+- **[Build Scripts Documentation](mcp/scripts/build/README.md)** - Full reference with all options
+- **[Quick Reference](mcp/scripts/build/QUICK_REFERENCE.md)** - Command cheat sheet
+
+### Common Build Commands
+
+```powershell
+# MCP builds
+.\scripts\build\build.ps1 -MCP -VersionBump patch           # Patch release
+.\scripts\build\build.ps1 -MCP -Beta                        # Beta with git hash
+.\scripts\build\build.ps1 -MCP -VersionBump minor -Release  # GitHub release
+
+# Dashboard builds
+.\scripts\build\build.ps1 -Dashboard                        # Production build
+.\scripts\build\build.ps1 -Dashboard -Clean                 # Clean then build
+
+# Maintenance
+.\scripts\build\build.ps1 -Clean                            # Clean all artifacts
+```
+
+### Build Targets
+
+- **`-MCP`** - Build MCP server package (MCPB format)
+  - Output: `mcp/releases/sports-data-mcp-v{version}.mcpb`
+  - For Claude Desktop installation
+
+- **`-Dashboard`** - Build web dashboard (React + Node.js)
+  - Output: `dashboard/dist/` (backend + frontend)
+  - For web server deployment
+
+- **Both** - Use `-MCP -Dashboard` to build everything
+
+### Prerequisites
+
+**For MCP builds:**
+- Python 3.11+
+- pip
+
+**For dashboard builds:**
+- Node.js 20+
+- npm 10+
 
 ## Configuration
 
 ### Environment Variables
 
 - `ODDS_API_KEY` - **(Required)** Your Odds API key
+- `BOOKMAKERS_FILTER` - **(Optional)** Comma-separated list of bookmaker keys to include (e.g., `draftkings,fanduel,betmgm`)
+  - Filters odds results to only show specified betting sites
+  - Leave empty or comment out to include all bookmakers
+  - Common bookmaker keys: `draftkings`, `fanduel`, `betmgm`, `caesars`, `barstool`, `pointsbet`, `bet365`, `mybookieag`, `bovada`, `williamhill`
+- `BOOKMAKERS_LIMIT` - **(Optional)** Maximum number of bookmakers to show per game (default: 5)
 - `LOG_LEVEL` - Logging level (default: INFO)
+
+**Example .env configuration:**
+```bash
+ODDS_API_KEY=your_api_key_here
+BOOKMAKERS_FILTER=draftkings,fanduel,betmgm
+BOOKMAKERS_LIMIT=3
+LOG_LEVEL=INFO
+```
 
 ### API Rate Limits
 

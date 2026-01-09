@@ -8,10 +8,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Dual-Target Build System**: Build script now supports both MCP and Dashboard builds
+  - `-MCP` flag: Build MCPB package for Claude Desktop
+  - `-Dashboard` flag: Build web dashboard (React frontend + Node.js backend)
+  - Can build both simultaneously: `.\build.ps1 -MCP -Dashboard -VersionBump patch`
+  - Separate clean operations: `-Clean` with `-MCP` or `-Dashboard` for targeted cleanup
+  - Dashboard build creates unified dist/ with backend, frontend, Prisma schema, and deployment files
+  - MCP build maintains existing MCPB packaging with version management
+
+- **Player Prop Betting Markets**: Full support for player proposition bets
+  - NBA: player_points, player_rebounds, player_assists, player_threes, player_blocks, player_steals, player_double_double, player_triple_double, and combo props
+  - NFL: player_pass_tds, player_pass_yds, player_rush_yds, player_receptions, player_reception_yds, player_anytime_touchdown, player_first_touchdown, and more
+  - MLB: player_home_runs, player_hits, player_strikeouts, player_rbis, player_stolen_bases, and pitching props
+  - NHL: player_points, player_shots_on_goal, player_blocked_shots, player_saves, player_goals
+  - All player props work with `get_odds()`, `get_event_odds()`, and `search_odds()` tools
+  - Use markets parameter: `markets="player_points,player_rebounds"` to query player props
+  - Combine with game markets: `markets="h2h,spreads,player_points"`
+
+- **Bookmaker Filtering**: New environment variables to control which betting sites are searched
+  - `BOOKMAKERS_FILTER`: Comma-separated list of bookmaker keys to include (e.g., `draftkings,fanduel,betmgm`)
+  - `BOOKMAKERS_LIMIT`: Maximum number of bookmakers to show per game (default: 5)
+  - Filters apply to all odds queries: `get_odds()`, `get_event_odds()`, `search_odds()`
+  - Reduces API response size and focuses on preferred sportsbooks
+  - Common bookmaker keys: draftkings, fanduel, betmgm, caesars, barstool, pointsbet, bet365, mybookieag, bovada, williamhill
+
 - **Pre-Built Artifact Tool**: `get_odds_card_artifact()` - Returns COMPLETE HTML artifacts
   - Generates fully-populated React component with real odds data
   - **Includes real team logos** from ESPN CDN (500px high-quality PNGs)
   - No more building from scratch - Claude renders directly
+
+### Removed
+- **ASCII Art Odds Comparison**: Removed `get_odds_comparison()` tool
+  - Modern visual artifacts (get_odds_card_artifact) replace text-based formatting
+  - Raw API data still available via get_odds() and get_event_odds()
   - Just call: `get_odds_card_artifact("Nuggets")` → instant odds comparison card
   - Includes odds from 5 bookmakers with best odds highlighted in green
   - Much faster than instructing Claude to build artifacts manually

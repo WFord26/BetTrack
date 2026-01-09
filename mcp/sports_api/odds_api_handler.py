@@ -7,7 +7,7 @@ Handles requests to The Odds API for betting odds and scores.
 import aiohttp
 import asyncio
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -18,15 +18,38 @@ class OddsAPIHandler:
     
     BASE_URL = "https://api.the-odds-api.com"
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: Union[str, List[str]], bookmakers_filter: Optional[List[str]] = None, bookmakers_limit: int = 5):
         """
         Initialize Odds API handler.
         
         Args:
-            api_key: The Odds API key
+            api_key: The Odds API key (single key or list of keys for round-robin)
+            bookmakers_filter: Optional list of bookmaker keys to include (e.g., ['draftkings', 'fanduel'])
+            bookmakers_limit: Maximum number of bookmakers to return per game (default: 5)
         """
-        self.api_key = api_key
+        # Support single key or multiple keys for round-robin
+        if isinstance(api_key, str):
+            self.api_keys = [api_key]
+        else:
+            self.api_keys = api_key
+        
+        self.current_key_index = 0
         self.session: Optional[aiohttp.ClientSession] = None
+        self.bookmakers_filter = [bm.lower() for bm in bookmakers_filter] if bookmakers_filter else None
+        self.bookmakers_limit = bookmakers_limit
+        
+        if len(self.api_keys) > 1:
+            logger.info(f"🎲 Round-robin mode enabled with {len(self.api_keys)} API keys")
+    
+    def _get_next_api_key(self) -> str:
+        """Get the next API key in round-robin fashion."""
+        key = self.api_keys[self.current_key_index]
+        self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+        
+        if len(self.api_keys) > 1:
+            logger.debug(f"Using API key #{self.current_key_index + 1} of {len(self.api_keys)}")
+        
+        return key
     
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -48,7 +71,7 @@ class OddsAPIHandler:
         if params is None:
             params = {}
         
-        params["apiKey"] = self.api_key
+        params["apiKey"] = self._get_next_api_key()
         
         url = f"{self.BASE_URL}{endpoint}"
         session = await self._get_session()
@@ -86,6 +109,44 @@ class OddsAPIHandler:
                 "success": False,
                 "error": str(e)
             }
+    
+    def _filter_bookmakers(self, data: Dict) -> Dict:
+        """
+        Filter bookmakers in API response data based on configured filters.
+        
+        Args:
+            data: API response data containing games with bookmakers
+        
+        Returns:
+            Filtered data with only specified bookmakers
+        """
+        if not isinstance(data, dict) or "data" not in data:
+            return data
+        
+        games = data.get("data", [])
+        if not isinstance(games, list):
+            return data
+        
+        # Filter bookmakers for each game
+        for game in games:
+            if "bookmakers" in game and isinstance(game["bookmakers"], list):
+                bookmakers = game["bookmakers"]
+                
+                # Apply bookmaker filter if specified
+                if self.bookmakers_filter:
+                    bookmakers = [
+                        bm for bm in bookmakers
+                        if bm.get("key", "").lower() in self.bookmakers_filter
+                    ]
+                    logger.debug(f"Filtered to {len(bookmakers)} bookmakers from filter list")
+                
+                # Apply limit
+                if self.bookmakers_limit:
+                    bookmakers = bookmakers[:self.bookmakers_limit]
+                
+                game["bookmakers"] = bookmakers
+        
+        return data
     
     async def get_sports(self, all_sports: bool = False) -> Dict:
         """
@@ -136,6 +197,11 @@ class OddsAPIHandler:
         
         endpoint = f"/v4/sports/{sport}/odds"
         result = await self._make_request(endpoint, params)
+        
+        # Filter bookmakers if configured
+        if result.get("success"):
+            result = self._filter_bookmakers(result)
+        
         return result
     
     async def get_scores(self, sport: str, days_from: int = 3) -> Dict:
@@ -188,6 +254,18 @@ class OddsAPIHandler:
         
         endpoint = f"/v4/sports/{sport}/events/{event_id}/odds"
         result = await self._make_request(endpoint, params)
+        
+        # Filter bookmakers if configured
+        if result.get("success"):
+            # For single event, wrap in data array for filtering
+            if "data" not in result and isinstance(result.get("bookmakers"), list):
+                temp_result = {"success": True, "data": [result]}
+                temp_result = self._filter_bookmakers(temp_result)
+                if temp_result.get("data"):
+                    result = {**result, "bookmakers": temp_result["data"][0].get("bookmakers", [])}
+            else:
+                result = self._filter_bookmakers(result)
+        
         return result
     
     async def search_odds(

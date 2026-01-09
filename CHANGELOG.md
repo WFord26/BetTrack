@@ -8,6 +8,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Dashboard**: Comprehensive bet management features
+  - Cash Out functionality with custom payout entry for pending bets
+  - Delete functionality with force option to remove any bet regardless of status
+  - Confirmation modals for both actions with dark mode support
+
+### Changed
+- **Dashboard**: Statistics page now displays real data from backend API
+  - Sport breakdown mapped from API's `bySport` statistics
+  - Bet type breakdown mapped from API's `byBetType` statistics
+  - Win rates and P&L calculated from actual bet data
+  - Removed all mock/temporary data
+- **Dashboard**: Improved bet slip UX
+  - Selections now properly reset after successful bet placement
+  - Game names now display correctly on bet leg items
+  - Decimal odds increment/decrement smoothly by 0.05 (was erratic)
+  - American odds increment/decrement by 5 points
+  - Input fields now allow direct typing without forced conversions
+  - Removed duplicate +/- controls from number inputs
+
+### Fixed
+- **Dashboard**: Dark mode now applies to all bet card components
+  - BetCard: Dark backgrounds, borders, text, and leg items
+  - BetLegItem: Dark mode for container, inputs, buttons, and text
+  - BetSlip: Dark mode for container, inputs, labels, and empty state
+  - All components have proper contrast and readability in dark mode
+
+## [Previous Releases]
+### Changed
+- **Project Structure**: Renamed `src/` folder to `mcp/` for clarity
+  - Separates MCP server code from dashboard components
+  - Makes project structure more intuitive
+  - All documentation and build scripts update
+
+### Added
+- **Player Prop Betting Markets**: Full support for player proposition bets
+  - NBA: player_points, player_rebounds, player_assists, player_threes, player_blocks, player_steals, player_double_double, player_triple_double, and combo props
+  - NFL: player_pass_tds, player_pass_yds, player_rush_yds, player_receptions, player_reception_yds, player_anytime_touchdown, player_first_touchdown, and more
+  - MLB: player_home_runs, player_hits, player_strikeouts, player_rbis, player_stolen_bases, and pitching props
+  - NHL: player_points, player_shots_on_goal, player_blocked_shots, player_saves, player_goals
+  - All player props work with `get_odds()`, `get_event_odds()`, and `search_odds()` tools
+  - Use markets parameter: `markets="player_points,player_rebounds"` to query player props
+  - Combine with game markets: `markets="h2h,spreads,player_points"`
+
+- **Bookmaker Filtering**: New environment variables to control which betting sites are searched
+  - `BOOKMAKERS_FILTER`: Comma-separated list of bookmaker keys to include (e.g., `draftkings,fanduel,betmgm`)
+  - `BOOKMAKERS_LIMIT`: Maximum number of bookmakers to show per game (default: 5)
+  - Filters apply to all odds queries: `get_odds()`, `get_event_odds()`, `search_odds()`
+  - Reduces API response size and focuses on preferred sportsbooks
+  - Common bookmaker keys: draftkings, fanduel, betmgm, caesars, barstool, pointsbet, bet365, mybookieag, bovada, williamhill
+
 - **Team Logo URLs**: Helper function for generating ESPN CDN logo URLs
   - `get_team_logo_url()` generates logo URLs by team name
   - Supports NFL, NBA, NHL with both standard and dark mode logos (500px PNG format)
