@@ -9,7 +9,7 @@ import { env } from '../config/env';
  * Runs every N minutes (configured via OUTCOME_CHECK_INTERVAL env var)
  */
 
-const CHECK_INTERVAL = parseInt(env.OUTCOME_CHECK_INTERVAL, 10) || 5;
+const CHECK_INTERVAL = parseInt(env.OUTCOME_CHECK_INTERVAL, 10) || 1;
 
 // Convert minutes to cron expression
 // Every N minutes: */N * * * *

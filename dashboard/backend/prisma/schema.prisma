@@ -52,6 +52,8 @@ model Game {
   status        String         @default("scheduled") @db.VarChar(20)
   homeScore     Int?           @map("home_score")
   awayScore     Int?           @map("away_score")
+  period        String?        @db.VarChar(20)
+  clock         String?        @db.VarChar(20)
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   sport         Sport          @relation(fields: [sportId], references: [id])

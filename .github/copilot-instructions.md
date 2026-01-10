@@ -47,6 +47,44 @@ Sports-Odds-MCP/
 
 ## Critical Development Workflows
 
+### Pre-Push Build Verification
+
+**IMPORTANT**: Always run build scripts before pushing changes to ensure production builds succeed.
+
+```powershell
+# MCP Server - Build MCPB package
+cd mcp/scripts/build
+.\build.ps1 -VersionBump patch  # or -Beta for testing
+
+# Dashboard Backend - Build TypeScript
+cd dashboard/backend
+npm run build
+
+# Dashboard Frontend - Build React app
+cd dashboard/frontend
+npm run build
+
+# Verify build outputs
+ls mcp/releases/  # Check for new .mcpb file
+ls dashboard/dist/backend/  # Check for compiled JS files
+ls dashboard/dist/frontend/  # Check for bundled assets
+```
+
+**Build verification checklist**:
+- [ ] MCP server builds without errors (`mcp/scripts/build/build.ps1`)
+- [ ] Backend TypeScript compiles (`npm run build` in dashboard/backend/)
+- [ ] Frontend bundles successfully (`npm run build` in dashboard/frontend/)
+- [ ] No TypeScript errors (`npm run type-check` if available)
+- [ ] Tests pass (if applicable)
+- [ ] Version numbers updated in manifest.json and package.json files
+
+**When to build**:
+- Before every commit that changes MCP server code
+- Before every commit that changes dashboard backend/frontend
+- After updating dependencies (package.json, requirements.txt)
+- Before creating pull requests
+- Before tagging releases
+
 ### Build System (PowerShell)
 **Location**: `mcp/scripts/build/build.ps1`
 
@@ -124,6 +162,12 @@ npm run prisma:studio  # Visual database browser
 npm run init:sports    # Seed sports/leagues via admin API
 npm run sync:odds      # Manual odds sync via admin API (background)
 npm run resolve:outcomes  # Resolve bet outcomes via admin API (background)
+
+# Build for production (REQUIRED before push)
+cd dashboard/backend
+npm run build  # Compiles TypeScript to dist/backend/
+cd ../frontend
+npm run build  # Bundles React app to dist/frontend/
 ```
 
 **Admin API Endpoints** (`/api/admin`):
@@ -358,15 +402,23 @@ model OddSnapshot {
 
 10. **Admin background jobs**: Sync and resolve endpoints return immediately but process asynchronously. Monitor logs or use `/admin/stats` to check progress.
 
+11. **Build before push**: Always run build scripts before pushing. TypeScript errors and bundling issues must be caught locally, not in CI/CD. Check `dist/` folders to verify successful builds.
+
 ## Quick Reference Commands
 ```bash
 # Start MCP server (development)
 cd mcp
 python sports_mcp_server.py
 
-# Build MCPB package
+# Build MCPB package (REQUIRED before push)
 cd mcp/scripts/build
 .\build.ps1 -VersionBump patch
+
+# Build dashboard (REQUIRED before push)
+cd dashboard/backend
+npm run build
+cd ../frontend  
+npm run build
 
 # Dashboard backend
 cd dashboard/backend

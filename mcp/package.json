@@ -1,6 +1,6 @@
 {
   "name": "sports-data-mcp",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "MCP server providing sports data from The Odds API and ESPN API with natural language query support",
   "main": "sports_mcp_server.py",
   "scripts": {

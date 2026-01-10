@@ -158,19 +158,6 @@ export class OutcomeResolverService {
       const competition = matchedEvent.competitions[0];
       const status = competition.status.type;
 
-      // Check if completed
-      if (!status.completed) {
-        // Update to in_progress if needed
-        if (game.status === 'scheduled' && status.state === 'in') {
-          await prisma.game.update({
-            where: { id: game.id },
-            data: { status: 'in_progress' }
-          });
-          logger.info(`Updated game ${game.id} to in_progress`);
-        }
-        return null;
-      }
-
       // Extract scores
       const homeCompetitor = competition.competitors.find(c => c.homeAway === 'home');
       const awayCompetitor = competition.competitors.find(c => c.homeAway === 'away');
@@ -180,9 +167,49 @@ export class OutcomeResolverService {
         return null;
       }
 
+      const homeScore = parseInt(homeCompetitor.score, 10);
+      const awayScore = parseInt(awayCompetitor.score, 10);
+
+      // Extract period and clock information (with type safety)
+      const period = (status as any).period ? `${(status as any).period}` : null;
+      const clock = (competition.status as any).displayClock || null;
+
+      // Check if completed
+      if (!status.completed) {
+        // Update to in_progress with live scores
+        if (game.status === 'scheduled' && status.state === 'in') {
+          await prisma.game.update({
+            where: { id: game.id },
+            data: { 
+              status: 'in_progress',
+              homeScore: homeScore,
+              awayScore: awayScore,
+              period: period,
+              clock: clock,
+              updatedAt: new Date()
+            }
+          });
+          logger.info(`Updated game ${game.id} to in_progress with live scores: ${homeScore}-${awayScore}`);
+        } else if (game.status === 'in_progress') {
+          // Update live scores for already in-progress games
+          await prisma.game.update({
+            where: { id: game.id },
+            data: { 
+              homeScore: homeScore,
+              awayScore: awayScore,
+              period: period,
+              clock: clock,
+              updatedAt: new Date()
+            }
+          });
+          logger.debug(`Updated live scores for game ${game.id}: ${homeScore}-${awayScore}`);
+        }
+        return null;
+      }
+
       return {
-        homeScore: parseInt(homeCompetitor.score, 10),
-        awayScore: parseInt(awayCompetitor.score, 10),
+        homeScore: homeScore,
+        awayScore: awayScore,
         status: status.name,
         completed: true
       };

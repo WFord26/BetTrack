@@ -16,8 +16,12 @@ interface Game {
   homeTeamName: string;
   commenceTime: string;
   status: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
   awayOdds?: GameOdds;
   homeOdds?: GameOdds;
+  period?: string | null;
+  clock?: string | null;
 }
 
 interface Selection {
@@ -79,7 +83,7 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
       selectionType: 'moneyline',
       selection,
       odds,
-      gameName: `${game.awayTeamName} @ ${game.homeTeamName}`,
+      gameName: `${game.awayTeamName} vs ${game.homeTeamName}`,
       teamName: selection === 'home' ? game.homeTeamName : game.awayTeamName
     });
   };
@@ -96,7 +100,7 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
       selection,
       odds,
       line,
-      gameName: `${game.awayTeamName} @ ${game.homeTeamName}`,
+      gameName: `${game.awayTeamName} vs ${game.homeTeamName}`,
       teamName: selection === 'home' ? game.homeTeamName : game.awayTeamName
     });
   };
@@ -113,26 +117,34 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
       selection,
       odds,
       line,
-      gameName: `${game.awayTeamName} @ ${game.homeTeamName}`
+      gameName: `${game.awayTeamName} vs ${game.homeTeamName}`
     });
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       {/* Game Header */}
-      <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+      <div className="bg-gray-50 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className={`${sportColor} text-white text-xs font-bold px-2 py-1 rounded`}>
               {sportBadge}
             </span>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-gray-300">
               {formatTime(game.commenceTime)}
             </span>
             {isLive && (
-              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded animate-pulse">
-                LIVE
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded animate-pulse">
+                  LIVE
+                </span>
+                {(game.period || game.clock) && (
+                  <span className="text-xs text-gray-600 dark:text-gray-300">
+                    {game.period && <span>{game.period}</span>}
+                    {game.clock && <span className="ml-1">{game.clock}</span>}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <div className={`${bookmakerInfo.color} text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1`}>
@@ -141,7 +153,7 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
           </div>
         </div>
         {/* Game Location/Weather Info */}
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-500 dark:text-gray-400">
           <span>📍 {game.venue || `${game.homeTeamName} Home`}</span>
           {game.weather && (
             <span className="ml-3">🌤️ {game.weather}</span>
@@ -156,7 +168,7 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
       </div>
 
       {/* Column Headers */}
-      <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-2 bg-gray-100 text-xs font-semibold text-gray-600">
+      <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300">
         <div>Team</div>
         <div className="text-center">Spread</div>
         <div className="text-center">Total</div>
@@ -164,10 +176,15 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
       </div>
 
       {/* Away Team Row */}
-      <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 border-b border-gray-100 items-center">
-        <div className="font-medium text-gray-900">
-          {game.awayTeamName}
-          <span className="text-xs text-gray-500 ml-2">@</span>
+      <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700 items-center">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium text-gray-900 dark:text-white">{game.awayTeamName}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Away</div>
+          </div>
+          {isLive && game.awayScore !== null && game.awayScore !== undefined && (
+            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{game.awayScore}</span>
+          )}
         </div>
         
         <div className="flex justify-center">
@@ -219,7 +236,15 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
 
       {/* Home Team Row */}
       <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 items-center">
-        <div className="font-medium text-gray-900">{game.homeTeamName}</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium text-gray-900 dark:text-white">{game.homeTeamName}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Home</div>
+          </div>
+          {isLive && game.homeScore !== null && game.homeScore !== undefined && (
+            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{game.homeScore}</span>
+          )}
+        </div>
         
         <div className="flex justify-center">
           {game.homeOdds?.spread ? (

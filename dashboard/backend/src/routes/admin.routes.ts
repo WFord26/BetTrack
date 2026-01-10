@@ -26,7 +26,7 @@ router.post('/init-sports', async (_req: Request, res: Response) => {
   try {
     logger.info('Initializing sports in database via API...');
 
-    const results = [];
+    const results: any[] = [];
     for (const sport of SPORTS) {
       const result = await prisma.sport.upsert({
         where: { key: sport.key },
@@ -69,8 +69,8 @@ router.post('/sync-odds', async (req: Request, res: Response) => {
 
     // Run sync in background
     const syncPromise = sportKey 
-      ? oddsSyncService.syncSport(sportKey)
-      : oddsSyncService.syncAllSports();
+      ? oddsSyncService.syncSportOdds(sportKey)
+      : oddsSyncService.syncAllOdds();
 
     // Don't await - return immediately and let sync run
     syncPromise.catch(error => {

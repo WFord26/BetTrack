@@ -257,7 +257,7 @@ router.get('/:id/odds/history', async (req: Request, res: Response) => {
     const history = await prisma.oddsSnapshot.findMany({
       where,
       orderBy: {
-        timestamp: 'asc'
+        capturedAt: 'asc'
       }
     });
     

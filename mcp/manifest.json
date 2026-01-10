@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.2",
   "name": "sports-data-mcp",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "MCP server providing sports data from The Odds API and ESPN API with natural language query support",
   "author": {
     "name": "Your Name",

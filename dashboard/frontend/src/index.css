@@ -36,24 +36,10 @@
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900;
-    min-height: 100vh;
-  }
-  
-  html {
-    @apply bg-gray-50;
-  }
-  
-  #root {
-    @apply bg-gray-50;
-    min-height: 100vh;
   }
 }
 
 @layer components {
-  .app {
-    @apply bg-gray-50 min-h-screen;
-  }
-  
   .btn-primary {
     @apply bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors;
   }

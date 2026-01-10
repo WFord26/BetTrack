@@ -44,7 +44,11 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
   const [bookmakers] = useState(['draftkings', 'fanduel', 'betmgm', 'pointsbet', 'bovada', 'mybookie']);
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    // Use local date instead of UTC
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   });
 
   // Fetch games

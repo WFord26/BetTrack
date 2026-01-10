@@ -89,7 +89,7 @@ export default function BetLegItem({
   // Get game name
   const getGameName = () => {
     if (leg.game) {
-      return `${leg.game.awayTeamName} @ ${leg.game.homeTeamName}`;
+      return `${leg.game.awayTeamName} vs ${leg.game.homeTeamName}`;
     }
     // Fallback to gameName if game object not available
     if ((leg as any).gameName) {

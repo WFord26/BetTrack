@@ -1,11 +1,77 @@
-# Changelog
+# Sports Odds MCP - Master Changelog
 
-All notable changes to Sports Data MCP will be documented in this file.
+This project consists of two main components:
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+- **MCP Server**: FastMCP server providing sports data to Claude Desktop ([mcp/CHANGELOG.md](mcp/CHANGELOG.md))
+- **Web Dashboard**: React + Node.js web application for bet tracking ([dashboard/CHANGELOG.md](dashboard/CHANGELOG.md))
+
+## Component Changelogs
+
+For detailed change history, see the component-specific changelogs:
+
+- [MCP Server Changelog](mcp/CHANGELOG.md) - FastMCP server, tools, formatters, API integrations
+- [Dashboard Changelog](dashboard/CHANGELOG.md) - Web UI, backend API, database, bet management
+
+## Project-Level Changes
+
+Changes that affect the entire project structure:
+
+### [Unreleased]
+
+### [Previous Releases]
+
+#### v0.1.14 - Project Structure Reorganization
+- **Project Structure**: Renamed `src/` folder to `mcp/`
+  - Separates MCP server code from dashboard components
+  - Makes project structure more intuitive for dual-platform project
+  - Updated all documentation and build scripts to reflect new structure
+  - Each component now has its own changelog and versioning
+
+#### v0.1.0 - Dual-Platform Architecture
+- **Architecture**: Established dual-platform design
+  - MCP Server for Claude Desktop (stdio transport, FastMCP)
+  - Web Dashboard for browser-based interaction (HTTP, React + Node.js)
+  - Shared data sources: The Odds API and ESPN API
+  - Independent build systems for each platform
+  - Component-specific versioning and changelog tracking
 
 ## [Unreleased]
+
+### Added
+- **Dashboard**: Live game tracking with period and clock display
+  - Added `period` and `clock` fields to Game model for real-time game state
+  - Period and clock information displayed next to LIVE indicator
+  - ESPN API fetches game period and clock data every minute
+- **Dashboard**: Home/Away labels on game cards
+  - Clear visual indication of home and away teams
+  - Labels displayed below team names in uppercase
+
+### Changed
+- **Dashboard**: Improved game display formatting
+  - Replaced "@" symbol with "vs" in all game matchup displays (BetCard, BetLegItem, GameCard)
+  - Scores now right-aligned for better visual hierarchy
+  - Larger score font size (2xl) for improved readability
+- **Dashboard**: Enhanced data accuracy
+  - Date picker now defaults to local timezone instead of UTC
+  - Prevents off-by-one date errors in different timezones
+- **Dashboard**: Faster live updates
+  - ESPN API check interval reduced from 5 minutes to 1 minute
+  - More responsive live score and game state updates
+
+### Fixed
+- **Dashboard**: Clear All button now properly clears bet selections
+  - Fixed callback chain to reset both bet slip and visual selections on game cards
+  - Selections no longer remain highlighted after clearing bet slip
+
+### Technical
+- **Backend**: Prisma client regenerated after schema changes
+  - Added period and clock fields to database schema
+  - Updated outcome resolver service to capture live game state
+  - Fixed TypeScript compilation with updated types
+
+---
+
+## [Previous Releases]
 
 ### Added
 - **Dashboard**: Comprehensive bet management features
@@ -33,8 +99,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - BetLegItem: Dark mode for container, inputs, buttons, and text
   - BetSlip: Dark mode for container, inputs, labels, and empty state
   - All components have proper contrast and readability in dark mode
-
-## [Previous Releases]
 ### Changed
 - **Project Structure**: Renamed `src/` folder to `mcp/` for clarity
   - Separates MCP server code from dashboard components

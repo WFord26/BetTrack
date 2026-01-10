@@ -26,13 +26,14 @@ services:
       dockerfile: Dockerfile.dev
     container_name: sports-dashboard-backend
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql://sports_user:sports_password_change_in_production@postgres:5432/sports_betting_dashboard
-      ODDS_API_KEY: ${ODDS_API_KEY:-}
       PORT: 3001
       NODE_ENV: development
       LOG_LEVEL: info
-      ODDS_SYNC_INTERVAL: 10
+      ODDS_SYNC_INTERVAL: 1440
       OUTCOME_CHECK_INTERVAL: 5
     ports:
       - "3001:3001"

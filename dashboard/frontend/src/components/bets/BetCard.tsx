@@ -212,7 +212,7 @@ export default function BetCard({ bet }: BetCardProps) {
 
                     {/* Game */}
                     <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">
-                      {leg.game ? `${leg.game.awayTeamName} @ ${leg.game.homeTeamName}` : 'Game'}
+                      {leg.game ? `${leg.game.awayTeamName} vs ${leg.game.homeTeamName}` : 'Game'}
                     </p>
 
                     {/* Selection */}

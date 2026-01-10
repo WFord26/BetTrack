@@ -147,7 +147,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
             </svg>
           </button>
           <button
-            onClick={clearSlip}
+            onClick={handleClearSlip}
             className="text-white/80 hover:text-white transition-colors text-sm font-medium"
           >
             Clear All
