@@ -60,7 +60,7 @@ export class OutcomeResolverService {
     try {
       // Find games that should be finished
       const now = new Date();
-      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
 
       const games = await prisma.game.findMany({
         where: {
@@ -69,7 +69,7 @@ export class OutcomeResolverService {
           },
           commenceTime: {
             lt: now,
-            gt: twoHoursAgo // Don't check games older than 2 hours
+            gt: sixHoursAgo // Don't check games older than 6 hours
           }
         },
         include: {

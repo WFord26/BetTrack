@@ -44,6 +44,7 @@ interface GameCardProps {
 
 export default function GameCard({ game, onSelect, selectedBets = new Set(), useDecimalOdds = false, bookmaker = 'draftkings' }: GameCardProps) {
   const isLive = game.status === 'in_progress';
+  const isCompleted = game.status === 'final';
   const sportBadge = getSportDisplayName(game.sportKey);
   const sportColor = getSportColorClass(game.sportKey);
 
@@ -167,131 +168,168 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
         </div>
       </div>
 
-      {/* Column Headers */}
-      <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300">
-        <div>Team</div>
-        <div className="text-center">Spread</div>
-        <div className="text-center">Total</div>
-        <div className="text-center">Moneyline</div>
-      </div>
+      {/* Column Headers - Only show for active games */}
+      {!isCompleted && (
+        <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300">
+          <div>Team</div>
+          <div className="text-center">Spread</div>
+          <div className="text-center">Total</div>
+          <div className="text-center">Moneyline</div>
+        </div>
+      )}
+      
+      {/* Final Score Header for completed games */}
+      {isCompleted && (
+        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 text-center">
+          Final Score
+        </div>
+      )}
 
       {/* Away Team Row */}
-      <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700 items-center">
-        <div className="flex items-center justify-between">
+      {!isCompleted ? (
+        <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700 items-center">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-gray-900 dark:text-white">{game.awayTeamName}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Away</div>
+            </div>
+            {isLive && game.awayScore !== null && game.awayScore !== undefined && (
+              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {game.awayScore}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex justify-center">
+            {game.awayOdds?.spread ? (
+              <OddsCell
+                odds={game.awayOdds.spread.odds}
+                line={game.awayOdds.spread.line}
+                selected={isSelected('spread', 'away', game.awayOdds.spread.line)}
+                onClick={() =>
+                  handleSpreadClick('away', game.awayOdds.spread!.odds, game.awayOdds.spread!.line)
+                }
+                useDecimalOdds={useDecimalOdds}
+              />
+            ) : (
+              <EmptyOddsCell />
+            )}
+          </div>
+
+          <div className="flex justify-center">
+            {game.awayOdds?.total ? (
+              <OddsCell
+                odds={game.awayOdds.total.odds}
+                line={game.awayOdds.total.line}
+                prefix="O"
+                selected={isSelected('total', 'over', game.awayOdds.total.line)}
+                onClick={() =>
+                  handleTotalClick('over', game.awayOdds.total!.odds, game.awayOdds.total!.line)
+                }
+                useDecimalOdds={useDecimalOdds}
+              />
+            ) : (
+              <EmptyOddsCell />
+            )}
+          </div>
+
+          <div className="flex justify-center">
+            {game.awayOdds?.moneyline ? (
+              <OddsCell
+                odds={game.awayOdds.moneyline}
+                selected={isSelected('moneyline', 'away')}
+                onClick={() => handleMoneylineClick('away', game.awayOdds.moneyline!)}
+                useDecimalOdds={useDecimalOdds}
+              />
+            ) : (
+              <EmptyOddsCell />
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <div>
             <div className="font-medium text-gray-900 dark:text-white">{game.awayTeamName}</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Away</div>
           </div>
-          {isLive && game.awayScore !== null && game.awayScore !== undefined && (
-            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{game.awayScore}</span>
-          )}
+          <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            {game.awayScore ?? '-'}
+          </span>
         </div>
-        
-        <div className="flex justify-center">
-          {game.awayOdds?.spread ? (
-            <OddsCell
-              odds={game.awayOdds.spread.odds}
-              line={game.awayOdds.spread.line}
-              selected={isSelected('spread', 'away', game.awayOdds.spread.line)}
-              onClick={() =>
-                handleSpreadClick('away', game.awayOdds.spread!.odds, game.awayOdds.spread!.line)
-              }
-              useDecimalOdds={useDecimalOdds}
-            />
-          ) : (
-            <EmptyOddsCell />
-          )}
-        </div>
-
-        <div className="flex justify-center">
-          {game.awayOdds?.total ? (
-            <OddsCell
-              odds={game.awayOdds.total.odds}
-              line={game.awayOdds.total.line}
-              prefix="O"
-              selected={isSelected('total', 'over', game.awayOdds.total.line)}
-              onClick={() =>
-                handleTotalClick('over', game.awayOdds.total!.odds, game.awayOdds.total!.line)
-              }
-              useDecimalOdds={useDecimalOdds}
-            />
-          ) : (
-            <EmptyOddsCell />
-          )}
-        </div>
-
-        <div className="flex justify-center">
-          {game.awayOdds?.moneyline ? (
-            <OddsCell
-              odds={game.awayOdds.moneyline}
-              selected={isSelected('moneyline', 'away')}
-              onClick={() => handleMoneylineClick('away', game.awayOdds.moneyline!)}
-              useDecimalOdds={useDecimalOdds}
-            />
-          ) : (
-            <EmptyOddsCell />
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Home Team Row */}
-      <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 items-center">
-        <div className="flex items-center justify-between">
+      {!isCompleted ? (
+        <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 items-center">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-gray-900 dark:text-white">{game.homeTeamName}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Home</div>
+            </div>
+            {isLive && game.homeScore !== null && game.homeScore !== undefined && (
+              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {game.homeScore}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex justify-center">
+            {game.homeOdds?.spread ? (
+              <OddsCell
+                odds={game.homeOdds.spread.odds}
+                line={game.homeOdds.spread.line}
+                selected={isSelected('spread', 'home', game.homeOdds.spread.line)}
+                onClick={() =>
+                  handleSpreadClick('home', game.homeOdds.spread!.odds, game.homeOdds.spread!.line)
+                }
+                useDecimalOdds={useDecimalOdds}
+              />
+            ) : (
+              <EmptyOddsCell />
+            )}
+          </div>
+
+          <div className="flex justify-center">
+            {game.homeOdds?.total ? (
+              <OddsCell
+                odds={game.homeOdds.total.odds}
+                line={game.homeOdds.total.line}
+                prefix="U"
+                selected={isSelected('total', 'under', game.homeOdds.total.line)}
+                onClick={() =>
+                  handleTotalClick('under', game.homeOdds.total!.odds, game.homeOdds.total!.line)
+                }
+                useDecimalOdds={useDecimalOdds}
+              />
+            ) : (
+              <EmptyOddsCell />
+            )}
+          </div>
+
+          <div className="flex justify-center">
+            {game.homeOdds?.moneyline ? (
+              <OddsCell
+                odds={game.homeOdds.moneyline}
+                selected={isSelected('moneyline', 'home')}
+                onClick={() => handleMoneylineClick('home', game.homeOdds.moneyline!)}
+                useDecimalOdds={useDecimalOdds}
+              />
+            ) : (
+              <EmptyOddsCell />
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-4 py-3">
           <div>
             <div className="font-medium text-gray-900 dark:text-white">{game.homeTeamName}</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Home</div>
           </div>
-          {isLive && game.homeScore !== null && game.homeScore !== undefined && (
-            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{game.homeScore}</span>
-          )}
+          <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            {game.homeScore ?? '-'}
+          </span>
         </div>
-        
-        <div className="flex justify-center">
-          {game.homeOdds?.spread ? (
-            <OddsCell
-              odds={game.homeOdds.spread.odds}
-              line={game.homeOdds.spread.line}
-              selected={isSelected('spread', 'home', game.homeOdds.spread.line)}
-              onClick={() =>
-                handleSpreadClick('home', game.homeOdds.spread!.odds, game.homeOdds.spread!.line)
-              }
-              useDecimalOdds={useDecimalOdds}
-            />
-          ) : (
-            <EmptyOddsCell />
-          )}
-        </div>
-
-        <div className="flex justify-center">
-          {game.homeOdds?.total ? (
-            <OddsCell
-              odds={game.homeOdds.total.odds}
-              line={game.homeOdds.total.line}
-              prefix="U"
-              selected={isSelected('total', 'under', game.homeOdds.total.line)}
-              onClick={() =>
-                handleTotalClick('under', game.homeOdds.total!.odds, game.homeOdds.total!.line)
-              }
-              useDecimalOdds={useDecimalOdds}
-            />
-          ) : (
-            <EmptyOddsCell />
-          )}
-        </div>
-
-        <div className="flex justify-center">
-          {game.homeOdds?.moneyline ? (
-            <OddsCell
-              odds={game.homeOdds.moneyline}
-              selected={isSelected('moneyline', 'home')}
-              onClick={() => handleMoneylineClick('home', game.homeOdds.moneyline!)}
-              useDecimalOdds={useDecimalOdds}
-            />
-          ) : (
-            <EmptyOddsCell />
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

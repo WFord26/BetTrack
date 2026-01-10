@@ -122,8 +122,12 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
     setFilteredGames(filtered);
   }, [games, searchQuery]);
   
-  // Group games by sport for display
-  const gamesBySport = filteredGames.reduce((groups, game) => {
+  // Separate active and finished games
+  const activeGames = filteredGames.filter(game => game.status !== 'final');
+  const finishedGames = filteredGames.filter(game => game.status === 'final');
+
+  // Group active games by sport for display
+  const activeGamesBySport = activeGames.reduce((groups, game) => {
     const sport = game.sportKey;
     if (!groups[sport]) {
       groups[sport] = {
@@ -136,7 +140,23 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
     return groups;
   }, {} as Record<string, { sportKey: string; sportName: string; games: Game[] }>);
   
-  const sportGroups = Object.values(gamesBySport);
+  const activeSportGroups = Object.values(activeGamesBySport);
+
+  // Group finished games by sport for display
+  const finishedGamesBySport = finishedGames.reduce((groups, game) => {
+    const sport = game.sportKey;
+    if (!groups[sport]) {
+      groups[sport] = {
+        sportKey: game.sportKey,
+        sportName: game.sportName,
+        games: []
+      };
+    }
+    groups[sport].games.push(game);
+    return groups;
+  }, {} as Record<string, { sportKey: string; sportName: string; games: Game[] }>);
+  
+  const finishedSportGroups = Object.values(finishedGamesBySport);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -276,6 +296,9 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
         <div>
           {filteredGames.length} {filteredGames.length === 1 ? 'game' : 'games'} found
           {selectedDate && ` for ${formatDate(selectedDate)}`}
+          {activeGames.length > 0 && finishedGames.length > 0 && (
+            <span className="ml-2">({activeGames.length} active, {finishedGames.length} finished)</span>
+          )}
         </div>
         {searchQuery && (
           <button
@@ -299,29 +322,68 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
           </div>
         </div>
       ) : (
-        <div className="space-y-8">
-          {sportGroups.map((group) => (
-            <div key={group.sportKey} className="space-y-4">
-              {/* Sport section header */}
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-600 pb-2">
-                {group.sportName} ({group.games.length})
-              </h2>
-              
-              {/* 3-column grid for game cards */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                {group.games.map((game) => (
-                  <GameCard
-                    key={game.id}
-                    game={game}
-                    onSelect={onAddToBetSlip}
-                    selectedBets={selectedBets}
-                    useDecimalOdds={useDecimalOdds}
-                    bookmaker={selectedBookmaker}
-                  />
-                ))}
-              </div>
+        <div className="space-y-12">
+          {/* Active Games Section */}
+          {activeGames.length > 0 && (
+            <div className="space-y-8">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white border-b-4 border-blue-500 pb-3">
+                Active Games ({activeGames.length})
+              </h1>
+              {activeSportGroups.map((group) => (
+                <div key={group.sportKey} className="space-y-4">
+                  {/* Sport section header */}
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-600 pb-2">
+                    {group.sportName} ({group.games.length})
+                  </h2>
+                  
+                  {/* 3-column grid for game cards */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {group.games.map((game) => (
+                      <GameCard
+                        key={game.id}
+                        game={game}
+                        onSelect={onAddToBetSlip}
+                        selectedBets={selectedBets}
+                        useDecimalOdds={useDecimalOdds}
+                        bookmaker={selectedBookmaker}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+
+          {/* Finished Games Section */}
+          {finishedGames.length > 0 && (
+            <div className="space-y-8">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white border-b-4 border-gray-500 pb-3">
+                Finished Games ({finishedGames.length})
+              </h1>
+              {finishedSportGroups.map((group) => (
+                <div key={group.sportKey} className="space-y-4">
+                  {/* Sport section header */}
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-600 pb-2">
+                    {group.sportName} ({group.games.length})
+                  </h2>
+                  
+                  {/* 3-column grid for game cards */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {group.games.map((game) => (
+                      <GameCard
+                        key={game.id}
+                        game={game}
+                        onSelect={onAddToBetSlip}
+                        selectedBets={selectedBets}
+                        useDecimalOdds={useDecimalOdds}
+                        bookmaker={selectedBookmaker}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

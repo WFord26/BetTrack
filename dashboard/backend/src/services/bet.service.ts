@@ -514,7 +514,13 @@ export class BetService {
     
     const games = await prisma.game.findMany({
       where: { id: { in: uniqueGameIds } },
-      select: { id: true, commenceTime: true }
+      select: { 
+        id: true, 
+        commenceTime: true,
+        status: true,
+        homeTeamName: true,
+        awayTeamName: true
+      }
     });
 
     logger.info(`Found ${games.length} games out of ${uniqueGameIds.length} unique games requested`);
@@ -527,10 +533,13 @@ export class BetService {
       throw new Error('One or more games not found');
     }
 
-    const now = new Date();
-    const startedGames = games.filter(game => game.commenceTime <= now);
-    if (startedGames.length > 0) {
-      throw new Error('Cannot bet on games that have already started');
+    // Block betting on completed or in-progress games, but allow future games
+    const invalidGames = games.filter(game => 
+      game.status === 'final' || game.status === 'in_progress'
+    );
+    if (invalidGames.length > 0) {
+      const statuses = invalidGames.map(g => `${g.homeTeamName} vs ${g.awayTeamName} (${g.status})`).join(', ');
+      throw new Error(`Cannot bet on games that have started or finished: ${statuses}`);
     }
 
     // Validate stake

@@ -64,6 +64,7 @@ export interface SportMapping {
 
 export const ESPN_SPORT_MAPPING: Record<string, SportMapping> = {
   'americanfootball_nfl': { sport: 'football', league: 'nfl' },
+  'americanfootball_ncaaf': { sport: 'football', league: 'college-football' },
   'basketball_nba': { sport: 'basketball', league: 'nba' },
   'basketball_ncaab': { sport: 'basketball', league: 'mens-college-basketball' },
   'icehockey_nhl': { sport: 'hockey', league: 'nhl' },
