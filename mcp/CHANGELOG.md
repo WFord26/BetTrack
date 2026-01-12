@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] - 2026-01-12
+
 ### Added
 - **Dual-Target Build System**: Build script now supports both MCP and Dashboard builds
   - `-MCP` flag: Build MCPB package for Claude Desktop

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.3] - 2026-01-12
+
 ### Added
 - **Testing Infrastructure**: Comprehensive test setup for frontend and backend
   - Backend: Jest with ts-jest, @jest/globals, jest-mock-extended, supertest
