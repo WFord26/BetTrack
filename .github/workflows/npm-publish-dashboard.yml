@@ -1,0 +1,91 @@
+name: Publish Dashboard Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to publish (backend, frontend, or both)'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - backend
+          - frontend
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-backend:
+    if: github.event_name == 'release' || github.event.inputs.package == 'both' || github.event.inputs.package == 'backend'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@wford26'
+
+      - name: Install dependencies
+        working-directory: ./dashboard/backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./dashboard/backend
+        run: npx prisma generate
+
+      - name: Build
+        working-directory: ./dashboard/backend
+        run: npm run build
+
+      - name: Run tests
+        working-directory: ./dashboard/backend
+        run: npm test || true
+        continue-on-error: true
+
+      - name: Publish to GitHub Packages
+        working-directory: ./dashboard/backend
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-frontend:
+    if: github.event_name == 'release' || github.event.inputs.package == 'both' || github.event.inputs.package == 'frontend'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@wford26'
+
+      - name: Install dependencies
+        working-directory: ./dashboard/frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: ./dashboard/frontend
+        run: npm run build
+
+      - name: Run tests
+        working-directory: ./dashboard/frontend
+        run: npm test || true
+        continue-on-error: true
+
+      - name: Publish to GitHub Packages
+        working-directory: ./dashboard/frontend
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

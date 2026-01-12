@@ -6,7 +6,8 @@ import { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
-import { configureStore, PreloadedState } from '@reduxjs/toolkit';
+import { configureStore } from '@reduxjs/toolkit';
+import type { PreloadedState } from '@reduxjs/toolkit';
 import betSlipReducer from '../store/betSlipSlice';
 import type { RootState } from '../store';
 
@@ -61,6 +62,7 @@ export function createMockStore(preloadedState?: PreloadedState<RootState>) {
  */
 export const mockGame = {
   id: 'test-game-1',
+  sportKey: 'basketball_nba',
   sportId: 'basketball_nba',
   sportName: 'NBA Basketball',
   externalId: 'ext-123',

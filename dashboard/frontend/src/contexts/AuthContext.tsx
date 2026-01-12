@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthEnabled(false);
       setAuthMode('none');
       setUser(null);
-      setProviders([]);
+      setProviders({ microsoft: false, google: false });
     } catch (error) {
       console.error('Failed to fetch auth status:', error);
       // Default to no auth

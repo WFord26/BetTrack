@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **NPM Publishing**: GitHub Packages integration
+  - Scoped package name: `@wford26/bettrack-frontend`
+  - Published to GitHub Packages registry
+  - Automated publishing via GitHub Actions on release
+  - Manual workflow trigger with package selection
+  - `.npmignore` for excluding dev files from package
+  - `files` field specifying dist, src, configs, and docs
+  - Repository, keywords, and publishConfig metadata
+
 ---
 
 ## [0.3.0] - 2026-01-12

@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { BetLeg, FutureLeg } from '../types/game.types';
 import { RootState } from './index';
 
-interface BetSlipState {
+export interface BetSlipState {
   legs: BetLeg[];
   futureLegs: FutureLeg[];
   betType: 'single' | 'parlay' | 'teaser';

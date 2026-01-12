@@ -1,7 +1,6 @@
 {
-  "name": "dashboard-frontend",
+  "name": "@wford26/bettrack-frontend",
   "version": "0.3.0",
-  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -47,5 +46,38 @@
     "vite": "^6.0.7",
     "vitest": "^3.0.5",
     "@vitest/coverage-v8": "^3.0.5"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*",
+    "index.html",
+    "vite.config.ts",
+    "tailwind.config.js",
+    "postcss.config.js",
+    "tsconfig.json",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WFord26/Sports-Odds-MCP.git",
+    "directory": "dashboard/frontend"
+  },
+  "keywords": [
+    "sports",
+    "betting",
+    "tracker",
+    "dashboard",
+    "react",
+    "vite",
+    "typescript",
+    "redux",
+    "tailwindcss"
+  ],
+  "author": "William Ford",
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   }
 }

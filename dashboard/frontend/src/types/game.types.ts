@@ -67,6 +67,7 @@ export interface BetLeg {
   status?: 'pending' | 'won' | 'lost' | 'push';
   game?: Game;
   sgpGroupId?: string | null;
+  userAdjustedOdds?: number;
 }
 
 export interface FutureLeg {

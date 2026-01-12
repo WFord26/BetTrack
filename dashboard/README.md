@@ -151,6 +151,27 @@ For production, use managed secret services:
 
 See [secrets/README.md](secrets/README.md) for complete setup instructions and external store integration.
 
+## 📦 NPM Packages
+
+Both dashboard components are published to GitHub Packages:
+
+- **Backend**: `@wford26/bettrack-backend`
+- **Frontend**: `@wford26/bettrack-frontend`
+
+### Installing from GitHub Packages
+
+```bash
+# Configure authentication
+echo "@wford26:registry=https://npm.pkg.github.com" >> ~/.npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT" >> ~/.npmrc
+
+# Install packages
+npm install @wford26/bettrack-backend
+npm install @wford26/bettrack-frontend
+```
+
+See [NPM-PUBLISHING.md](NPM-PUBLISHING.md) for complete publishing and installation guide.
+
 ## Documentation
 
 See the [technical specification](../docs/internal/future-build.md) for full architecture details.

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **NPM Publishing Infrastructure**: Complete GitHub Packages setup
+  - Both components published as scoped packages (`@wford26/bettrack-*`)
+  - Automated publishing workflow (`.github/workflows/npm-publish-dashboard.yml`)
+  - Triggers on GitHub releases or manual workflow dispatch
+  - `.npmignore` files for excluding development artifacts
+  - Package metadata: repository info, keywords, files list
+  - Documentation: `NPM-PUBLISHING.md` with complete guide
+  - `.npmrc` configuration for GitHub Packages authentication
+
 ---
 
 ## [0.2.3] - 2026-01-12
