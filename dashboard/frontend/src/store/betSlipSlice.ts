@@ -118,8 +118,11 @@ const betSlipSlice = createSlice({
       }
     },
 
-    removeFutureLeg: (state, action: PayloadAction<number>) => {
-      state.futureLegs.splice(action.payload, 1);
+    removeFutureLeg: (state, action: PayloadAction<string>) => {
+      const index = state.futureLegs.findIndex(leg => leg.futureId === action.payload);
+      if (index !== -1) {
+        state.futureLegs.splice(index, 1);
+      }
 
       // Auto-switch to single if 1 total leg left
       const totalLegs = state.legs.length + state.futureLegs.length;
@@ -135,10 +138,11 @@ const betSlipSlice = createSlice({
 
     updateFutureLeg: (
       state,
-      action: PayloadAction<{ index: number; updates: Partial<FutureLeg> }>
+      action: PayloadAction<{ futureId: string; updates: Partial<FutureLeg> }>
     ) => {
-      const { index, updates } = action.payload;
-      if (state.futureLegs[index]) {
+      const { futureId, updates } = action.payload;
+      const index = state.futureLegs.findIndex(leg => leg.futureId === futureId);
+      if (index !== -1) {
         state.futureLegs[index] = { ...state.futureLegs[index], ...updates };
       }
     }
@@ -288,19 +292,20 @@ export const selectPotentialProfit = (state: RootState): number => {
  * Check if bet slip is valid for submission
  */
 export const selectIsValid = (state: RootState): boolean => {
-  const { legs, stake, betType } = state.betSlip;
+  const { legs, futureLegs, stake, betType } = state.betSlip;
+  const totalLegs = legs.length + futureLegs.length;
 
-  // Must have at least one leg
-  if (legs.length === 0) return false;
+  // Must have at least one leg (game or future)
+  if (totalLegs === 0) return false;
 
   // Must have stake
   if (stake <= 0) return false;
 
-  // Single bets can only have 1 leg
-  if (betType === 'single' && legs.length > 1) return false;
+  // Single bets can only have 1 leg total
+  if (betType === 'single' && totalLegs > 1) return false;
 
-  // Parlays/teasers must have 2+ legs
-  if ((betType === 'parlay' || betType === 'teaser') && legs.length < 2) return false;
+  // Parlays/teasers must have 2+ legs total
+  if ((betType === 'parlay' || betType === 'teaser') && totalLegs < 2) return false;
 
   return true;
 };

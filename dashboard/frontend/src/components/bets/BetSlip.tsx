@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useBetSlip } from '../../hooks/useBetSlip';
 import BetLegItem from './BetLegItem';
 import TeaserControl from './TeaserControl';
-import { formatOdds, formatCurrency } from '../../utils/format';
+import { formatOdds, formatCurrency, americanToDecimal, decimalToAmerican } from '../../utils/format';
 
 interface BetSlipProps {
   useDecimalOdds?: boolean;
@@ -38,6 +38,9 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
   const [showSuccess, setShowSuccess] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [stakeInput, setStakeInput] = useState('');
+  const [editingFutureId, setEditingFutureId] = useState<string | null>(null);
+  const [editFutureOdds, setEditFutureOdds] = useState('');
+  const [editFutureOddsDecimal, setEditFutureOddsDecimal] = useState('');
 
   // Auto-expand bet slip when legs are added
   React.useEffect(() => {
@@ -506,48 +509,178 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                   </svg>
                   Futures Bets
                 </h3>
-                {futureLegs.map((futureLeg) => (
-                  <div
-                    key={futureLeg.futureId}
-                    className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-2 border border-purple-200 dark:border-purple-700"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                          {futureLeg.sportKey?.replace(/_/g, ' ')}
+                {futureLegs.map((futureLeg) => {
+                  const isEditing = editingFutureId === futureLeg.futureId;
+                  const currentOdds = futureLeg.userAdjustedOdds ?? futureLeg.odds;
+                  
+                  const startEditingFuture = () => {
+                    setEditingFutureId(futureLeg.futureId);
+                    setEditFutureOdds(currentOdds.toString());
+                    if (useDecimalOdds) {
+                      setEditFutureOddsDecimal(americanToDecimal(currentOdds).toFixed(2));
+                    }
+                  };
+                  
+                  const cancelEditingFuture = () => {
+                    setEditingFutureId(null);
+                    setEditFutureOdds('');
+                    setEditFutureOddsDecimal('');
+                  };
+                  
+                  const applyFutureOdds = () => {
+                    let newOdds: number;
+                    if (useDecimalOdds) {
+                      const decimal = parseFloat(editFutureOddsDecimal);
+                      newOdds = !isNaN(decimal) && decimal >= 1.01 ? decimalToAmerican(decimal) : currentOdds;
+                    } else {
+                      newOdds = parseInt(editFutureOdds);
+                      if (isNaN(newOdds)) {
+                        newOdds = currentOdds;
+                      }
+                    }
+                    updateFutureLeg(futureLeg.futureId, { userAdjustedOdds: newOdds });
+                    setEditingFutureId(null);
+                    setEditFutureOdds('');
+                    setEditFutureOddsDecimal('');
+                  };
+                  
+                  const adjustFutureOdds = (delta: number) => {
+                    if (useDecimalOdds) {
+                      const current = parseFloat(editFutureOddsDecimal) || 2.00;
+                      const newDecimal = Math.max(1.01, +(current + (delta * 0.05)).toFixed(2));
+                      setEditFutureOddsDecimal(newDecimal.toFixed(2));
+                      setEditFutureOdds(decimalToAmerican(newDecimal).toString());
+                    } else {
+                      const currentEditOdds = parseInt(editFutureOdds) || 0;
+                      let newOdds = currentEditOdds + (delta * 5);
+                      
+                      if (currentEditOdds < -100 && newOdds > -100) {
+                        newOdds = 100;
+                      } else if (currentEditOdds > 100 && newOdds < 100) {
+                        newOdds = -100;
+                      } else if (newOdds > -100 && newOdds < 100) {
+                        newOdds = delta > 0 ? 100 : -100;
+                      }
+                      
+                      setEditFutureOdds(newOdds.toString());
+                    }
+                  };
+                  
+                  return (
+                    <div
+                      key={futureLeg.futureId}
+                      className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-2 border border-purple-200 dark:border-purple-700"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                            {futureLeg.sportKey?.replace(/_/g, ' ')}
+                          </div>
+                          <div className="font-semibold text-gray-900 dark:text-white mb-1">
+                            {futureLeg.futureTitle}
+                          </div>
+                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                            {futureLeg.outcome}
+                          </div>
                         </div>
-                        <div className="font-semibold text-gray-900 dark:text-white mb-1">
-                          {futureLeg.futureTitle}
-                        </div>
-                        <div className="text-sm text-gray-700 dark:text-gray-300">
-                          {futureLeg.outcome}
+                        <div className="flex items-center gap-1 ml-2">
+                          <button
+                            onClick={isEditing ? cancelEditingFuture : startEditingFuture}
+                            className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"
+                            title={isEditing ? "Cancel" : "Edit"}
+                          >
+                            {isEditing ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => removeFutureLeg(futureLeg.futureId)}
+                            className="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors p-1"
+                            title="Remove future"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={() => removeFutureLeg(futureLeg.futureId)}
-                        className="ml-2 text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
-                        title="Remove future"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                        {formatOdds(futureLeg.userAdjustedOdds ?? futureLeg.odds, useDecimalOdds)}
-                      </div>
-                      {futureLeg.userAdjustedOdds && futureLeg.userAdjustedOdds !== futureLeg.odds && (
-                        <button
-                          onClick={() => updateFutureLeg(futureLeg.futureId, { userAdjustedOdds: undefined })}
-                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          Reset Odds
-                        </button>
+                      
+                      {!isEditing ? (
+                        <div className="flex items-center justify-between">
+                          <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                            {formatOdds(currentOdds, useDecimalOdds)}
+                            {futureLeg.userAdjustedOdds && futureLeg.userAdjustedOdds !== futureLeg.odds && (
+                              <span className="text-xs text-blue-600 dark:text-blue-400 ml-2 font-normal">(adjusted)</span>
+                            )}
+                          </div>
+                          {futureLeg.userAdjustedOdds && futureLeg.userAdjustedOdds !== futureLeg.odds && (
+                            <button
+                              onClick={() => updateFutureLeg(futureLeg.futureId, { userAdjustedOdds: undefined })}
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              Reset Odds
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-2 mt-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Odds ({useDecimalOdds ? 'Decimal' : 'American'})
+                            </label>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => adjustFutureOdds(-1)}
+                                className="px-3 py-1.5 bg-purple-200 dark:bg-purple-700 hover:bg-purple-300 dark:hover:bg-purple-600 text-purple-700 dark:text-white font-bold rounded transition-colors"
+                                title={useDecimalOdds ? "Decrease by 0.05" : "Decrease by 5"}
+                              >
+                                -
+                              </button>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={useDecimalOdds ? editFutureOddsDecimal : editFutureOdds}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (useDecimalOdds) {
+                                    // Allow typing decimal values
+                                    setEditFutureOddsDecimal(value);
+                                    const decimal = parseFloat(value);
+                                    if (!isNaN(decimal) && decimal >= 1.01) {
+                                      setEditFutureOdds(decimalToAmerican(decimal).toString());
+                                    }
+                                  } else {
+                                    setEditFutureOdds(value);
+                                  }
+                                }}
+                                className="flex-1 px-3 py-1.5 text-sm border border-purple-300 dark:border-purple-600 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                              <button
+                                onClick={() => adjustFutureOdds(1)}
+                                className="px-3 py-1.5 bg-purple-200 dark:bg-purple-700 hover:bg-purple-300 dark:hover:bg-purple-600 text-purple-700 dark:text-white font-bold rounded transition-colors"
+                                title={useDecimalOdds ? "Increase by 0.05" : "Increase by 5"}
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            onClick={applyFutureOdds}
+                            className="w-full px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded hover:bg-purple-700 transition-colors"
+                          >
+                            Apply Changes
+                          </button>
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

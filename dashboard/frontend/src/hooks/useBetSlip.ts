@@ -91,7 +91,7 @@ export function useBetSlip() {
 
     try {
       // Prepare bet data
-      const betData = {
+      const betData: any = {
         name: name.trim(),
         betType,
         stake,
@@ -104,9 +104,19 @@ export function useBetSlip() {
         }))
       };
 
+      // Include futures legs if present
+      if (futureLegs.length > 0) {
+        betData.futureLegs = futureLegs.map((futureLeg) => ({
+          futureId: futureLeg.futureId,
+          outcome: futureLeg.outcome,
+          odds: Math.round(futureLeg.userAdjustedOdds ?? futureLeg.odds),
+          userAdjustedOdds: futureLeg.userAdjustedOdds ? Math.round(futureLeg.userAdjustedOdds) : undefined
+        }));
+      }
+
       // If teaser, include teaser points
       if (betType === 'teaser') {
-        (betData as any).teaserPoints = teaserPoints;
+        betData.teaserPoints = teaserPoints;
       }
 
       // Submit to API

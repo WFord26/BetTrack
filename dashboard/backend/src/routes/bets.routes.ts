@@ -27,14 +27,25 @@ const createBetLegSchema = z.object({
   userAdjustedOdds: z.number().optional()
 });
 
+const createFutureLegSchema = z.object({
+  futureId: z.string().uuid(),
+  outcome: z.string(),
+  odds: z.number(),
+  userAdjustedOdds: z.number().optional()
+});
+
 const createBetSchema = z.object({
   name: z.string().min(1).max(100),
   betType: z.enum(VALID_BET_TYPES as [string, ...string[]]),
   stake: z.number().positive(),
-  legs: z.array(createBetLegSchema).min(1),
+  legs: z.array(createBetLegSchema).optional().default([]),
+  futureLegs: z.array(createFutureLegSchema).optional().default([]),
   teaserPoints: z.number().optional(),
   notes: z.string().max(500).optional()
-});
+}).refine(
+  (data) => (data.legs?.length || 0) + (data.futureLegs?.length || 0) >= 1,
+  { message: 'At least one leg (game or future) is required' }
+);
 
 const updateBetSchema = z.object({
   name: z.string().min(1).max(100).optional(),
