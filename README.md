@@ -175,8 +175,8 @@ cd mcp
 ### Build Documentation
 
 For complete build documentation, see:
-- **[Build Scripts Documentation](mcp/scripts/build/README.md)** - Full reference with all options
-- **[Quick Reference](mcp/scripts/build/QUICK_REFERENCE.md)** - Command cheat sheet
+- **[Build Scripts Documentation](scripts/README.md)** - Full reference with all options
+- **[Quick Reference](scripts/QUICK_REFERENCE.md)** - Command cheat sheet
 
 ### Common Build Commands
 
