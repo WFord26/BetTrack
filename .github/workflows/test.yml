@@ -51,10 +51,10 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: dashboard/backend/package-lock.json
+          cache-dependency-path: dashboard/package-lock.json
       
       - name: Install dependencies
-        working-directory: ./dashboard/backend
+        working-directory: ./dashboard
         run: npm ci
       
       - name: Setup test database
@@ -133,10 +133,10 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: dashboard/frontend/package-lock.json
+          cache-dependency-path: dashboard/package-lock.json
       
       - name: Install dependencies
-        working-directory: ./dashboard/frontend
+        working-directory: ./dashboard
         run: npm ci
       
       - name: Run linter
