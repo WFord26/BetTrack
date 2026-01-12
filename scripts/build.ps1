@@ -826,6 +826,31 @@ function Main {
         }
     }
     
+    # Handle version bumping BEFORE builds if requested
+    if ($VersionBump) {
+        $shouldBumpMCP = $BumpMCP.IsPresent -and $MCP
+        $shouldBumpDashboard = $BumpDashboard.IsPresent -and $Dashboard
+        $shouldBumpBackend = $BumpBackend.IsPresent -and $Dashboard
+        $shouldBumpFrontend = $BumpFrontend.IsPresent -and $Dashboard
+        
+        if ($shouldBumpMCP -or $shouldBumpDashboard -or $shouldBumpBackend -or $shouldBumpFrontend) {
+            Write-ColorOutput "Bumping versions before build..." -Type Info
+            
+            $versions = Update-ComponentVersions `
+                -BumpType $VersionBump `
+                -IsBeta $Beta.IsPresent `
+                -BumpMCP $shouldBumpMCP `
+                -BumpDashboard $shouldBumpDashboard `
+                -BumpBackend $shouldBumpBackend `
+                -BumpFrontend $shouldBumpFrontend
+            
+            # Update MCP version with beta suffix if needed
+            if ($versions.MCP) {
+                $mcpVersion = $versions.MCP
+            }
+        }
+    }
+
     # Build MCP if requested
     $mcpPackagePath = $null
     $mcpBuildSuccess = $true
@@ -853,64 +878,35 @@ function Main {
         }
     }
     
-    # Bump versions AFTER successful builds
-    $versions = @{}
-    if ($VersionBump) {
-        # Only proceed with version bumps if respective builds succeeded
-        $shouldBumpMCP = $BumpMCP.IsPresent -and $MCP -and $mcpBuildSuccess
-        $shouldBumpDashboard = $BumpDashboard.IsPresent -and $Dashboard -and $dashboardSuccess
-        $shouldBumpBackend = $BumpBackend.IsPresent -and $Dashboard -and $dashboardSuccess
-        $shouldBumpFrontend = $BumpFrontend.IsPresent -and $Dashboard -and $dashboardSuccess
-        
-        if ($shouldBumpMCP -or $shouldBumpDashboard -or $shouldBumpBackend -or $shouldBumpFrontend) {
-            Write-ColorOutput "Builds succeeded - updating versions..." -Type Info
-            
-            $versions = Update-ComponentVersions `
-                -BumpType $VersionBump `
-                -IsBeta $Beta.IsPresent `
-                -BumpMCP $shouldBumpMCP `
-                -BumpDashboard $shouldBumpDashboard `
-                -BumpBackend $shouldBumpBackend `
-                -BumpFrontend $shouldBumpFrontend
-            
-            # Update MCP version with beta suffix if needed
-            if ($versions.MCP) {
-                $mcpVersion = $versions.MCP
+    # Handle version updates in dist folder after successful builds (versions already bumped before build)
+    if ($VersionBump -and $Dashboard -and $dashboardSuccess -and (Test-Path $DashboardBuildDir)) {
+        if ($BumpDashboard.IsPresent) {
+            $distRootPackage = Join-Path $DashboardBuildDir "package.json"
+            $sourceRootPackage = Join-Path $DashboardRoot "package.json"
+            if (Test-Path $sourceRootPackage) {
+                Copy-Item -Path $sourceRootPackage -Destination $distRootPackage -Force
+                Write-ColorOutput "Updated dist/package.json with new version" -Type Info
             }
-            
-            # Update package.json files in dist folder to reflect new versions
-            if ($Dashboard -and $dashboardSuccess -and (Test-Path $DashboardBuildDir)) {
-                if ($shouldBumpDashboard) {
-                    $distRootPackage = Join-Path $DashboardBuildDir "package.json"
-                    $sourceRootPackage = Join-Path $DashboardRoot "package.json"
-                    if (Test-Path $sourceRootPackage) {
-                        Copy-Item -Path $sourceRootPackage -Destination $distRootPackage -Force
-                        Write-ColorOutput "Updated dist/package.json with new version" -Type Info
-                    }
-                }
-                if ($shouldBumpBackend) {
-                    $distBackendPackage = Join-Path $DashboardBuildDir "backend\package.json"
-                    $sourceBackendPackage = Join-Path $DashboardRoot "backend\package.json"
-                    if (Test-Path $sourceBackendPackage) {
-                        Copy-Item -Path $sourceBackendPackage -Destination $distBackendPackage -Force
-                        Write-ColorOutput "Updated dist/backend/package.json with new version" -Type Info
-                    }
-                }
-                if ($shouldBumpFrontend) {
-                    $distFrontendPackage = Join-Path $DashboardBuildDir "frontend\package.json"
-                    $sourceFrontendPackage = Join-Path $DashboardRoot "frontend\package.json"
-                    if (Test-Path $sourceFrontendPackage) {
-                        $distFrontendDir = Join-Path $DashboardBuildDir "frontend"
-                        if (-not (Test-Path $distFrontendDir)) {
-                            New-Item -Path $distFrontendDir -ItemType Directory -Force | Out-Null
-                        }
-                        Copy-Item -Path $sourceFrontendPackage -Destination $distFrontendPackage -Force
-                        Write-ColorOutput "Updated dist/frontend/package.json with new version" -Type Info
-                    }
-                }
+        }
+        if ($BumpBackend.IsPresent) {
+            $distBackendPackage = Join-Path $DashboardBuildDir "backend\package.json"
+            $sourceBackendPackage = Join-Path $DashboardRoot "backend\package.json"
+            if (Test-Path $sourceBackendPackage) {
+                Copy-Item -Path $sourceBackendPackage -Destination $distBackendPackage -Force
+                Write-ColorOutput "Updated dist/backend/package.json with new version" -Type Info
             }
-        } else {
-            Write-ColorOutput "No builds succeeded - versions not updated" -Type Warning
+        }
+        if ($BumpFrontend.IsPresent) {
+            $distFrontendPackage = Join-Path $DashboardBuildDir "frontend\package.json"
+            $sourceFrontendPackage = Join-Path $DashboardRoot "frontend\package.json"
+            if (Test-Path $sourceFrontendPackage) {
+                $distFrontendDir = Join-Path $DashboardBuildDir "frontend"
+                if (-not (Test-Path $distFrontendDir)) {
+                    New-Item -Path $distFrontendDir -ItemType Directory -Force | Out-Null
+                }
+                Copy-Item -Path $sourceFrontendPackage -Destination $distFrontendPackage -Force
+                Write-ColorOutput "Updated dist/frontend/package.json with new version" -Type Info
+            }
         }
     }
     
