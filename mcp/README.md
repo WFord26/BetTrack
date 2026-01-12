@@ -16,7 +16,7 @@ The BetTrack MCP Server provides Claude Desktop with direct access to live sport
 
 ## Quick Install
 
-1. **Download** the latest `.mcpb` package from [Releases](https://github.com/yourusername/Sports-Odds-MCP/releases)
+1. **Download** the latest `.mcpb` package from [Releases](https://github.com/yourusername/BetTrack/releases)
 2. **Install** via Claude Desktop → Settings → Developer → Install MCP Package
 3. **Configure** your API key (see [Installation Guide](INSTALL_INSTRUCTIONS.md))
 
@@ -42,7 +42,7 @@ The BetTrack MCP Server provides Claude Desktop with direct access to live sport
 
 - 📖 **[Installation Instructions](INSTALL_INSTRUCTIONS.md)** - Detailed setup guide
 - 🛠️ **[Available Tools](../docs/AVAILABLE-TOOLS.md)** - Complete tool reference
-- 📚 **[Wiki](https://github.com/yourusername/Sports-Odds-MCP/wiki)** - Technical documentation
+- 📚 **[Wiki](https://github.com/yourusername/BetTrack/wiki)** - Technical documentation
 - 🔧 **[Build Instructions](../scripts/README.md)** - Building from source
 
 ## Requirements
@@ -90,6 +90,6 @@ For complete build documentation, see [Build Scripts](../scripts/README.md).
 
 **Part of the [BetTrack Sports Betting Platform](../README.md)**
 
-[Root README](../README.md) · [Dashboard](../dashboard/README.md) · [Documentation](../docs/) · [Wiki](https://github.com/yourusername/Sports-Odds-MCP/wiki)
+[Root README](../README.md) · [Dashboard](../dashboard/README.md) · [Documentation](../docs/) · [Wiki](https://github.com/yourusername/BetTrack/wiki)
 
 </div>

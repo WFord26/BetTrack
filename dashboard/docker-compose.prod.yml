@@ -60,7 +60,7 @@ services:
       - dashboard-network
 
   backend:
-    image: ghcr.io/${GITHUB_OWNER:-wford26}/sports-odds-mcp-backend:${VERSION:-latest}
+    image: ghcr.io/${GITHUB_OWNER:-wford26}/bettrack-backend:${VERSION:-latest}
     container_name: sports-dashboard-backend-prod
     restart: always
     environment:
@@ -94,7 +94,7 @@ services:
       start_period: 40s
 
   frontend:
-    image: ghcr.io/${GITHUB_OWNER:-wford26}/sports-odds-mcp-frontend:${VERSION:-latest}
+    image: ghcr.io/${GITHUB_OWNER:-wford26}/bettrack-frontend:${VERSION:-latest}
     container_name: sports-dashboard-frontend-prod
     restart: always
     environment:

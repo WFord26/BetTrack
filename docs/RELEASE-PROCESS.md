@@ -124,12 +124,12 @@ cd mcp/scripts/build
 
 ```bash
 # Pull latest
-docker pull ghcr.io/<owner>/sports-odds-mcp-backend:latest
-docker pull ghcr.io/<owner>/sports-odds-mcp-frontend:latest
+docker pull ghcr.io/<owner>/bettrack-backend:latest
+docker pull ghcr.io/<owner>/bettrack-frontend:latest
 
 # Pull specific version
-docker pull ghcr.io/<owner>/sports-odds-mcp-backend:2026.01.12
-docker pull ghcr.io/<owner>/sports-odds-mcp-frontend:2026.01.12
+docker pull ghcr.io/<owner>/bettrack-backend:2026.01.12
+docker pull ghcr.io/<owner>/bettrack-frontend:2026.01.12
 ```
 
 ## Automated Releases (GitHub Actions)
@@ -310,7 +310,7 @@ Beta releases use git commit hashes for version suffixes:
 
 ```bash
 # No login required for public packages
-docker pull ghcr.io/<owner>/sports-odds-mcp-backend:latest
+docker pull ghcr.io/<owner>/bettrack-backend:latest
 ```
 
 ## Docker Configuration & Secrets
@@ -323,14 +323,14 @@ The backend Docker image supports multiple configuration methods for secure secr
 docker run -e DATABASE_URL="postgresql://user:pass@host/db" \
            -e ODDS_API_KEY="your_key" \
            -e SESSION_SECRET="$(openssl rand -hex 32)" \
-           ghcr.io/<owner>/sports-odds-mcp-backend:latest
+           ghcr.io/<owner>/bettrack-backend:latest
 ```
 
 ### Option 2: .env File (Development)
 
 ```bash
 docker run -v $(pwd)/.env:/app/.env \
-           ghcr.io/<owner>/sports-odds-mcp-backend:latest
+           ghcr.io/<owner>/bettrack-backend:latest
 ```
 
 ### Option 3: Docker Secrets (Production - Recommended)
@@ -347,7 +347,7 @@ docker service create \
   --name backend \
   --secret odds_api_key \
   --secret db_password \
-  ghcr.io/<owner>/sports-odds-mcp-backend:latest
+  ghcr.io/<owner>/bettrack-backend:latest
 
 # Run with secrets (Docker Compose)
 docker-compose -f docker-compose.prod.yml up -d

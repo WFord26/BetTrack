@@ -25,7 +25,7 @@
     GitHub repository owner (default: auto-detected from git)
 
 .PARAMETER Repository
-    Repository name (default: sports-odds-mcp)
+    Repository name (default: bettrack)
 
 .EXAMPLE
     .\docker-build.ps1 -Version "2026.01.12" -Backend -Frontend -Push

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Build script for Sports Data MCP package and Dashboard
+    Build script for BetTrack MCP package and Dashboard
 
 .DESCRIPTION
     Creates MCPB (MCP Bundle) package for Claude Desktop installation and/or
@@ -94,7 +94,7 @@ param(
 
 # Script configuration
 $ErrorActionPreference = "Stop"
-$ProjectRoot = Split-Path -Parent $PSScriptRoot  # Root of Sports-Odds-MCP
+$ProjectRoot = Split-Path -Parent $PSScriptRoot  # Root of BetTrack
 $MCPRoot = Join-Path $ProjectRoot "mcp"
 $BuildDir = Join-Path $MCPRoot "build"
 $DistDir = Join-Path $MCPRoot "dist"
@@ -739,7 +739,7 @@ function New-GitHubRelease {
     if (Get-Command gh -ErrorAction SilentlyContinue) {
         try {
             gh release create "v$Version" `
-                --title "Sports Data MCP v$Version" `
+                --title "BetTrack v$Version" `
                 --notes "Release version $Version" `
                 $PackagePath
             Write-ColorOutput "GitHub release created" -Type Success
@@ -754,7 +754,7 @@ function New-GitHubRelease {
 
 # Main execution
 function Main {
-    Write-ColorOutput "=== Sports Data Build Script ===" -Type Info
+    Write-ColorOutput "=== BetTrack Build Script ===" -Type Info
     Write-ColorOutput "Script root: $ScriptRoot" -Type Info
     
     # Handle full release workflow
@@ -1069,7 +1069,7 @@ function Invoke-FullRelease {
             # Create GitHub release with gh CLI
             if (Get-Command gh -ErrorAction SilentlyContinue) {
                 $releaseNotes = @"
-# Release $releaseTag
+# BetTrack Release $releaseTag
 
 ## Components
 
@@ -1100,7 +1100,7 @@ docker pull ghcr.io/<owner>/$Repository-frontend:latest
                 try {
                     $ghArgs = @(
                         "release", "create", $releaseTag,
-                        "--title", "Release $releaseTag",
+                        "--title", "BetTrack Release $releaseTag",
                         "--notes", $releaseNotes
                     )
                     

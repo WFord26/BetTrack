@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Testing Infrastructure**: Comprehensive test setup for frontend and backend
+  - Backend: Jest with ts-jest, @jest/globals, jest-mock-extended, supertest
+  - Frontend: Vitest with React Testing Library, @vitest/ui, jsdom
+  - Test utilities: Redux store wrapper, mock data, test helpers
+  - Coverage thresholds: 60% minimum for lines, functions, branches, statements
+  - Example tests: Component tests, Redux slice tests, utility function tests
+  - Test scripts: `test`, `test:watch`, `test:coverage`, `test:ci`
+  - Documentation: TESTING.md with setup instructions and best practices
+
+- **CI/CD Test Automation**: GitHub Actions workflows for automated testing
+  - Test & Validate workflow (`.github/workflows/test.yml`)
+    - Backend tests with PostgreSQL service container
+    - Frontend tests with type checking and linting
+    - MCP server validation (syntax, linting, startup test)
+    - Build validation for all components
+    - PR comments with coverage reports
+    - Codecov integration for coverage tracking
+  - Enhanced release workflow with pre-release testing
+    - Blocks releases if any tests fail
+    - Runs linters and type checks before builds
+    - Validates MCP server startup
+    - Ensures build artifacts are created successfully
+  - Documentation: CI-CD-TESTING.md with quick reference guide
+
 - **Docker Secrets Support**: Production-ready secret management
   - Backend Dockerfile supports Docker secrets mounted at `/run/secrets/`
   - Automatic loading of secrets from files (ODDS_API_KEY, DB_PASSWORD, etc.)
@@ -38,6 +62,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Session-based authentication with secure cookie handling
 
 ### Changed
+- **Backend package.json**: Added test dependencies and scripts
+  - Added: `jest`, `ts-jest`, `@jest/globals`, `jest-mock-extended`, `supertest`, `@types/jest`, `@types/supertest`
+  - Scripts: `test`, `test:watch`, `test:coverage`, `test:ci`
+
+- **Frontend package.json**: Added test dependencies and scripts
+  - Added: `vitest`, `@vitest/ui`, `@vitest/coverage-v8`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`
+  - Scripts: `test`, `test:ui`, `test:coverage`, `test:ci`
+
+- **Frontend vite.config.ts**: Configured Vitest test environment
+  - Test environment: jsdom with globals enabled
+  - Setup file: `./src/test/setup.ts`
+  - Coverage provider: v8 with thresholds and exclusions
+  - CSS support for component testing
+
 - **Backend Dockerfile**: Enhanced for production security
   - Multi-stage build with builder and runtime stages
   - Non-root user (nodejs:1001) for security

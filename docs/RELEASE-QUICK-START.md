@@ -77,10 +77,10 @@ See [dashboard/secrets/README.md](../dashboard/secrets/README.md) for advanced s
 - `mcp/releases/frontend.v*.zip`
 
 ### Docker Images
-- `ghcr.io/<owner>/sports-odds-mcp-backend:YYYY.MM.DD`
-- `ghcr.io/<owner>/sports-odds-mcp-backend:latest`
-- `ghcr.io/<owner>/sports-odds-mcp-frontend:YYYY.MM.DD`
-- `ghcr.io/<owner>/sports-odds-mcp-frontend:latest`
+- `ghcr.io/<owner>/bettrack-backend:YYYY.MM.DD`
+- `ghcr.io/<owner>/bettrack-backend:latest`
+- `ghcr.io/<owner>/bettrack-frontend:YYYY.MM.DD`
+- `ghcr.io/<owner>/bettrack-frontend:latest`
 
 ### Git
 - Tag: `YYYY.MM.DD` (or `YYYY.MM.DD.N` if multiple releases same day)

@@ -1,11 +1,11 @@
-# Sports-Odds-MCP - AI Agent Instructions
+# BetTrack - AI Agent Instructions
 
 ## Project Overview
 FastMCP server providing sports data from The Odds API (betting odds) and ESPN API (games, teams, stats) for Claude Desktop. Includes optional web dashboard (React + Node.js) for bet tracking. Single Python server with dual data sources and rich formatting tools.
 
 ## Project Structure
 ```
-Sports-Odds-MCP/
+BetTrack/
 ├── mcp/                        # MCP server (Python FastMCP)
 │   ├── sports_mcp_server.py    # Main server entry point
 │   ├── sports_api/             # API handlers and formatters
@@ -151,7 +151,7 @@ cd scripts
   "mcpServers": {
     "sports-data-local": {
       "command": "python",
-      "args": ["C:/path/to/Sports-Odds-MCP/src/sports_mcp_server.py"],
+      "args": ["C:/path/to/BetTrack/src/sports_mcp_server.py"],
       "env": {
         "ODDS_API_KEY": "your_api_key_here",
         "BOOKMAKERS_FILTER": "draftkings,fanduel",

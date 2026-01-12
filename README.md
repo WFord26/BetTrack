@@ -52,7 +52,7 @@ For Claude Desktop integration with sports data tools:
 
 👉 **[Complete MCP Server Setup Guide](mcp/README.md)**
 
-Quick install: Download the latest `.mcpb` package from [Releases](https://github.com/yourusername/Sports-Odds-MCP/releases) and install via Claude Desktop settings.
+Quick install: Download the latest `.mcpb` package from [Releases](https://github.com/yourusername/BetTrack/releases) and install via Claude Desktop settings.
 
 ### Dashboard Installation
 
@@ -115,8 +115,8 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/yourusername/Sports-Odds-MCP/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/Sports-Odds-MCP/discussions)
+- **Issues:** [GitHub Issues](https://github.com/yourusername/BetTrack/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/yourusername/BetTrack/discussions)
 - **Documentation:** Project Wiki (coming soon)
 
 ---
@@ -125,6 +125,6 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 
 **Built with ❤️ for Claude Desktop and the sports betting community**
 
-[MCP Server Setup](mcp/README.md) · [Dashboard Guide](dashboard/README.md) · [Documentation](docs/) · [Releases](https://github.com/yourusername/Sports-Odds-MCP/releases)
+[MCP Server Setup](mcp/README.md) · [Dashboard Guide](dashboard/README.md) · [Documentation](docs/) · [Releases](https://github.com/yourusername/BetTrack/releases)
 
 </div>

@@ -1,0 +1,284 @@
+name: Test & Validate
+
+on:
+  pull_request:
+    branches: [main, beta, develop]
+    paths:
+      - 'dashboard/**'
+      - 'mcp/**'
+      - '.github/workflows/test.yml'
+  push:
+    branches: [main, beta]
+    paths:
+      - 'dashboard/**'
+      - 'mcp/**'
+      - '.github/workflows/test.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: dashboard/backend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./dashboard/backend
+        run: npm ci
+      
+      - name: Setup test database
+        working-directory: ./dashboard/backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
+      
+      - name: Run linter
+        working-directory: ./dashboard/backend
+        run: npm run lint
+      
+      - name: Run tests
+        working-directory: ./dashboard/backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          NODE_ENV: test
+          ODDS_API_KEY: test-key
+          JWT_SECRET: test-secret
+          SESSION_SECRET: test-session-secret
+        run: npm run test:ci
+      
+      - name: Upload backend coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./dashboard/backend/coverage/lcov.info
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+      
+      - name: Comment test results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coveragePath = './dashboard/backend/coverage/coverage-summary.json';
+            
+            if (fs.existsSync(coveragePath)) {
+              const coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+              const total = coverage.total;
+              
+              const comment = `### Backend Test Results ✅
+              
+              **Coverage Summary:**
+              - Lines: ${total.lines.pct}%
+              - Functions: ${total.functions.pct}%
+              - Branches: ${total.branches.pct}%
+              - Statements: ${total.statements.pct}%`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: dashboard/frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./dashboard/frontend
+        run: npm ci
+      
+      - name: Run linter
+        working-directory: ./dashboard/frontend
+        run: npm run lint
+      
+      - name: Type check
+        working-directory: ./dashboard/frontend
+        run: npx tsc --noEmit
+      
+      - name: Run tests
+        working-directory: ./dashboard/frontend
+        run: npm run test:ci
+      
+      - name: Upload frontend coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./dashboard/frontend/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+          fail_ci_if_error: false
+      
+      - name: Comment test results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coveragePath = './dashboard/frontend/coverage/coverage-summary.json';
+            
+            if (fs.existsSync(coveragePath)) {
+              const coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+              const total = coverage.total;
+              
+              const comment = `### Frontend Test Results ✅
+              
+              **Coverage Summary:**
+              - Lines: ${total.lines.pct}%
+              - Functions: ${total.functions.pct}%
+              - Branches: ${total.branches.pct}%
+              - Statements: ${total.statements.pct}%`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+  mcp-validation:
+    name: MCP Server Validation
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.11']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: mcp/requirements.txt
+      
+      - name: Install dependencies
+        working-directory: ./mcp
+        run: |
+          pip install -r requirements.txt
+          pip install pylint mypy
+      
+      - name: Run syntax check
+        working-directory: ./mcp
+        run: python -m py_compile sports_mcp_server.py sports_api/*.py
+      
+      - name: Run type check (mypy)
+        working-directory: ./mcp
+        run: mypy sports_mcp_server.py --ignore-missing-imports
+        continue-on-error: true
+      
+      - name: Run linter (pylint)
+        working-directory: ./mcp
+        run: pylint sports_mcp_server.py sports_api/ --disable=C,R --ignore=__pycache__
+        continue-on-error: true
+      
+      - name: Validate MCP server starts
+        working-directory: ./mcp
+        env:
+          ODDS_API_KEY: test-key
+        run: timeout 10s python sports_mcp_server.py || code=$?; if [[ $code -ne 124 && $code -ne 0 ]]; then exit $code; fi
+
+  build-validation:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, mcp-validation]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            dashboard/backend/package-lock.json
+            dashboard/frontend/package-lock.json
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: mcp/requirements.txt
+      
+      - name: Install dependencies
+        run: |
+          cd dashboard/backend && npm ci
+          cd ../frontend && npm ci
+          cd ../../mcp && pip install -r requirements.txt
+      
+      - name: Build backend
+        working-directory: ./dashboard/backend
+        run: npm run build
+      
+      - name: Build frontend
+        working-directory: ./dashboard/frontend
+        run: npm run build
+      
+      - name: Build MCP package
+        working-directory: ./mcp
+        run: python -m mcpb build
+      
+      - name: Verify build artifacts
+        run: |
+          test -d dashboard/backend/dist || exit 1
+          test -d dashboard/frontend/dist || exit 1
+          test -f mcp/releases/*.mcpb || exit 1
+          echo "✅ All build artifacts created successfully"

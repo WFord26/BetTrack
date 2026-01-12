@@ -11,7 +11,98 @@ permissions:
   packages: write
 
 jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            dashboard/backend/package-lock.json
+            dashboard/frontend/package-lock.json
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: mcp/requirements.txt
+      
+      - name: Install backend dependencies
+        working-directory: ./dashboard/backend
+        run: npm ci
+      
+      - name: Install frontend dependencies
+        working-directory: ./dashboard/frontend
+        run: npm ci
+      
+      - name: Install Python dependencies
+        working-directory: ./mcp
+        run: pip install -r requirements.txt
+      
+      - name: Setup test database
+        working-directory: ./dashboard/backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
+      
+      - name: Run backend tests
+        working-directory: ./dashboard/backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          NODE_ENV: test
+          ODDS_API_KEY: test-key
+          JWT_SECRET: test-secret
+          SESSION_SECRET: test-session-secret
+        run: npm run test:ci
+      
+      - name: Run frontend tests
+        working-directory: ./dashboard/frontend
+        run: npm run test:ci
+      
+      - name: Run backend linter
+        working-directory: ./dashboard/backend
+        run: npm run lint
+      
+      - name: Run frontend linter
+        working-directory: ./dashboard/frontend
+        run: npm run lint
+      
+      - name: Validate MCP server
+        working-directory: ./mcp
+        env:
+          ODDS_API_KEY: test-key
+        run: timeout 10s python sports_mcp_server.py || code=$?; if [[ $code -ne 124 && $code -ne 0 ]]; then exit $code; fi
+
   release:
+    name: Build and Release
+    needs: test
     runs-on: ubuntu-latest
     
     steps:
@@ -103,7 +194,7 @@ jobs:
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/sports-odds-mcp-backend
+          images: ghcr.io/${{ github.repository_owner }}/bettrack-backend
           tags: |
             type=raw,value=${{ steps.versions.outputs.tag }}
             type=raw,value=latest
@@ -124,7 +215,7 @@ jobs:
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/sports-odds-mcp-frontend
+          images: ghcr.io/${{ github.repository_owner }}/bettrack-frontend
           tags: |
             type=raw,value=${{ steps.versions.outputs.tag }}
             type=raw,value=latest
@@ -163,12 +254,12 @@ jobs:
             
             ```bash
             # Backend
-            docker pull ghcr.io/${{ github.repository_owner }}/sports-odds-mcp-backend:${{ steps.versions.outputs.tag }}
-            docker pull ghcr.io/${{ github.repository_owner }}/sports-odds-mcp-backend:latest
+            docker pull ghcr.io/${{ github.repository_owner }}/bettrack-backend:${{ steps.versions.outputs.tag }}
+            docker pull ghcr.io/${{ github.repository_owner }}/bettrack-backend:latest
             
-            # Frontend
-            docker pull ghcr.io/${{ github.repository_owner }}/sports-odds-mcp-frontend:${{ steps.versions.outputs.tag }}
-            docker pull ghcr.io/${{ github.repository_owner }}/sports-odds-mcp-frontend:latest
+            # Frontend images
+            docker pull ghcr.io/${{ github.repository_owner }}/bettrack-frontend:${{ steps.versions.outputs.tag }}
+            docker pull ghcr.io/${{ github.repository_owner }}/bettrack-frontend:latest
             ```
             
             ## Installation

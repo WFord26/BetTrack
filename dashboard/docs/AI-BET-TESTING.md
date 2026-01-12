@@ -156,7 +156,7 @@ Edit `%APPDATA%\Claude\claude_desktop_config.json`:
   "mcpServers": {
     "sports-dashboard": {
       "command": "python",
-      "args": ["C:/Users/wford.MS/GitHub/Sports-Odds-MCP/mcp/dashboard_mcp_server.py"],
+      "args": ["C:/Users/wford.MS/GitHub/BetTrack/mcp/dashboard_mcp_server.py"],
       "env": {
         "DASHBOARD_API_KEY": "YOUR_API_KEY_HERE",
         "DASHBOARD_API_URL": "http://localhost:3001"

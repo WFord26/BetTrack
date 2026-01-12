@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend\public\logo.png" alt="BetTrack Logo" width="600"/>
+  <img src="frontend\public\BetTrackDashboard.png" alt="BetTrack Logo" width="600"/>
   
 # BetTrack - Sports Betting Dashboard
 

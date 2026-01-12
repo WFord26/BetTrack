@@ -1,25 +1,45 @@
-# Sports Data MCP - Documentation Wiki
+<div align="center">
+  <img src="https://raw.githubusercontent.com/WFord26/BetTrack/main/assets/logo.png" alt="BetTrack Logo" width="200"/>
+</div>
 
-Welcome to the **Sports Data MCP** documentation! This Model Context Protocol (MCP) server provides comprehensive sports data from multiple APIs with natural language query support for Claude Desktop.
+# BetTrack - Documentation Wiki
 
-## 🎯 Quick Links
+Welcome to the **BetTrack** documentation! Complete sports betting data platform combining MCP server for Claude Desktop with optional web dashboard for bet tracking and line movement analysis.
 
-- [Installation Guide](Installation-Guide)
-- [API Tools Reference](API-Tools-Reference)
-- [Usage Examples](Usage-Examples)
-- [Configuration Guide](Configuration-Guide)
-- [Troubleshooting](Troubleshooting)
+## 🚀 Quick Links
 
-## 📊 What is Sports Data MCP?
+- **[Quick Start Guide](Quick-Start)** - Get up and running in 5 minutes
+- **[Installation Guide](Installation-Guide)** - Detailed installation instructions
+- **[API Documentation](API-DOCUMENTATION)** - Complete API reference
 
-Sports Data MCP is a powerful MCP server that brings real-time sports data directly into Claude Desktop, enabling natural language queries for:
+## 📚 Component Guides
 
-- **Live betting odds** from multiple bookmakers
-- **Live scores** and game results
-- **Team information** and standings
-- **Schedules** and upcoming games
-- **News and articles** from ESPN
-- **Historical data** and statistics
+- **[MCP Server Guide](MCP-Server-Guide)** - Architecture, tools, and development
+- **[Frontend Guide](Frontend-Guide)** - React dashboard components and state
+- **[Backend Guide](Backend-Guide)** - Node.js API, services, and jobs
+- **[Database Guide](Database-Guide)** - Schema, migrations, and queries
+
+## 📊 What is BetTrack?
+
+BetTrack is a dual-platform sports betting data system:
+
+### 🤖 MCP Server (Claude Desktop)
+Natural language queries for sports data:
+- **Live betting odds** from 10+ bookmakers
+- **Real-time scores** and game results
+- **Team stats** and standings
+- **Player props** (70+ markets)
+- **Line movement** tracking
+- **ESPN integration** (schedules, news, rosters)
+
+### 🌐 Web Dashboard (Optional)
+Full-featured bet tracking platform:
+- **Bet slip management** with Redux state
+- **Line movement charts** with Recharts
+- **Bet history** and performance tracking
+- **Automated outcomes** resolution
+- **Multi-sport support** (NFL, NBA, NHL, MLB, Soccer)
+- **Background jobs** for odds syncing
 
 ## 🔌 Data Sources
 
@@ -180,11 +200,11 @@ High-resolution team logos from ESPN CDN (500px PNGs) for all NFL, NBA, and NHL 
 
 - **Issues?** Check the [Troubleshooting](Troubleshooting) guide
 - **Questions?** See the [FAQ](FAQ)
-- **Bugs?** Report on [GitHub Issues](https://github.com/WFord26/Sports-Odds-MCP/issues)
+- **Bugs?** Report on [GitHub Issues](https://github.com/WFord26/BetTrack/issues)
 
-## 📜 License
+## License
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/WFord26/Sports-Odds-MCP/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/WFord26/BetTrack/blob/main/LICENSE) file for details.
 
 ## 🤝 Contributing
 
@@ -194,4 +214,4 @@ Contributions are welcome! See the [Contributing Guide](Contributing-Guide) for 
 
 **Version:** 0.1.10  
 **Author:** William Ford  
-**Repository:** [github.com/WFord26/Sports-Odds-MCP](https://github.com/WFord26/Sports-Odds-MCP)
+**Repository:** [github.com/WFord26/BetTrack](https://github.com/WFord26/BetTrack)
