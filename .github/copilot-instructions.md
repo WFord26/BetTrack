@@ -51,27 +51,32 @@ Sports-Odds-MCP/
 
 **IMPORTANT**: Always run build scripts before pushing changes to ensure production builds succeed.
 
+**Build Script Location**: `scripts/build.ps1` (centralized build system)
+
 ```powershell
-# MCP Server - Build MCPB package
-cd mcp/scripts/build
+# Navigate to build script directory
+cd scripts
+
+# Build MCP Server MCPB package only
 .\build.ps1 -VersionBump patch  # or -Beta for testing
 
-# Dashboard Backend - Build TypeScript
-cd dashboard/backend
-npm run build
+# Build Dashboard only (backend + frontend)
+.\build.ps1 -Dashboard -BumpBackend -BumpFrontend
 
-# Dashboard Frontend - Build React app
-cd dashboard/frontend
-npm run build
+# Build everything (MCP + Dashboard)
+.\build.ps1 -Dashboard -VersionBump patch -BumpBackend -BumpFrontend
+
+# Beta build with version bumps
+.\build.ps1 -Dashboard -BumpDashboard -BumpBackend -BumpFrontend -VersionBump patch -Beta
 
 # Verify build outputs
-ls mcp/releases/  # Check for new .mcpb file
-ls dashboard/dist/backend/  # Check for compiled JS files
-ls dashboard/dist/frontend/  # Check for bundled assets
+ls ../../releases/  # Check for new .mcpb file
+ls ../../../dashboard/dist/backend/  # Check for compiled JS files
+ls ../../../dashboard/dist/frontend/  # Check for bundled assets
 ```
 
 **Build verification checklist**:
-- [ ] MCP server builds without errors (`mcp/scripts/build/build.ps1`)
+- [ ] MCP server builds without errors (`scripts/build.ps1`)
 - [ ] Backend TypeScript compiles (`npm run build` in dashboard/backend/)
 - [ ] Frontend bundles successfully (`npm run build` in dashboard/frontend/)
 - [ ] No TypeScript errors (`npm run type-check` if available)
@@ -86,38 +91,58 @@ ls dashboard/dist/frontend/  # Check for bundled assets
 - Before tagging releases
 
 ### Build System (PowerShell)
-**Location**: `mcp/scripts/build/build.ps1`
+**Location**: `scripts/build.ps1` (centralized for MCP + Dashboard)
 
 ```powershell
-# Build MCPB package for Claude Desktop
-cd mcp/scripts/build
+# Navigate to build script
+cd scripts
+
+# Build MCP MCPB package only
 .\build.ps1 -VersionBump patch
 
-# Build beta version with git hash (no version bump)
-.\scripts\build\build.ps1 -Beta
+# Build Dashboard only (backend + frontend to dist/)
+.\build.ps1 -Dashboard -BumpBackend -BumpFrontend
 
-# Build beta version with version bump
-.\scripts\build\build.ps1 -VersionBump patch -Beta
+# Build everything (MCP + Dashboard)
+.\build.ps1 -Dashboard -VersionBump patch -BumpBackend -BumpFrontend
+
+# Beta build (uses git hash or incremental numbering)
+.\build.ps1 -Beta  # MCP only
+.\build.ps1 -Dashboard -Beta -BumpDashboard  # Dashboard beta
 
 # Full release (version bump + GitHub release + git tag)
-.\scripts\build\build.ps1 -VersionBump minor -Release
+.\build.ps1 -VersionBump minor -Release
 
 # Clean build artifacts
-.\scripts\build\build.ps1 -Clean
+.\build.ps1 -Clean
 ```
 
+**Build Flags**:
+- `-VersionBump <patch|minor|major>`: Bump MCP server version
+- `-Dashboard`: Build dashboard components
+- `-BumpDashboard`: Bump dashboard root package.json version
+- `-BumpBackend`: Bump backend/package.json version
+- `-BumpFrontend`: Bump frontend/package.json version
+- `-Beta`: Create beta version (git hash or incremental)
+- `-Release`: Create GitHub release and push tag
+- `-Clean`: Remove build artifacts
+
 **Version Management**:
-- Updates both `manifest.json` and `package.json`
+- `-VersionBump`: Updates MCP `manifest.json` and `package.json`
+- `-BumpDashboard`: Updates dashboard root `package.json`
+- `-BumpBackend`: Updates `dashboard/backend/package.json`
+- `-BumpFrontend`: Updates `dashboard/frontend/package.json`
 - Beta builds use git commit hash: `v0.1.13-beta.928845c`
-- Beta with `-VersionBump`: incremental beta numbering (`v0.1.14-beta.1`)
+- Beta with version bump: incremental beta numbering (`v0.1.14-beta.1`)
 - Release flag creates git tag and pushes to GitHub
 - Beta releases NOT pushed to GitHub (local testing only)
 
 **Build Output**:
-- MCPB packages saved to: `mcp/releases/sports-data-mcp-v{version}.mcpb`
-- MCPB format: ZIP archive with `.mcpb` extension
-- Contains: server script, API handlers, formatters, manifest, requirements.txt
-**MCP Server Location**: `src/sports_mcp_server.py`
+- **MCP**: MCPB packages saved to `mcp/releases/sports-data-mcp-v{version}.mcpb`
+  - MCPB format: ZIP archive with `.mcpb` extension
+  - Contains: server script, API handlers, formatters, manifest, requirements.txt
+- **Dashboard Backend**: Compiled TypeScript to `dashboard/dist/backend/`
+- **Dashboard Frontend**: Bundled React app to `dashboard/dist/frontend/`
 
 
 ### Local Development Setup
@@ -164,10 +189,10 @@ npm run sync:odds      # Manual odds sync via admin API (background)
 npm run resolve:outcomes  # Resolve bet outcomes via admin API (background)
 
 # Build for production (REQUIRED before push)
-cd dashboard/backend
-npm run build  # Compiles TypeScript to dist/backend/
-cd ../frontend
-npm run build  # Bundles React app to dist/frontend/
+# Use centralized build script:
+cd ../../mcp/scripts/build
+.\build.ps1 -Dashboard -BumpBackend -BumpFrontend
+# Outputs: dashboard/dist/backend/ and dashboard/dist/frontend/
 ```
 
 **Admin API Endpoints** (`/api/admin`):
@@ -273,26 +298,68 @@ def get_team_logo_url(team_name: str, sport: str, dark_mode: bool = False) -> Op
 **File**: `mcp/sports_api/team_reference.py` (216 lines)
 
 ### Changelog Management
-**Always update** `mcp/CHANGELOG.md` when making changes to MCP server:
+
+**Three-Tier Changelog Strategy**:
+
+#### 1. Component Changelogs (Semantic Versioning)
+Component-specific changelogs use **semantic versioning** (MAJOR.MINOR.PATCH) and track detailed changes during development:
+
+- **MCP Server**: `mcp/CHANGELOG.md`
+  - Update when changing tools, API handlers, formatters, or MCP server behavior
+- **Dashboard Backend**: `dashboard/backend/CHANGELOG.md`
+  - Update when changing API routes, services, database schema, or backend logic
+- **Dashboard Frontend**: `dashboard/frontend/CHANGELOG.md`
+  - Update when changing UI components, Redux store, charts, or frontend features
+
+**Semantic Versioning Rules**:
 ```markdown
 ## [Unreleased]
 
 ### Added
-- New tools, features, or supported markets
+- New features, tools, components, or capabilities
 
 ### Changed
-- Modifications to existing behavior
+- Modifications to existing functionality
 - Breaking changes (prefix with `BREAKING:`)
 
 ### Fixed
 - Bug fixes and corrections
+
+### Security
+- Security-related changes
 ```
 
-**When to update**:
-- Adding tools → `### Added`
-- Modifying tool behavior → `### Changed`
-- Bug fixes → `### Fixed`
-- **BREAKING** changes get `BREAKING:` prefix under `### Changed`
+**When to update component changelogs**:
+- During development, update the relevant component's `## [Unreleased]` section
+- On version release, build scripts move `[Unreleased]` to versioned section (e.g., `## [1.2.3]`)
+- Semantic version bumping: MAJOR (breaking), MINOR (features), PATCH (fixes)
+
+#### 2. Root Changelog (Date-Based Versioning)
+The root changelog (`CHANGELOG.md`) uses **date-based versioning** (YYYY-MM-DD) and contains only **high-level release summaries**:
+
+```markdown
+## [2026-01-15]
+
+### Release Summary
+High-level description of what changed in this release across all components.
+
+### Component Versions
+- MCP Server: v1.2.3
+- Dashboard Backend: v2.1.0
+- Dashboard Frontend: v2.1.1
+```
+
+**Root changelog rules**:
+- **Only update on releases** (not during development)
+- Focus on user-facing changes and major features
+- Include component version references
+- Use date-based section headers: `## [YYYY-MM-DD]`
+- Keep entries brief (2-5 bullet points per release)
+
+**Update workflow**:
+1. During development: Update component changelogs (`mcp/`, `dashboard/backend/`, `dashboard/frontend/`)
+2. On release: Update root `CHANGELOG.md` with high-level summary and component versions
+3. Release command: `.\build.ps1 -FullRelease -VersionBump patch -PushDocker`
 
 ### Markets System (Betting)
 **Game Markets**: `h2h` (moneyline), `spreads`, `totals`, `outrights`
@@ -410,15 +477,17 @@ model OddSnapshot {
 cd mcp
 python sports_mcp_server.py
 
-# Build MCPB package (REQUIRED before push)
-cd mcp/scripts/build
+# Build MCP server MCPB package (REQUIRED before push)
+cd scripts
 .\build.ps1 -VersionBump patch
 
-# Build dashboard (REQUIRED before push)
-cd dashboard/backend
-npm run build
-cd ../frontend  
-npm run build
+# Build dashboard to dist/ (REQUIRED before push)
+cd scripts
+.\build.ps1 -Dashboard -BumpBackend -BumpFrontend
+
+# Build everything (MCP + Dashboard)
+cd scripts
+.\build.ps1 -Dashboard -VersionBump patch -BumpBackend -BumpFrontend
 
 # Dashboard backend
 cd dashboard/backend
@@ -456,7 +525,10 @@ python -c "import sports_mcp_server; print(len([attr for attr in dir(sports_mcp_
 - `docs/AVAILABLE-TOOLS.md`: Complete tool reference with all 30+ tools and 70+ betting markets
 - `docs/wiki/`: GitHub wiki pages (Installation Guide, Home)
 - `docs/internal/`: Agent prompts for building dashboard, easter eggs documentation
-- `CHANGELOG.md`: Version history with breaking changes noted
+- `CHANGELOG.md`: Root changelog with date-based versioning (release summaries only)
+- `mcp/CHANGELOG.md`: MCP server changelog with semantic versioning
+- `dashboard/backend/CHANGELOG.md`: Backend changelog with semantic versioning
+- `dashboard/frontend/CHANGELOG.md`: Frontend changelog with semantic versioning
 - `README.md`: User-facing installation and usage guide
 
 ## Future Workflows (Documented Internally)
@@ -470,4 +542,4 @@ When implementing new features:
 - Return `{"success": bool, "data": ..., "error": ...}` dict structure
 - Add tool to `sports_mcp_server.py` with `@mcp.tool()` decorator
 - Update `docs/AVAILABLE-TOOLS.md` with new tool documentation
-- Add changelog entry under `## [Unreleased]`
+- Add changelog entry under `## [Unreleased]` in relevant component changelog(s)
