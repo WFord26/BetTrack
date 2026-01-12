@@ -1,6 +1,6 @@
 {
   "name": "dashboard-backend",
-  "version": "0.1.19",
+  "version": "0.1.21",
   "private": true,
   "description": "Backend API for sports betting tracker dashboard",
   "main": "dist/app.js",
@@ -22,7 +22,9 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/bcrypt": "^5.0.2",
     "axios": "^1.7.9",
+    "bcrypt": "^5.1.1",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

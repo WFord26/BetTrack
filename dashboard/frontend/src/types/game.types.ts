@@ -66,6 +66,18 @@ export interface BetLeg {
   teamName?: string;
   status?: 'pending' | 'won' | 'lost' | 'push';
   game?: Game;
+  sgpGroupId?: string | null;
+}
+
+export interface FutureLeg {
+  id?: string;
+  futureId: string;
+  futureTitle: string;
+  outcome: string;
+  odds: number;
+  status?: 'pending' | 'won' | 'lost' | 'push';
+  sportKey?: string;
+  userAdjustedOdds?: number;
 }
 
 export interface Bet {
@@ -80,6 +92,7 @@ export interface Bet {
   placedAt: string;
   settledAt?: string;
   legs: BetLeg[];
+  futureLegs?: FutureLeg[];
 }
 
 export interface BetStats {

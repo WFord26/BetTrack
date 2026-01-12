@@ -1,6 +1,10 @@
+<div align="center">
+  <img src="dashboard/frontend/public/logo.svg" alt="Sports Data MCP Logo" width="400"/>
+  
 # Sports Data MCP
 
 Model Context Protocol (MCP) server providing comprehensive sports data from multiple APIs with natural language query support for Claude Desktop.
+</div>
 
 ## Features
 

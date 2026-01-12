@@ -54,8 +54,7 @@ Sports-Odds-MCP/
 **Build Script Location**: `scripts/build.ps1` (centralized build system)
 
 ```powershell
-# Navigate to build script directory
-cd scripts
+# Navigate to build script directorycd scripts
 
 # Build MCP Server MCPB package only
 .\build.ps1 -VersionBump patch  # or -Beta for testing

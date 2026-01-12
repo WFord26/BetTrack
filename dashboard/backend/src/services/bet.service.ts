@@ -2,11 +2,13 @@ import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import {
   CreateBetInput,
+  CreateFutureLegInput,
   UpdateBetInput,
   BetFilters,
   StatsFilters,
   BetResponse,
   BetLegResponse,
+  BetLegFutureResponse,
   PaginatedBets,
   BetStats,
   BetStatus
@@ -39,6 +41,25 @@ export class BetService {
     // Validation
     await this.validateBetCreation(data);
 
+    // Detect Same Game Parlays (SGP) - multiple legs on same game
+    const gameGroups = new Map<string, typeof data.legs>();
+    data.legs.forEach((leg) => {
+      const gameId = leg.gameId;
+      if (!gameGroups.has(gameId)) {
+        gameGroups.set(gameId, []);
+      }
+      gameGroups.get(gameId)!.push(leg);
+    });
+
+    // Identify which games have SGP (multiple legs)
+    const sgpGames = new Set<string>();
+    gameGroups.forEach((legs, gameId) => {
+      if (legs.length > 1) {
+        sgpGames.add(gameId);
+        logger.info(`SGP detected on game ${gameId}: ${legs.length} legs`);
+      }
+    });
+
     // Start transaction
     return await prisma.$transaction(async (tx) => {
       // Calculate odds and payout
@@ -58,7 +79,7 @@ export class BetService {
         }
       });
 
-      // Create bet legs
+      // Create bet legs with SGP group IDs
       for (const legData of data.legs) {
         const effectiveOdds = legData.userAdjustedOdds || legData.odds;
         const effectiveLine = legData.userAdjustedLine ?? legData.line;
@@ -85,12 +106,33 @@ export class BetService {
             userAdjustedLine: legData.userAdjustedLine ? new Decimal(legData.userAdjustedLine) : null,
             userAdjustedOdds: legData.userAdjustedOdds || null,
             teaserAdjustedLine,
+            sgpGroupId: sgpGames.has(legData.gameId) ? legData.gameId : null,
             status: 'pending'
           }
         });
       }
 
-      logger.info(`Created bet ${bet.id} with ${data.legs.length} legs`);
+      // Create futures legs if present
+      if (data.futureLegs && data.futureLegs.length > 0) {
+        logger.info(`Creating ${data.futureLegs.length} futures legs for bet ${bet.id}`);
+        for (const futureLeg of data.futureLegs) {
+          const effectiveOdds = futureLeg.userAdjustedOdds || futureLeg.odds;
+          
+          await tx.betLegFuture.create({
+            data: {
+              betId: bet.id,
+              futureId: futureLeg.futureId,
+              outcome: futureLeg.outcome,
+              odds: effectiveOdds,
+              userAdjustedOdds: futureLeg.userAdjustedOdds || null,
+              status: 'pending'
+            }
+          });
+        }
+      }
+
+      const totalLegs = data.legs.length + (data.futureLegs?.length || 0);
+      logger.info(`Created bet ${bet.id} with ${totalLegs} total legs (${data.legs.length} game legs, ${data.futureLegs?.length || 0} futures)${sgpGames.size > 0 ? ` (${sgpGames.size} SGP games)` : ''}`);
 
       // Fetch and return complete bet
       return this.getBetById(bet.id) as Promise<BetResponse>;
@@ -185,6 +227,22 @@ export class BetService {
               include: {
                 sport: {
                   select: { key: true, name: true }
+                }
+              }
+            }
+          }
+        },
+        futureLegs: {
+          include: {
+            future: {
+              select: {
+                id: true,
+                title: true,
+                season: true,
+                sport: {
+                  select: {
+                    key: true
+                  }
                 }
               }
             }
@@ -555,18 +613,62 @@ export class BetService {
     combinedOdds: number;
     potentialPayout: number;
   } {
+    const totalLegs = data.legs.length + (data.futureLegs?.length || 0);
+    
     if (data.betType === 'single') {
-      const leg = data.legs[0];
-      const odds = leg.userAdjustedOdds || leg.odds;
-      const payout = calculatePayout(data.stake, odds);
-      return { combinedOdds: odds, potentialPayout: payout };
+      if (totalLegs !== 1) {
+        throw new Error('Single bet must have exactly one leg');
+      }
+      
+      // Check if it's a game leg or futures leg
+      if (data.legs.length === 1) {
+        const leg = data.legs[0];
+        const odds = leg.userAdjustedOdds || leg.odds;
+        const payout = calculatePayout(data.stake, odds);
+        return { combinedOdds: odds, potentialPayout: payout };
+      } else {
+        // Single futures leg
+        const futureLeg = data.futureLegs![0];
+        const odds = futureLeg.userAdjustedOdds || futureLeg.odds;
+        const payout = calculatePayout(data.stake, odds);
+        return { combinedOdds: odds, potentialPayout: payout };
+      }
     }
 
     if (data.betType === 'parlay') {
-      const legs = data.legs.map(leg => ({
-        odds: leg.userAdjustedOdds || leg.odds
-      }));
-      const decimalOdds = calculateParlayOdds(legs);
+      // Group legs by gameId to detect SGP
+      const gameGroups = new Map<string, typeof data.legs>();
+      data.legs.forEach((leg) => {
+        if (!gameGroups.has(leg.gameId)) {
+          gameGroups.set(leg.gameId, []);
+        }
+        gameGroups.get(leg.gameId)!.push(leg);
+      });
+
+      // Build effective odds array (multiply all legs within SGP groups)
+      const effectiveOdds: number[] = [];
+      
+      // Add game leg odds
+      gameGroups.forEach((legs) => {
+        if (legs.length > 1) {
+          // SGP: Add all legs' odds to multiply them
+          legs.forEach((leg) => effectiveOdds.push(leg.userAdjustedOdds || leg.odds));
+        } else {
+          // Regular: Single leg on this game
+          effectiveOdds.push(legs[0].userAdjustedOdds || legs[0].odds);
+        }
+      });
+      
+      // Add futures leg odds
+      if (data.futureLegs && data.futureLegs.length > 0) {
+        data.futureLegs.forEach((futureLeg) => {
+          effectiveOdds.push(futureLeg.userAdjustedOdds || futureLeg.odds);
+        });
+      }
+
+      // Calculate parlay odds using effective odds
+      const legsForCalc = effectiveOdds.map(odds => ({ odds }));
+      const decimalOdds = calculateParlayOdds(legsForCalc);
       const americanOdds = decimalToAmerican(decimalOdds);
       const payout = calculatePayout(data.stake, americanOdds);
       return { combinedOdds: americanOdds, potentialPayout: payout };
@@ -609,7 +711,8 @@ export class BetService {
       notes: bet.notes,
       placedAt: bet.placedAt,
       settledAt: bet.settledAt,
-      legs: bet.legs.map((leg: any) => this.formatBetLeg(leg))
+      legs: bet.legs.map((leg: any) => this.formatBetLeg(leg)),
+      futureLegs: bet.futureLegs ? bet.futureLegs.map((leg: any) => this.formatBetLegFuture(leg)) : undefined
     };
   }
 
@@ -624,6 +727,7 @@ export class BetService {
       teamName: leg.teamName,
       line: leg.line,
       odds: leg.odds,
+      sgpGroupId: leg.sgpGroupId,
       userAdjustedLine: leg.userAdjustedLine,
       userAdjustedOdds: leg.userAdjustedOdds,
       teaserAdjustedLine: leg.teaserAdjustedLine,
@@ -641,6 +745,25 @@ export class BetService {
           key: leg.game.sport.key,
           name: leg.game.sport.name
         }
+      }
+    };
+  }
+
+  /**
+   * Format bet leg future for response
+   */
+  private formatBetLegFuture(leg: any): BetLegFutureResponse {
+    return {
+      id: leg.id,
+      outcome: leg.outcome,
+      odds: leg.odds,
+      userAdjustedOdds: leg.userAdjustedOdds,
+      status: leg.status,
+      future: {
+        id: leg.future.id,
+        title: leg.future.title,
+        sportKey: leg.future.sport.key,
+        season: leg.future.season
       }
     };
   }

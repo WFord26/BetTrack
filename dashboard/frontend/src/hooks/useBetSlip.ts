@@ -10,15 +10,18 @@ import {
   setTeaserPoints,
   clearSlip,
   selectLegs,
+  selectFutureLegs,
   selectBetType,
   selectStake,
   selectTeaserPoints,
   selectCombinedOdds,
   selectPotentialPayout,
   selectPotentialProfit,
-  selectIsValid
+  selectIsValid,
+  removeFutureLeg,
+  updateFutureLeg
 } from '../store/betSlipSlice';
-import { BetLeg } from '../types/game.types';
+import { BetLeg, FutureLeg } from '../types/game.types';
 import api from '../services/api';
 
 interface SubmitBetParams {
@@ -35,6 +38,7 @@ export function useBetSlip() {
 
   // Selectors
   const legs = useSelector(selectLegs);
+  const futureLegs = useSelector(selectFutureLegs);
   const betType = useSelector(selectBetType);
   const stake = useSelector(selectStake);
   const teaserPoints = useSelector(selectTeaserPoints);
@@ -125,6 +129,7 @@ export function useBetSlip() {
   return {
     // State
     legs,
+    futureLegs,
     betType,
     stake,
     teaserPoints,
@@ -139,6 +144,8 @@ export function useBetSlip() {
     addLeg: handleAddLeg,
     removeLeg: handleRemoveLeg,
     updateLeg: handleUpdateLeg,
+    removeFutureLeg: (futureId: string) => dispatch(removeFutureLeg(futureId)),
+    updateFutureLeg: (futureId: string, updates: Partial<FutureLeg>) => dispatch(updateFutureLeg({ futureId, updates })),
     setBetType: handleSetBetType,
     setStake: handleSetStake,
     setTeaserPoints: handleSetTeaserPoints,

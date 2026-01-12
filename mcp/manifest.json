@@ -12,6 +12,7 @@
     "type": "git",
     "url": "https://github.com/yourusername/sports-odds-mcp.git"
   },
+  "icon": "icon.png",
   "server": {
     "type": "binary",
     "entry_point": "sports_mcp_server.py",

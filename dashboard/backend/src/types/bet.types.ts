@@ -24,11 +24,19 @@ export interface CreateBetLegInput {
   userAdjustedOdds?: number;
 }
 
+export interface CreateFutureLegInput {
+  futureId: string;
+  outcome: string;
+  odds: number;
+  userAdjustedOdds?: number;
+}
+
 export interface CreateBetInput {
   name: string;
   betType: BetType;
   stake: number;
   legs: CreateBetLegInput[];
+  futureLegs?: CreateFutureLegInput[];
   teaserPoints?: number;
   notes?: string;
 }
@@ -75,6 +83,7 @@ export interface BetLegResponse {
   teamName: string | null;
   line: Decimal | null;
   odds: number;
+  sgpGroupId: string | null;
   userAdjustedLine: Decimal | null;
   userAdjustedOdds: number | null;
   teaserAdjustedLine: Decimal | null;
@@ -95,6 +104,20 @@ export interface BetLegResponse {
   };
 }
 
+export interface BetLegFutureResponse {
+  id: string;
+  outcome: string;
+  odds: number;
+  userAdjustedOdds: number | null;
+  status: BetStatus;
+  future: {
+    id: string;
+    title: string;
+    sportKey: string;
+    season: string | null;
+  };
+}
+
 export interface BetResponse {
   id: string;
   name: string;
@@ -109,6 +132,7 @@ export interface BetResponse {
   placedAt: Date;
   settledAt: Date | null;
   legs: BetLegResponse[];
+  futureLegs?: BetLegFutureResponse[];
 }
 
 export interface PaginatedBets {

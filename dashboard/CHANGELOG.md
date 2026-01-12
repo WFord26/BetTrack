@@ -5,6 +5,82 @@ All notable changes to the Sports Odds Dashboard will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Docker Secrets Support**: Production-ready secret management
+  - Backend Dockerfile supports Docker secrets mounted at `/run/secrets/`
+  - Automatic loading of secrets from files (ODDS_API_KEY, DB_PASSWORD, etc.)
+  - Secret files converted to uppercase environment variables
+  - Entrypoint script with secret loading, .env fallback, and migration support
+  - Priority order: Docker secrets > Environment variables > .env file
+  - New `docker-compose.prod.yml` with PostgreSQL secrets integration
+  - Documentation for AWS Secrets Manager, Azure Key Vault, and Kubernetes secrets
+  - `secrets/` directory with README and .gitignore setup
+  - Support for `AUTO_MIGRATE=true` to run Prisma migrations on container start
+
+- **Admin Settings Page**: Site branding configuration
+  - Site name, logo URL, and domain URL customization
+  - Logo preview with fallback to default gradient
+  - Access control based on auth mode (single-user vs multi-user)
+  - New SiteConfig database table with Prisma schema
+  - Backend API endpoints: GET/PUT `/api/admin/site-config`
+  - Header component fetches and displays custom branding
+
+- **OAuth2 Authentication System**: Complete frontend implementation
+  - AuthContext for centralized user state management
+  - Login page with Microsoft Azure AD and Google OAuth2 providers
+  - ProtectedRoute component for authentication-required pages
+  - User dropdown menu in header with avatar, email, and logout
+  - Settings dropdown menu (Preferences, API Keys, Notifications)
+  - Support for two modes: `AUTH_MODE=none` (standalone) and `AUTH_MODE=oauth2` (enterprise)
+  - Automatic redirect to login page when authentication required
+  - Session-based authentication with secure cookie handling
+
+### Changed
+- **Backend Dockerfile**: Enhanced for production security
+  - Multi-stage build with builder and runtime stages
+  - Non-root user (nodejs:1001) for security
+  - dumb-init for proper signal handling
+  - Custom entrypoint with secret loading logic
+  - Health check endpoint for container orchestration
+
+- **Header Component**: Enhanced with authentication features
+  - User menu appears when authenticated (avatar/initials, name, email)
+  - Settings menu now includes "API Keys" and "Admin" options
+  - Admin menu item visibility based on auth mode and user role
+  - Displays custom site name and logo from site configuration
+  - Improved dropdown state management with click-outside detection
+  - Better responsive design for user profile display
+
+### Security
+- **Secret Management**: Production-grade security improvements
+  - Secrets never logged or exposed in container images
+  - File-based secrets with proper permissions (chmod 600)
+  - Support for external secret stores (AWS, Azure, Kubernetes)
+  - Clear separation between development (.env) and production (secrets) configs
+
+### Technical
+- **Database Schema**: New tables and fields
+  - `SiteConfig` model with id (default 1), siteName, logoUrl, domainUrl
+  - `User.isAdmin` boolean field for admin access control
+  - Migration: `20260112174137_add_admin_settings`
+
+- **Frontend**: New authentication components
+  - Created `src/contexts/AuthContext.tsx` with useAuth hook
+  - Created `src/components/ProtectedRoute.tsx` for route protection
+  - Created `src/pages/Login.tsx` with OAuth provider buttons
+  - Updated `src/App.tsx` with AuthProvider and protected routes
+  - Updated Header component with user/settings dropdowns
+- **Configuration**: Enhanced environment variables
+  - Updated `.env.example` with AUTH_MODE, SESSION_SECRET, OAuth credentials
+  - Documented all authentication-related environment variables
+- **Documentation**: Comprehensive authentication guides
+  - Created `docs/AUTH-IMPLEMENTATION-SUMMARY.md` with status and testing scenarios
+  - Existing `docs/AUTH_SETUP.md` provides OAuth2 provider setup instructions
+
+---
+
 ## v0.2.0 - More in-Game Features and Fixes
 
 ### Added

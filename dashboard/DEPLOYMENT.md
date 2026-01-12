@@ -55,6 +55,152 @@
 - [ ] API response times <500ms for most endpoints
 - [ ] Frontend initial load <3 seconds
 
+### Docker & Secrets (Production)
+- [ ] Docker secrets configured for sensitive data
+- [ ] Secret files created in `secrets/` directory
+- [ ] Secret files secured with `chmod 600`
+- [ ] `docker-compose.prod.yml` configured with secrets
+- [ ] Secrets NOT committed to git (verify `.gitignore`)
+- [ ] External secret store integrated (AWS/Azure/Vault) if applicable
+- [ ] Auto-migration enabled (`AUTO_MIGRATE=true`) or migration plan documented
+- [ ] Health checks passing for all containers
+- [ ] Container logs configured for centralized logging
+
+## Docker Deployment with Secrets (Recommended)
+
+### Quick Start
+
+For production deployments, use Docker with secure secret management:
+
+```bash
+# 1. Setup secrets directory
+mkdir -p secrets
+echo -n "your_odds_api_key" > secrets/odds_api_key.txt
+echo -n "$(openssl rand -hex 32)" > secrets/session_secret.txt
+echo -n "sports_user" > secrets/db_user.txt
+echo -n "secure_password" > secrets/db_password.txt
+
+# 2. Secure the files
+chmod 600 secrets/*.txt
+
+# 3. Deploy with production compose
+docker-compose -f docker-compose.prod.yml up -d
+
+# 4. Verify deployment
+docker-compose -f docker-compose.prod.yml ps
+curl http://localhost:3001/health
+```
+
+### Secret Management Options
+
+#### Option 1: Docker Secrets (Recommended)
+
+The backend Docker image automatically loads secrets from `/run/secrets/`:
+
+```yaml
+# docker-compose.prod.yml
+services:
+  backend:
+    secrets:
+      - odds_api_key
+      - session_secret
+      - db_password
+
+secrets:
+  odds_api_key:
+    file: ./secrets/odds_api_key.txt
+  session_secret:
+    file: ./secrets/session_secret.txt
+  db_password:
+    file: ./secrets/db_password.txt
+```
+
+**Benefits**:
+- Secrets encrypted at rest and in transit (Swarm mode)
+- Never appear in logs or `docker inspect`
+- Easy rotation without image rebuilds
+- Fine-grained access control
+
+#### Option 2: Environment Variables
+
+For development or simple deployments:
+
+```bash
+export DATABASE_URL="postgresql://user:pass@localhost/db"
+export ODDS_API_KEY="your_api_key"
+docker-compose up
+```
+
+#### Option 3: External Secret Stores
+
+**AWS Secrets Manager**:
+```bash
+# Store secret
+aws secretsmanager create-secret \
+  --name sports-dashboard/odds-api-key \
+  --secret-string "your_api_key"
+
+# ECS task definition
+{
+  "secrets": [{
+    "name": "ODDS_API_KEY",
+    "valueFrom": "arn:aws:secretsmanager:region:account:secret:name"
+  }]
+}
+```
+
+**Azure Key Vault**:
+```bash
+# Store secret
+az keyvault secret set \
+  --vault-name sports-kv \
+  --name odds-api-key \
+  --value "your_api_key"
+
+# Container deployment
+az container create \
+  --secrets odds_api_key=keyvault:odds-api-key
+```
+
+**Kubernetes**:
+```bash
+# Create secret
+kubectl create secret generic sports-secrets \
+  --from-literal=odds_api_key="your_api_key" \
+  --from-literal=session_secret="$(openssl rand -hex 32)"
+
+# Reference in deployment
+env:
+  - name: ODDS_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: sports-secrets
+        key: odds_api_key
+```
+
+### Secret Priority
+
+When the same configuration exists in multiple places:
+1. **Docker secrets** (highest) - Mounted at `/run/secrets/`
+2. **Environment variables** - Via `-e` or `environment:` in compose
+3. **.env file** (lowest) - Mounted into container
+
+### How Backend Loads Secrets
+
+The production Dockerfile includes an entrypoint script that:
+1. Reads all files from `/run/secrets/`
+2. Converts filenames to uppercase environment variables
+3. Falls back to `.env` file if secrets not found
+4. Runs Prisma migrations if `AUTO_MIGRATE=true`
+
+Example secret loading:
+```
+/run/secrets/odds_api_key → ODDS_API_KEY environment variable
+/run/secrets/db_password → DB_PASSWORD environment variable
+```
+
+See [secrets/README.md](secrets/README.md) for complete documentation.
+
 ## Deployment Steps
 
 ### 1. Database Setup
@@ -63,7 +209,7 @@
 # Production database
 createdb sports_betting_prod
 
-# Update DATABASE_URL in .env
+# Update DATABASE_URL in .env or secrets
 
 # Run migrations
 cd backend

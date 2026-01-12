@@ -4,11 +4,14 @@
 
 /**
  * Format American odds with + or - prefix
- * @param american - American odds number
+ * @param american - American odds number (can be null/undefined)
  * @param asDecimal - If true, convert to decimal odds format
- * @returns Formatted string like "+150" or "-110" (or "2.50" for decimal)
+ * @returns Formatted string like "+150" or "-110" (or "2.50" for decimal), or "N/A" if null
  */
-export function formatOdds(american: number, asDecimal: boolean = false): string {
+export function formatOdds(american: number | null | undefined, asDecimal: boolean = false): string {
+  if (american === null || american === undefined) {
+    return 'N/A';
+  }
   if (asDecimal) {
     return americanToDecimal(american).toFixed(2);
   }

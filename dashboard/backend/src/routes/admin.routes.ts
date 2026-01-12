@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { oddsSyncService } from '../services/odds-sync.service';
+import { futuresSyncService } from '../services/futures-sync.service';
 import { outcomeResolverService } from '../services/outcome-resolver.service';
 import { getOddsSyncStatus } from '../jobs/sync-odds.job';
 
@@ -122,6 +123,40 @@ router.post('/resolve-outcomes', async (_req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/admin/sync-futures
+ * Manually trigger futures odds sync
+ */
+router.post('/sync-futures', async (req: Request, res: Response) => {
+  try {
+    const { sportKey } = req.body;
+    
+    logger.info(sportKey ? `Manually triggering futures sync for ${sportKey}...` : 'Manually triggering futures sync for all sports...');
+
+    // Run sync in background
+    const syncPromise = sportKey 
+      ? futuresSyncService.syncSportFutures(sportKey)
+      : futuresSyncService.syncAllFutures();
+
+    syncPromise.catch(error => {
+      logger.error('Background futures sync failed:', error);
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Futures sync started in background',
+      data: { sportKey: sportKey || 'all' }
+    });
+  } catch (error: any) {
+    logger.error('Failed to start futures sync:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to start futures sync',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/admin/stats
  * Get database statistics
  */
@@ -215,6 +250,104 @@ router.get('/health', async (_req: Request, res: Response) => {
     res.status(503).json({
       status: 'error',
       message: 'Service unhealthy',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/site-config
+ * Get site configuration (logo, name, domain)
+ */
+router.get('/site-config', async (_req: Request, res: Response) => {
+  try {
+    let config = await prisma.siteConfig.findUnique({
+      where: { id: 1 }
+    });
+
+    // Create default config if it doesn't exist
+    if (!config) {
+      config = await prisma.siteConfig.create({
+        data: {
+          id: 1,
+          siteName: 'Sports Betting',
+          logoUrl: null,
+          domainUrl: null
+        }
+      });
+    }
+
+    res.json({
+      status: 'success',
+      data: config
+    });
+  } catch (error: any) {
+    logger.error('Failed to get site config:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get site configuration',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/site-config
+ * Update site configuration
+ */
+router.put('/site-config', async (req: Request, res: Response) => {
+  try {
+    const { siteName, logoUrl, domainUrl } = req.body;
+
+    // Validate inputs
+    if (siteName && siteName.length > 100) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Site name must be 100 characters or less'
+      });
+    }
+
+    if (logoUrl && logoUrl.length > 500) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Logo URL must be 500 characters or less'
+      });
+    }
+
+    if (domainUrl && domainUrl.length > 255) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Domain URL must be 255 characters or less'
+      });
+    }
+
+    const config = await prisma.siteConfig.upsert({
+      where: { id: 1 },
+      update: {
+        ...(siteName !== undefined && { siteName }),
+        ...(logoUrl !== undefined && { logoUrl: logoUrl || null }),
+        ...(domainUrl !== undefined && { domainUrl: domainUrl || null })
+      },
+      create: {
+        id: 1,
+        siteName: siteName || 'Sports Betting',
+        logoUrl: logoUrl || null,
+        domainUrl: domainUrl || null
+      }
+    });
+
+    logger.info('Site configuration updated', { config });
+
+    res.json({
+      status: 'success',
+      message: 'Site configuration updated successfully',
+      data: config
+    });
+  } catch (error: any) {
+    logger.error('Failed to update site config:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to update site configuration',
       error: error.message
     });
   }
