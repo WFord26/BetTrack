@@ -1,6 +1,6 @@
 {
   "name": "dashboard-backend",
-  "version": "0.1.21",
+  "version": "0.2.0",
   "private": true,
   "description": "Backend API for sports betting tracker dashboard",
   "main": "dist/app.js",
