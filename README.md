@@ -1,348 +1,130 @@
-<div align="center">
-  <img src="dashboard/frontend/public/logo.svg" alt="Sports Data MCP Logo" width="400"/>
-  
-# Sports Data MCP
 
-Model Context Protocol (MCP) server providing comprehensive sports data from multiple APIs with natural language query support for Claude Desktop.
+  
+<div align="center">
+
+![BetTrack Logo](assets/logo.png)
+
+# BetTrack Sports Betting Platform
+
+**A comprehensive sports betting tracking system powered by Model Context Protocol (MCP)**
+
 </div>
 
-## Features
-
-### Data Sources
-
-- **The Odds API** - Live betting odds from multiple bookmakers
-  - Current and upcoming game odds
-  - Multiple betting markets (moneyline, spreads, totals)
-  - Score tracking
-  - Natural language team/matchup search
-
-- **ESPN API** - Comprehensive sports information
-  - Live scoreboards
-  - Team details and rosters
-  - League standings
-  - Game schedules
-  - News and articles
-  - Player information
-  - Historical data
-
-### Supported Sports
-
-- **NFL** - American Football (Pro)
-- **College Football**
-- **NBA** - Basketball (Pro)
-- **College Basketball** (Men's & Women's)
-- **MLB** - Baseball (Pro)
-- **NHL** - Hockey (Pro)
-- **Soccer** - Multiple leagues worldwide
-- **And many more...**
-
-## Installation
-
-### Prerequisites
-
-- Python 3.11 or higher
-- Claude Desktop
-- The Odds API key (free tier available at [the-odds-api.com](https://the-odds-api.com))
-
-### MCPB Installation (Recommended)
-
-1. **Download the latest MCPB package** from the [Releases](https://github.com/yourusername/sports-odds-mcp/releases) page
-
-2. **Install via Claude Desktop:**
-   - Open Claude Desktop
-   - Go to Settings → Developer
-   - Click "Install MCP Package"
-   - Select the downloaded `.mcpb` file
-
-3. **Configure your API key:**
-   - Create a `.env` file in your installation directory
-   - Add: `ODDS_API_KEY=your_api_key_here`
-
-### Manual Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/sports-odds-mcp.git
-   cd sports-odds-mcp
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configure environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your ODDS_API_KEY
-   ```
-
-4. **Add to Claude Desktop config** (`claude_desktop_config.json`):
-   ```json
-   {
-     "mcpServers": {
-       "sports-data": {
-         "command": "python",
-         "args": ["C:/path/to/sports-odds-mcp/mcp/sports_mcp_server.py"],
-         "env": {
-           "ODDS_API_KEY": "your_api_key_here"
-         }
-       }
-     }
-   }
-   ```
-
-## Usage
-
-Once installed, you can query sports data using natural language in Claude Desktop. **New:** Visual scoreboard cards render automatically!
-
-### Visual Scoreboards (NEW! 🎨)
-
-Get beautiful, interactive scoreboard cards rendered directly in Claude:
-
-**Example:**
-- "Show me a visual scoreboard for NFL games" → Uses `get_visual_scoreboard()`
-- "Create an interactive card for today's NBA games"
-- "Display NHL scores with betting odds visually"
-
-This returns structured data that Claude automatically renders as an **interactive React artifact** with:
-- Team colors and logos
-- Live scores and game status
-- Expandable betting odds (spreads, totals)
-- Smooth animations and hover effects
-- Auto-refresh capabilities
 
-### Example Queries
+## Overview
 
-**Betting Odds:**
-- "What are the current odds for Lakers vs Warriors?"
-- "Show me NFL betting lines for this weekend"
-- "Find odds for the next Patriots game"
+BetTrack is a dual-platform sports betting analytics and tracking solution that combines real-time sports data with intelligent bet management. The system consists of two integrated components:
 
-**Scores & Schedules:**
-- "What's the score of the Lakers game?"
-- "Show me today's NBA schedule"
-- "When does the Chiefs play next?"
+**🤖 MCP Server** - A Model Context Protocol server that provides Claude Desktop with direct access to live sports odds, scores, schedules, and team data through natural language queries. Query betting lines, track games, and analyze matchups conversationally through Claude.
 
-**Team Information:**
-- "Get the current NBA standings"
-- "Show me the Lakers roster"
-- "What's the Celtics' schedule this month?"
+**📊 Dashboard** - A full-featured web application for tracking bets, analyzing odds history, visualizing line movements, and managing futures betting across 7+ major sports. Built with React, Node.js, and PostgreSQL for professional-grade bet tracking and analytics.
 
-**News:**
-- "Latest NFL news"
-- "Show me recent articles about LeBron James"
+Whether you're using Claude Desktop to research bets with natural language or the web dashboard to track your betting portfolio, BetTrack provides the data and tools you need.
 
-**Combined Queries:**
-- "Give me comprehensive info on the next Lakers game including odds and team stats"
+## Key Features
 
-## Available Tools
+### MCP Server
 
-### The Odds API Tools
-- `get_available_sports` - List available sports and their keys
-- `get_odds` - Get betting odds for games
-- `get_scores` - Get live and recent scores
-- `get_event_odds` - Get detailed odds for specific event
-- `search_odds` - Natural language search for team odds
+- **30+ sports data tools** for Claude Desktop integration
+- **Live betting odds** from The Odds API (multiple bookmakers)
+- **Comprehensive ESPN data** (scores, standings, schedules, rosters, news)
+- **Natural language search** for teams, matchups, and odds
+- **70+ betting markets** including game lines and player props (NFL, NBA, NHL, MLB)
+- **Visual scoreboards** with interactive React artifacts
+- **Team logo URLs** and formatted markdown tables
 
-### ESPN API Tools
-- `get_espn_scoreboard` - Current/scheduled games
-- `get_espn_standings` - League standings
-- `get_espn_teams` - List teams in a league
-- `get_espn_team_details` - Detailed team information
-- `get_espn_team_schedule` - Team schedule and results
-- `get_espn_news` - Latest news articles
-- `search_espn` - Search for teams/players
-- `get_espn_game_summary` - Detailed game summary
+### Dashboard
 
-### Combined Tools
-- `get_comprehensive_game_info` - Combines odds and ESPN data
+- **Futures betting** with 11 outright sports (Super Bowl, NBA Championship, etc.)
+- **Bet tracking** with parlays, teasers, and futures support
+- **Odds history** and line movement visualization
+- **Automated odds sync** with background jobs
+- **Outcome resolution** for automatic bet settlement
+- **Dark mode** with purple accent theme
+- **Timezone-aware** game filtering and scheduling
+- **PostgreSQL database** with Prisma ORM
 
-## Building from Source
+## Getting Started
 
-The project includes a comprehensive PowerShell build script that supports both MCP server and dashboard builds.
+### MCP Server Installation
 
-### Quick Start
-
-```powershell
-# Build MCP package (MCPB)
-cd mcp
-.\scripts\build\build.ps1 -MCP -VersionBump patch
-
-# Build web dashboard
-.\scripts\build\build.ps1 -Dashboard
-
-# Build both
-.\scripts\build\build.ps1 -MCP -Dashboard -VersionBump minor
-```
-
-### Build Documentation
+For Claude Desktop integration with sports data tools:
 
-For complete build documentation, see:
-- **[Build Scripts Documentation](scripts/README.md)** - Full reference with all options
-- **[Quick Reference](scripts/QUICK_REFERENCE.md)** - Command cheat sheet
+👉 **[Complete MCP Server Setup Guide](mcp/README.md)**
 
-### Common Build Commands
-
-```powershell
-# MCP builds
-.\scripts\build\build.ps1 -MCP -VersionBump patch           # Patch release
-.\scripts\build\build.ps1 -MCP -Beta                        # Beta with git hash
-.\scripts\build\build.ps1 -MCP -VersionBump minor -Release  # GitHub release
+Quick install: Download the latest `.mcpb` package from [Releases](https://github.com/yourusername/Sports-Odds-MCP/releases) and install via Claude Desktop settings.
 
-# Dashboard builds
-.\scripts\build\build.ps1 -Dashboard                        # Production build
-.\scripts\build\build.ps1 -Dashboard -Clean                 # Clean then build
+### Dashboard Installation
 
-# Maintenance
-.\scripts\build\build.ps1 -Clean                            # Clean all artifacts
-```
+For the web-based bet tracking and analytics platform:
 
-### Build Targets
+👉 **[Complete Dashboard Setup Guide](dashboard/README.md)**
 
-- **`-MCP`** - Build MCP server package (MCPB format)
-  - Output: `mcp/releases/sports-data-mcp-v{version}.mcpb`
-  - For Claude Desktop installation
+Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compose configurations available for production deployment.
 
-- **`-Dashboard`** - Build web dashboard (React + Node.js)
-  - Output: `dashboard/dist/` (backend + frontend)
-  - For web server deployment
+## Documentation
 
-- **Both** - Use `-MCP -Dashboard` to build everything
+### MCP Server Documentation
 
-### Prerequisites
+- **[Installation & Configuration](mcp/README.md)** - Complete setup guide for Claude Desktop
+- **[Available Tools](docs/AVAILABLE-TOOLS.md)** - All 30+ MCP tools and 70+ betting markets
+- **[Build Instructions](scripts/README.md)** - Building MCPB packages from source
 
-**For MCP builds:**
-- Python 3.11+
-- pip
+### Dashboard Documentation
 
-**For dashboard builds:**
-- Node.js 20+
-- npm 10+
+- **[Dashboard Setup](dashboard/README.md)** - Web application installation and deployment
+- **[Deployment Guide](dashboard/DEPLOYMENT.md)** - Production deployment with Docker & Nginx
+- **[Testing Guide](dashboard/TESTING.md)** - Running backend and frontend tests
 
-## Configuration
+### General Documentation
 
-### Environment Variables
+- **[Release Process](docs/RELEASE-PROCESS.md)** - Version management and release workflow
+- **[CI/CD & Testing](docs/CI-CD-TESTING.md)** - Automated testing and deployment
+- **[Build Quick Reference](scripts/QUICK_REFERENCE.md)** - Common build commands
 
-- `ODDS_API_KEY` - **(Required)** Your Odds API key
-- `BOOKMAKERS_FILTER` - **(Optional)** Comma-separated list of bookmaker keys to include (e.g., `draftkings,fanduel,betmgm`)
-  - Filters odds results to only show specified betting sites
-  - Leave empty or comment out to include all bookmakers
-  - Common bookmaker keys: `draftkings`, `fanduel`, `betmgm`, `caesars`, `barstool`, `pointsbet`, `bet365`, `mybookieag`, `bovada`, `williamhill`
-- `BOOKMAKERS_LIMIT` - **(Optional)** Maximum number of bookmakers to show per game (default: 5)
-- `LOG_LEVEL` - Logging level (default: INFO)
+## Supported Sports
 
-**Example .env configuration:**
-```bash
-ODDS_API_KEY=your_api_key_here
-BOOKMAKERS_FILTER=draftkings,fanduel,betmgm
-BOOKMAKERS_LIMIT=3
-LOG_LEVEL=INFO
-```
+**7+ Major Sports:**
 
-### API Rate Limits
+- 🏈 **NFL** - American Football (Pro)
+- 🏀 **NBA** - Basketball (Pro)
+- 🏀 **NCAAB** - College Basketball (Men's & Women's)
+- 🏒 **NHL** - Hockey (Pro)
+- ⚾ **MLB** - Baseball (Pro)
+- ⚽ **EPL** - English Premier League
+- ⚽ **UEFA** - Champions League
+- 🏈 **College Football**
+- And many more via The Odds API...
 
-**The Odds API:**
-- Free tier: 500 requests/month
-- Check remaining quota in response headers
+## Technology Stack
 
-**ESPN API:**
-- No authentication required
-- Rate limits apply (be respectful)
+### MCP Server Components
 
-## Development
+- **FastMCP** - Model Context Protocol framework
+- **Python 3.11+** - Async/await API handlers
+- **The Odds API** - Live betting odds (500+ markets)
+- **ESPN API** - Sports data and statistics
 
-### Project Structure
+### Dashboard Components
 
-```
-sports-odds-mcp/
-├── sports_mcp_server.py      # Main MCP server
-├── sports_api/               # API handlers
-│   ├── odds_api_handler.py   # The Odds API
-│   └── espn_api_handler.py   # ESPN API
-├── scripts/
-│   └── build/
-│       └── build.ps1         # Build script
-├── manifest.json             # MCP manifest
-├── package.json              # Package metadata
-├── requirements.txt          # Python dependencies
-└── .env.example              # Environment template
-```
+- **Frontend:** React 18, Vite, Redux Toolkit, Tailwind CSS
+- **Backend:** Node.js 20, Express, TypeScript, Prisma ORM
+- **Database:** PostgreSQL 16
+- **Deployment:** Docker, Nginx, Let's Encrypt SSL
 
-### Running Tests
-
-```bash
-pytest tests/
-```
-
-### Code Style
-
-```bash
-# Format code
-black sports_api/ sports_mcp_server.py
-
-# Lint
-pylint sports_api/ sports_mcp_server.py
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**"Odds API not configured"**
-- Ensure `ODDS_API_KEY` is set in environment or `.env` file
-- Verify API key is valid at [the-odds-api.com](https://the-odds-api.com)
-
-**"API returned status 401"**
-- Check API key is correct
-- Verify key has remaining quota
-
-**"Module not found" errors**
-- Ensure all dependencies installed: `pip install -r requirements.txt`
-- Check Python version is 3.11+
-
-### Debug Mode
-
-Enable detailed logging:
-```bash
-export LOG_LEVEL=DEBUG  # Linux/Mac
-$env:LOG_LEVEL="DEBUG"  # Windows PowerShell
-```
-
-## Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details
-
-## Credits
-
-- **The Odds API** - [the-odds-api.com](https://the-odds-api.com)
-- **ESPN API** - Unofficial API documentation from community
-- **FastMCP** - [Model Context Protocol](https://modelcontextprotocol.io)
-
-## Disclaimer
-
-This project uses:
-- The Odds API (official, requires API key)
-- ESPN's undocumented public API (unofficial, no authentication)
-
-ESPN API endpoints are community-discovered and may change without notice. This is not an official ESPN product.
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/yourusername/sports-odds-mcp/issues)
-- **Documentation:** [Wiki](https://github.com/yourusername/sports-odds-mcp/wiki)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/sports-odds-mcp/discussions)
+- **Issues:** [GitHub Issues](https://github.com/yourusername/Sports-Odds-MCP/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/yourusername/Sports-Odds-MCP/discussions)
+- **Documentation:** Project Wiki (coming soon)
 
 ---
 
-**Built with ❤️ for Claude Desktop and the MCP community**
+<div align="center">
+
+**Built with ❤️ for Claude Desktop and the sports betting community**
+
+[MCP Server Setup](mcp/README.md) · [Dashboard Guide](dashboard/README.md) · [Documentation](docs/) · [Releases](https://github.com/yourusername/Sports-Odds-MCP/releases)
+
+</div>
