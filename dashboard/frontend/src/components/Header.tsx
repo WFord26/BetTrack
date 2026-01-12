@@ -16,25 +16,25 @@ export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({
-    siteName: 'Sports Betting',
-    logoUrl: null
+    siteName: 'BetTrack Dashboard',
+    logoUrl: '/logo.svg'
   });
   const userMenuRef = useRef<HTMLDivElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
-  // Fetch site configuration
+  // Fetch site configuration (optional override)
   useEffect(() => {
     const fetchSiteConfig = async () => {
       try {
         const response = await api.get('/admin/site-config');
         const config = response.data.data;
         setSiteConfig({
-          siteName: config.siteName || 'Sports Betting',
-          logoUrl: config.logoUrl
+          siteName: config.siteName || 'BetTrack Dashboard',
+          logoUrl: config.logoUrl || '/logo.svg'
         });
       } catch (error) {
         console.error('Failed to fetch site config:', error);
-        // Use defaults on error
+        // Use defaults (logo.svg) on error
       }
     };
 
@@ -77,9 +77,9 @@ export default function Header() {
               <img 
                 src={siteConfig.logoUrl} 
                 alt={siteConfig.siteName}
-                className="h-10 w-auto object-contain"
+                className="h-28 w-auto object-contain"
                 onError={(e) => {
-                  // Fallback to default logo on error
+                  // Fallback to default icon on error
                   (e.target as HTMLImageElement).style.display = 'none';
                   (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                 }}
@@ -89,10 +89,6 @@ export default function Header() {
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">{siteConfig.siteName}</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Track & Analyze</p>
             </div>
           </Link>
 
