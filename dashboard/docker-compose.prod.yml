@@ -4,6 +4,37 @@
 version: '3.8'
 
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: sports-dashboard-nginx
+    restart: always
+    environment:
+      # Domain configuration - set this in .env file
+      DOMAIN: ${DOMAIN:-yourdomain.com}
+      # SSL certificate paths (optional, defaults to Let's Encrypt paths)
+      SSL_CERT: ${SSL_CERT:-}
+      SSL_KEY: ${SSL_KEY:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/conf.d/nginx.conf.template:ro
+      - ./nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/lib/letsencrypt:/var/lib/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - dashboard-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   postgres:
     image: postgres:16-alpine
     container_name: sports-dashboard-db-prod
@@ -47,8 +78,9 @@ services:
       - db_password
       - odds_api_key
       - session_secret
-    ports:
-      - "3001:3001"
+    # Internal port only, accessed via nginx
+    expose:
+      - "3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,16 +98,18 @@ services:
     container_name: sports-dashboard-frontend-prod
     restart: always
     environment:
-      # Backend API URL (adjust for your setup)
-      VITE_API_URL: ${BACKEND_URL:-http://localhost:3001}
-    ports:
-      - "8080:80"
+      # Backend API URL for production (via nginx)
+      # Uses DOMAIN variable from .env file
+      VITE_API_URL: https://api.${DOMAIN:-yourdomain.com}
+    # Internal port only, accessed via nginx
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
       - dashboard-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
