@@ -1,0 +1,215 @@
+name: Security Vulnerability Report
+description: Report a security vulnerability (PRIVATE - will not be publicly visible)
+title: "[Security]: "
+labels: ["security", "critical"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ⚠️ SECURITY NOTICE ⚠️
+        
+        **Please DO NOT create a public issue for security vulnerabilities!**
+        
+        Instead, please use GitHub's private security vulnerability reporting:
+        1. Go to the **Security** tab
+        2. Click **Report a vulnerability**
+        3. Or email: [your-email@domain.com]
+        
+        If you accidentally create a public issue, please contact the maintainers immediately to have it removed.
+        
+        ---
+        
+        If you still choose to report here, please provide the following information:
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Level
+      description: How severe is this vulnerability?
+      options:
+        - Critical - Remote code execution, complete system compromise
+        - High - Privilege escalation, authentication bypass
+        - Medium - Information disclosure, partial system access
+        - Low - Minor information leak, limited impact
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which component is affected?
+      options:
+        - MCP Server
+        - Dashboard Backend
+        - Dashboard Frontend
+        - Database/Prisma
+        - Authentication/Authorization
+        - API Keys/Credentials
+        - Dependencies
+        - Multiple Components
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: vulnerability
+    attributes:
+      label: Vulnerability Description
+      description: Describe the security vulnerability
+      placeholder: |
+        What is the vulnerability?
+        How can it be exploited?
+        What is the potential impact?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Vulnerability Type
+      description: What type of vulnerability is this?
+      options:
+        - SQL Injection
+        - Cross-Site Scripting (XSS)
+        - Cross-Site Request Forgery (CSRF)
+        - Authentication/Authorization Issue
+        - Information Disclosure
+        - Remote Code Execution
+        - Denial of Service
+        - Insecure Dependencies
+        - API Key/Secret Exposure
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can this vulnerability be reproduced? (Be careful not to include actual exploit code)
+      placeholder: |
+        1. Configure system with...
+        2. Send request to...
+        3. Observe that...
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact Assessment
+      description: What could an attacker achieve with this vulnerability?
+      placeholder: |
+        - Access to sensitive data
+        - Ability to modify/delete data
+        - System compromise
+        - Denial of service
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected-versions
+    attributes:
+      label: Affected Versions
+      description: Which versions are affected?
+      placeholder: |
+        - MCP Server: v0.1.13
+        - Dashboard: v0.3.0
+        - All versions since...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Where was this vulnerability discovered?
+      value: |
+        - OS: 
+        - Node Version: 
+        - Python Version: 
+        - Deployment Type: [Local/Cloud/Docker]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: public-disclosure
+    attributes:
+      label: Has this been publicly disclosed?
+      description: Is this vulnerability already public knowledge?
+      options:
+        - "No - I am reporting this privately"
+        - "Yes - Already disclosed elsewhere"
+        - "Partial - Limited disclosure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: cve
+    attributes:
+      label: CVE / References
+      description: Any CVE numbers, security advisories, or related references
+      placeholder: |
+        - CVE-XXXX-XXXXX
+        - Links to security advisories
+        - Related GitHub issues
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested Mitigation
+      description: Do you have suggestions for how to fix this vulnerability?
+      placeholder: Describe potential fixes or workarounds...
+
+  - type: textarea
+    id: poc
+    attributes:
+      label: Proof of Concept (Optional)
+      description: |
+        **WARNING:** Do not include actual exploit code that could be used maliciously.
+        Provide only enough detail to demonstrate the vulnerability exists.
+      placeholder: Non-malicious demonstration of the vulnerability...
+
+  - type: dropdown
+    id: coordination
+    attributes:
+      label: Coordinated Disclosure
+      description: Are you willing to work with maintainers on coordinated disclosure?
+      options:
+        - "Yes - I will wait for a fix before public disclosure"
+        - "No - I plan to disclose regardless of fix timeline"
+        - "Maybe - Depends on response time"
+    validations:
+      required: true
+
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Information
+      description: How can we reach you privately to discuss this? (Email, Discord, etc.)
+      placeholder: your-email@example.com or @username on Discord
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information about the vulnerability
+      placeholder: Additional details, timeline constraints, etc.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Security Checklist
+      description: Please confirm the following
+      options:
+        - label: I have NOT included actual exploit code that could harm users
+          required: true
+        - label: I understand this should be reported privately, not as a public issue
+          required: true
+        - label: I am willing to work with maintainers on responsible disclosure
+          required: true
+        - label: I have not disclosed this vulnerability publicly yet
+          required: false

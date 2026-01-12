@@ -15,9 +15,9 @@ Welcome to the **BetTrack** documentation! Complete sports betting data platform
 ## 📚 Component Guides
 
 - **[MCP Server Guide](MCP-Server-Guide)** - Architecture, tools, and development
-- **[Frontend Guide](Frontend-Guide)** - React dashboard components and state
-- **[Backend Guide](Backend-Guide)** - Node.js API, services, and jobs
+- **[Dashboard Guide](Dashboard-Guide)** - Full-stack React app for bet tracking
 - **[Database Guide](Database-Guide)** - Schema, migrations, and queries
+- **[Developer Guide](Developer-Guide)** - Contributing workflow and standards
 
 ## 📊 What is BetTrack?
 

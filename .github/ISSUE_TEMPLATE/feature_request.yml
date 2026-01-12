@@ -1,0 +1,148 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible to help us understand your request.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the project would this feature affect?
+      options:
+        - MCP Server
+        - Dashboard Backend
+        - Dashboard Frontend
+        - Database/Prisma
+        - Build System
+        - Documentation
+        - Multiple Components
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Feature Type
+      description: What kind of feature is this?
+      options:
+        - New Feature
+        - Enhancement to Existing Feature
+        - Performance Improvement
+        - Developer Experience
+        - Documentation
+        - API/Integration
+        - UI/UX Improvement
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: "I'm frustrated when... I need to... It would be helpful if..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see
+      placeholder: Describe your proposed solution in detail...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered
+      placeholder: What other approaches did you think about?
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case / User Story
+      description: Describe a specific scenario where this feature would be useful
+      placeholder: |
+        As a [type of user],
+        I want to [do something],
+        So that [benefit/reason].
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical - Blocking my usage
+        - High - Significantly impacts workflow
+        - Medium - Would be nice to have
+        - Low - Minor improvement
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples / Mockups
+      description: Provide examples, mockups, or links to similar implementations in other projects
+      placeholder: |
+        - Screenshots
+        - UI mockups
+        - Code examples
+        - Links to similar features in other tools
+
+  - type: textarea
+    id: technical
+    attributes:
+      label: Technical Considerations
+      description: Any technical details, dependencies, or implementation notes
+      placeholder: |
+        - Required dependencies
+        - API changes needed
+        - Breaking changes
+        - Performance considerations
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Breaking Change?
+      description: Would this feature require breaking changes to the API or configuration?
+      options:
+        - "No"
+        - "Yes"
+        - "Unsure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or information about the feature request
+      placeholder: Any additional information...
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please verify the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this hasn't been requested before
+          required: true
+        - label: I have provided a clear use case for this feature
+          required: true
+        - label: I am willing to help test this feature if implemented
+          required: false
+        - label: I am willing to contribute to implementing this feature
+          required: false
