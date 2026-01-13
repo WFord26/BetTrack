@@ -15,6 +15,8 @@ interface Game {
   awayTeamName: string;
   homeTeamName: string;
   commenceTime: string;
+  venue?: string;
+  weather?: string;
   status: string;
   homeScore?: number | null;
   awayScore?: number | null;
