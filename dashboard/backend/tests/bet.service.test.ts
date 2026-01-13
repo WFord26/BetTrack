@@ -225,7 +225,7 @@ describe('Bet Service Integration Tests', () => {
       });
 
       // Settle bet
-      const settledBet = await betService.settleBet(bet.id);
+      const settledBet = await betService.settleBet(bet.id, 'won');
 
       expect(settledBet.status).toBe('won');
       expect(settledBet.actualPayout).toBeDefined();
@@ -255,7 +255,7 @@ describe('Bet Service Integration Tests', () => {
       });
 
       // Settle bet
-      const settledBet = await betService.settleBet(bet.id);
+      const settledBet = await betService.settleBet(bet.id, 'lost');
 
       expect(settledBet.status).toBe('lost');
       expect(settledBet.actualPayout?.toNumber()).toBe(0);
@@ -284,7 +284,7 @@ describe('Bet Service Integration Tests', () => {
       });
 
       // Settle bet
-      const settledBet = await betService.settleBet(bet.id);
+      const settledBet = await betService.settleBet(bet.id, 'push');
 
       expect(settledBet.status).toBe('push');
       expect(settledBet.actualPayout?.toNumber()).toBe(100); // Stake returned
@@ -335,7 +335,7 @@ describe('Bet Service Integration Tests', () => {
         data: { status: 'won' }
       });
 
-      const settledBet = await betService.settleBet(bet.id);
+      const settledBet = await betService.settleBet(bet.id, 'won');
 
       expect(settledBet.status).toBe('won');
       expect(settledBet.actualPayout?.toNumber()).toBeGreaterThan(100);
@@ -372,7 +372,7 @@ describe('Bet Service Integration Tests', () => {
         data: { status: 'lost' }
       });
 
-      const settledBet = await betService.settleBet(bet.id);
+      const settledBet = await betService.settleBet(bet.id, 'lost');
 
       expect(settledBet.status).toBe('lost');
       expect(settledBet.actualPayout?.toNumber()).toBe(0);
@@ -410,7 +410,7 @@ describe('Bet Service Integration Tests', () => {
         data: { status: 'push' }
       });
 
-      const settledBet = await betService.settleBet(bet.id);
+      const settledBet = await betService.settleBet(bet.id, 'won');
 
       // Should become single bet with first leg's odds
       expect(settledBet.status).toBe('won');
@@ -447,7 +447,7 @@ describe('Bet Service Integration Tests', () => {
         data: { status: 'push' }
       });
 
-      const settledBet = await betService.settleBet(bet.id);
+      const settledBet = await betService.settleBet(bet.id, 'push');
 
       expect(settledBet.status).toBe('push');
       expect(settledBet.actualPayout?.toNumber()).toBe(100);
