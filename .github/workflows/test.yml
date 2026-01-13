@@ -58,26 +58,26 @@ jobs:
         run: npm ci
       
       - name: Setup test database
-        working-directory: ./dashboard/backend
+        working-directory: ./dashboard
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
         run: |
-          npx prisma migrate deploy
-          npx prisma generate
+          npm run prisma:deploy --workspace=backend
+          npm run prisma:generate --workspace=backend
       
       - name: Run linter
-        working-directory: ./dashboard/backend
-        run: npm run lint
+        working-directory: ./dashboard
+        run: npm run lint --workspace=backend
       
       - name: Run tests
-        working-directory: ./dashboard/backend
+        working-directory: ./dashboard
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
           NODE_ENV: test
           ODDS_API_KEY: test-key
           JWT_SECRET: test-secret
           SESSION_SECRET: test-session-secret
-        run: npm run test:ci
+        run: npm run test:ci --workspace=backend
       
       - name: Upload backend coverage
         uses: codecov/codecov-action@v4
@@ -140,16 +140,16 @@ jobs:
         run: npm ci
       
       - name: Run linter
-        working-directory: ./dashboard/frontend
-        run: npm run lint
+        working-directory: ./dashboard
+        run: npm run lint --workspace=frontend
       
       - name: Type check
         working-directory: ./dashboard/frontend
         run: npx tsc --noEmit
       
       - name: Run tests
-        working-directory: ./dashboard/frontend
-        run: npm run test:ci
+        working-directory: ./dashboard
+        run: npm run test:ci --workspace=frontend
       
       - name: Upload frontend coverage
         uses: codecov/codecov-action@v4

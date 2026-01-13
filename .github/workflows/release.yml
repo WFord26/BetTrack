@@ -52,12 +52,8 @@ jobs:
           cache: 'pip'
           cache-dependency-path: mcp/requirements.txt
       
-      - name: Install backend dependencies
-        working-directory: ./dashboard/backend
-        run: npm ci
-      
-      - name: Install frontend dependencies
-        working-directory: ./dashboard/frontend
+      - name: Install dashboard dependencies
+        working-directory: ./dashboard
         run: npm ci
       
       - name: Install Python dependencies
@@ -65,34 +61,34 @@ jobs:
         run: pip install -r requirements.txt
       
       - name: Setup test database
-        working-directory: ./dashboard/backend
+        working-directory: ./dashboard
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
         run: |
-          npx prisma migrate deploy
-          npx prisma generate
+          npm run prisma:deploy --workspace=backend
+          npm run prisma:generate --workspace=backend
       
       - name: Run backend tests
-        working-directory: ./dashboard/backend
+        working-directory: ./dashboard
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
           NODE_ENV: test
           ODDS_API_KEY: test-key
           JWT_SECRET: test-secret
           SESSION_SECRET: test-session-secret
-        run: npm run test:ci
+        run: npm run test:ci --workspace=backend
       
       - name: Run frontend tests
-        working-directory: ./dashboard/frontend
-        run: npm run test:ci
+        working-directory: ./dashboard
+        run: npm run test:ci --workspace=frontend
       
       - name: Run backend linter
-        working-directory: ./dashboard/backend
-        run: npm run lint
+        working-directory: ./dashboard
+        run: npm run lint --workspace=backend
       
       - name: Run frontend linter
-        working-directory: ./dashboard/frontend
-        run: npm run lint
+        working-directory: ./dashboard
+        run: npm run lint --workspace=frontend
       
       - name: Validate MCP server
         working-directory: ./mcp
@@ -137,8 +133,6 @@ jobs:
         run: |
           cd dashboard
           npm ci
-          cd backend && npm ci
-          cd ../frontend && npm ci
       
       - name: Build MCP Server
         run: |
@@ -147,13 +141,13 @@ jobs:
       
       - name: Build Dashboard Backend
         run: |
-          cd dashboard/backend
-          npm run build
+          cd dashboard
+          npm run build --workspace=backend
       
       - name: Build Dashboard Frontend
         run: |
-          cd dashboard/frontend
-          npm run build
+          cd dashboard
+          npm run build --workspace=frontend
       
       - name: Create distribution directory
         run: |
