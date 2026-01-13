@@ -37,7 +37,7 @@ describe('BetSlip Component', () => {
           {
             gameId: mockGame.id,
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: mockGame,
@@ -65,7 +65,7 @@ describe('BetSlip Component', () => {
           {
             gameId: mockGame.id,
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: mockGame,
@@ -91,7 +91,7 @@ describe('BetSlip Component', () => {
           {
             gameId: mockGame.id,
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: mockGame,
@@ -121,7 +121,7 @@ describe('BetSlip Component', () => {
           {
             gameId: mockGame.id,
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: mockGame,
@@ -151,7 +151,7 @@ describe('BetSlip Component', () => {
           {
             gameId: mockGame.id,
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: mockGame,
@@ -177,7 +177,7 @@ describe('BetSlip Component', () => {
           {
             gameId: mockGame.id,
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: mockGame,

@@ -7,12 +7,11 @@ import { render, RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
-import type { PreloadedState } from '@reduxjs/toolkit';
 import betSlipReducer from '../store/betSlipSlice';
 import type { RootState } from '../store';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
-  preloadedState?: PreloadedState<RootState>;
+  preloadedState?: Partial<RootState>;
   store?: ReturnType<typeof configureStore>;
 }
 
@@ -48,7 +47,7 @@ export function renderWithProviders(
 /**
  * Create a mock Redux store for testing
  */
-export function createMockStore(preloadedState?: PreloadedState<RootState>) {
+export function createMockStore(preloadedState?: Partial<RootState>) {
   return configureStore({
     reducer: {
       betSlip: betSlipReducer,
@@ -68,13 +67,13 @@ export const mockGame = {
   externalId: 'ext-123',
   awayTeamName: 'Los Angeles Lakers',
   homeTeamName: 'Boston Celtics',
-  commenceTime: new Date('2026-01-15T19:00:00Z'),
+  commenceTime: '2026-01-15T19:00:00Z',
   status: 'scheduled' as const,
   awayScore: null,
   homeScore: null,
   completed: false,
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
 };
 
 /**

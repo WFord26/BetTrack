@@ -52,7 +52,7 @@ jest.mock('@prisma/client', () => {
     },
     $disconnect: jest.fn(),
     $connect: jest.fn(),
-    $transaction: jest.fn((callback) => callback(mockPrismaClient)),
+    $transaction: jest.fn((callback: any) => callback(mockPrismaClient)),
     $on: jest.fn()
   };
 

@@ -29,7 +29,7 @@ describe('BetSlip Redux Slice', () => {
       const leg = {
         gameId: mockGame.id,
         selectionType: 'moneyline' as const,
-        selection: 'home',
+        selection: 'home' as const,
         odds: -110,
         line: null,
         game: mockGame,
@@ -45,7 +45,7 @@ describe('BetSlip Redux Slice', () => {
       const leg1 = {
         gameId: 'game-1',
         selectionType: 'moneyline' as const,
-        selection: 'home',
+        selection: 'home' as const,
         odds: -110,
         line: null,
         game: { ...mockGame, id: 'game-1' },
@@ -54,7 +54,7 @@ describe('BetSlip Redux Slice', () => {
       const leg2 = {
         gameId: 'game-2',
         selectionType: 'spread' as const,
-        selection: 'away',
+        selection: 'away' as const,
         odds: -110,
         line: -3.5,
         game: { ...mockGame, id: 'game-2' },
@@ -72,7 +72,7 @@ describe('BetSlip Redux Slice', () => {
       const leg1 = {
         gameId: mockGame.id,
         selectionType: 'moneyline' as const,
-        selection: 'home',
+        selection: 'home' as const,
         odds: -110,
         line: null,
         game: mockGame,
@@ -81,7 +81,7 @@ describe('BetSlip Redux Slice', () => {
       const leg2 = {
         gameId: mockGame.id,
         selectionType: 'spread' as const,
-        selection: 'away',
+        selection: 'away' as const,
         odds: -110,
         line: -3.5,
         game: mockGame,
@@ -105,7 +105,7 @@ describe('BetSlip Redux Slice', () => {
           {
             gameId: mockGame.id,
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: mockGame,
@@ -113,7 +113,7 @@ describe('BetSlip Redux Slice', () => {
         ],
       };
 
-      const newState = betSlipReducer(stateWithLeg, removeLeg(mockGame.id));
+      const newState = betSlipReducer(stateWithLeg, removeLeg(0));
 
       expect(newState.legs).toHaveLength(0);
     });
@@ -125,7 +125,7 @@ describe('BetSlip Redux Slice', () => {
           {
             gameId: 'game-1',
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: { ...mockGame, id: 'game-1' },
@@ -133,7 +133,7 @@ describe('BetSlip Redux Slice', () => {
           {
             gameId: 'game-2',
             selectionType: 'spread',
-            selection: 'away',
+            selection: 'away' as const,
             odds: -110,
             line: -3.5,
             game: { ...mockGame, id: 'game-2' },
@@ -141,7 +141,7 @@ describe('BetSlip Redux Slice', () => {
         ],
       };
 
-      const newState = betSlipReducer(stateWithLegs, removeLeg('game-1'));
+      const newState = betSlipReducer(stateWithLegs, removeLeg(0));
 
       expect(newState.legs).toHaveLength(1);
       expect(newState.legs[0].gameId).toBe('game-2');
@@ -155,12 +155,13 @@ describe('BetSlip Redux Slice', () => {
           {
             gameId: mockGame.id,
             selectionType: 'moneyline',
-            selection: 'home',
+            selection: 'home' as const,
             odds: -110,
             line: null,
             game: mockGame,
           },
         ],
+        futureLegs: [],
         betType: 'parlay',
         stake: 100,
         teaserPoints: 6,
