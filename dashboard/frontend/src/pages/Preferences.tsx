@@ -65,6 +65,7 @@ export default function Preferences() {
                   value={preferences.oddsFormat}
                   onChange={(e) => handleUpdatePreference('oddsFormat', e.target.value as UserPreferences['oddsFormat'])}
                   className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Odds format selection"
                 >
                   <option value="american">American (-110)</option>
                   <option value="decimal">Decimal (1.91)</option>
@@ -85,6 +86,7 @@ export default function Preferences() {
                   value={preferences.defaultSport}
                   onChange={(e) => handleUpdatePreference('defaultSport', e.target.value)}
                   className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Default sport selection"
                 >
                   <option value="all">All Sports</option>
                   <option value="basketball_nba">NBA</option>
@@ -115,8 +117,10 @@ export default function Preferences() {
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-600 dark:text-gray-400">$</span>
                   <input
+                    id="default-stake"
                     type="text"
                     inputMode="decimal"
+                    aria-label="Default stake amount"
                     value={preferences.defaultStake}
                     onChange={(e) => {
                       const value = e.target.value;

@@ -697,6 +697,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                               <input
                                 type="text"
                                 inputMode="decimal"
+                                aria-label="Future bet odds"
                                 value={useDecimalOdds ? editFutureOddsDecimal : editFutureOdds}
                                 onChange={(e) => {
                                   const value = e.target.value;
@@ -817,6 +818,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               value={oddsBoostPercentage}
               onChange={(e) => setOddsBoostPercentage(parseInt(e.target.value))}
               className="w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              aria-label="Odds boost percentage"
               style={{
                 background: `linear-gradient(to right, rgb(245 158 11) 0%, rgb(245 158 11) ${oddsBoostPercentage}%, rgb(209 213 219) ${oddsBoostPercentage}%, rgb(209 213 219) 100%)`
               }}

@@ -106,10 +106,11 @@ export default function BetHistory() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status
               </label>
               <select
+                id="status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -125,10 +126,11 @@ export default function BetHistory() {
 
             {/* Sport Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="sport-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Sport
               </label>
               <select
+                id="sport-filter"
                 value={sportFilter}
                 onChange={(e) => setSportFilter(e.target.value)}
                 className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -145,10 +147,11 @@ export default function BetHistory() {
 
             {/* Start Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Start Date
               </label>
               <input
+                id="start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -158,10 +161,11 @@ export default function BetHistory() {
 
             {/* End Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 End Date
               </label>
               <input
+                id="end-date"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}

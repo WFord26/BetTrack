@@ -187,10 +187,11 @@ export default function BetLegItem({
           {/* Line input for spread/total */}
           {(leg.selectionType === 'spread' || leg.selectionType === 'total') && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor={`line-${leg.gameId}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Line
               </label>
               <input
+                id={`line-${leg.gameId}`}
                 type="number"
                 step="0.5"
                 value={editLine}
@@ -214,8 +215,10 @@ export default function BetLegItem({
                 -
               </button>
               <input
+                id={`odds-${leg.gameId}`}
                 type="text"
                 inputMode="decimal"
+                aria-label="Odds value"
                 value={editOddsDisplay || (useDecimalOdds ? americanToDecimal(parseInt(editOdds) || 0).toFixed(2) : editOdds)}
                 onChange={(e) => {
                   const value = e.target.value;

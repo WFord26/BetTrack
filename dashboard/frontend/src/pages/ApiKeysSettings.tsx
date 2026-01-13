@@ -274,11 +274,12 @@ export default function ApiKeysSettings() {
                       </div>
                     </div>
 
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="api-key-value" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Your API Key
                     </label>
                     <div className="flex space-x-2">
                       <input
+                        id="api-key-value"
                         type="text"
                         value={newKeyValue}
                         readOnly

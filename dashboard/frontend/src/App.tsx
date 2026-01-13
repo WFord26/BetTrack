@@ -161,7 +161,7 @@ function App() {
             <AuthProvider>
               <div className="app">
                 <Header />
-              <main style={{ paddingBottom: '48px' }}>
+              <main className="pb-12">
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

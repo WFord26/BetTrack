@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.4] - 2026-01-13
 
 ### Added
+
+
 - **Parlay Odds Boost Feature**: Interactive odds boost slider for parlays
   - Frontend: 0-100% boost slider with live preview of boosted odds and payout
   - Profit-based boost calculation (increases profit, back-calculates required odds)
@@ -32,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `.npmrc` configuration for GitHub Packages authentication
 
 ### Changed
+
+
 - **Bet Display Logic**: Improved boost detection and display
   - Detects boosts by comparing expected payout vs actual payout
   - Back-calculates boosted odds from payout for display
@@ -46,20 +50,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Single `boostedCombinedOdds` parameter replaces individual leg adjustments
 
 ### Fixed
+
+
 - **Prisma Decimal Conversion**: Fixed type errors with numeric fields
   - Convert Decimal string values to numbers before arithmetic operations
   - Fixed `.toFixed()` errors on potentialPayout, stake, actualPayout
   - Proper number conversion throughout BetCard component
 
 ### Component Versions
+
+
 - **Backend**: v0.2.1
 - **Frontend**: v0.3.1
 
 ---
 
+
 ## [0.2.3] - 2026-01-12
 
 ### Added
+
 - **Testing Infrastructure**: Comprehensive test setup for frontend and backend
   - Backend: Jest with ts-jest, @jest/globals, jest-mock-extended, supertest
   - Frontend: Vitest with React Testing Library, @vitest/ui, jsdom
@@ -114,6 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Session-based authentication with secure cookie handling
 
 ### Changed
+
 - **Backend package.json**: Added test dependencies and scripts
   - Added: `jest`, `ts-jest`, `@jest/globals`, `jest-mock-extended`, `supertest`, `@types/jest`, `@types/supertest`
   - Scripts: `test`, `test:watch`, `test:coverage`, `test:ci`
@@ -144,6 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better responsive design for user profile display
 
 ### Security
+
 - **Secret Management**: Production-grade security improvements
   - Secrets never logged or exposed in container images
   - File-based secrets with proper permissions (chmod 600)
@@ -151,6 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clear separation between development (.env) and production (secrets) configs
 
 ### Technical
+
 - **Database Schema**: New tables and fields
   - `SiteConfig` model with id (default 1), siteName, logoUrl, domainUrl
   - `User.isAdmin` boolean field for admin access control
@@ -171,9 +184,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+
 ## v0.2.0 - More in-Game Features and Fixes
 
 ### Added
+
 - **Live Game Tracking**: Real-time game state display
   - Added `period` and `clock` fields to Game model
   - Period and clock information displayed next to LIVE indicator
@@ -186,6 +201,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents off-by-one date errors across different timezones
 
 ### Changed
+
 - **Game Display Formatting**: Improved readability
   - Replaced "@" symbol with "vs" in all matchup displays (BetCard, BetLegItem, GameCard)
   - Scores now right-aligned for better visual hierarchy
@@ -195,12 +211,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Faster live score, period, and clock updates
 
 ### Fixed
+
 - **Bet Slip**: Clear All button functionality
   - Fixed callback chain to properly reset selections
   - Both bet slip state and visual selections on game cards now clear correctly
   - Selections no longer remain highlighted after clearing
 
 ### Technical
+
 - **Backend**: Database schema updates
   - Added `period` and `clock` fields to Game model (Prisma schema)
   - Updated outcome resolver service to capture live game state from ESPN API
@@ -209,17 +227,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+
 ## [Previous Releases]
 
 ### v0.1.18 - Bet Management Features
 
 #### Added
+
 - **Bet Management**: Comprehensive bet control features
   - Cash Out functionality with custom payout entry for pending bets
   - Delete functionality with force option to remove any bet regardless of status
   - Confirmation modals for both actions with dark mode support
 
 #### Changed
+
 - **Statistics Page**: Real data integration
   - Sport breakdown now mapped from API's `bySport` statistics
   - Bet type breakdown mapped from API's `byBetType` statistics
@@ -234,6 +255,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed duplicate +/- controls from number inputs
 
 #### Fixed
+
 - **Dark Mode**: Comprehensive dark mode support
   - BetCard: Dark backgrounds, borders, text, and leg items
   - BetLegItem: Dark mode for container, inputs, buttons, and text
@@ -243,6 +265,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### v0.1.0 - Initial Dashboard Release
 
 #### Added
+
 - **Web Dashboard**: Full-stack React + Node.js application
   - React frontend with Vite build system
   - Node.js + Express + TypeScript backend
@@ -275,6 +298,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - node-cron for scheduled execution
 
 #### Technical
+
 - **Backend Stack**
   - Express.js REST API
   - Prisma ORM with PostgreSQL

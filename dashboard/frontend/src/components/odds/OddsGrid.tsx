@@ -223,6 +223,7 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
               value={selectedDate}
               onChange={handleDateChange}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="Select game date"
             />
 
             {/* Sport filter */}
@@ -235,6 +236,7 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
               value={selectedBookmaker}
               onChange={(e) => setSelectedBookmaker(e.target.value)}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              aria-label="Select bookmaker"
             >
               {bookmakers.map((bookmaker) => (
                 <option key={bookmaker} value={bookmaker}>
