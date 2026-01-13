@@ -9,7 +9,7 @@ import { prisma } from '../src/config/database';
 import { betService } from '../src/services/bet.service';
 
 describe('Bet Service Integration Tests', () => {
-  let testSportId: string;
+  let testSportId: number;
   let testGameId: string;
 
   beforeEach(async () => {
@@ -18,7 +18,8 @@ describe('Bet Service Integration Tests', () => {
       data: {
         key: 'basketball_nba',
         name: 'NBA Basketball',
-        active: true
+        groupName: 'Basketball',
+        isActive: true
       }
     });
     testSportId = sport.id;
