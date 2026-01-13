@@ -139,8 +139,45 @@ export class BetService {
       const totalLegs = data.legs.length + (data.futureLegs?.length || 0);
       logger.info(`Created bet ${bet.id} with ${totalLegs} total legs (${data.legs.length} game legs, ${data.futureLegs?.length || 0} futures)${sgpGames.size > 0 ? ` (${sgpGames.size} SGP games)` : ''}`);
 
-      // Fetch and return complete bet
-      return this.getBetById(bet.id) as Promise<BetResponse>;
+      // Fetch complete bet within transaction context
+      const completeBet = await tx.bet.findUnique({
+        where: { id: bet.id },
+        include: {
+          legs: {
+            include: {
+              game: {
+                include: {
+                  sport: {
+                    select: { key: true, name: true }
+                  }
+                }
+              }
+            }
+          },
+          futureLegs: {
+            include: {
+              future: {
+                select: {
+                  id: true,
+                  title: true,
+                  season: true,
+                  sport: {
+                    select: {
+                      key: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!completeBet) {
+        throw new Error('Failed to retrieve created bet');
+      }
+
+      return this.formatBet(completeBet);
     });
   }
 
