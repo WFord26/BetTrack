@@ -8,6 +8,14 @@ Comprehensive API reference for MCP tools, Backend HTTP endpoints, and Frontend 
 
 1. [MCP API (Claude Desktop Integration)](#mcp-api-claude-desktop-integration)
 2. [Backend REST API (Dashboard)](#backend-rest-api-dashboard)
+   - [Authentication API](#authentication-api-apiauth)
+   - [API Keys API](#api-keys-api-apikeys)
+   - [Bets API](#bets-api-apibets)
+   - [Games API](#games-api-apigames)
+   - [Futures API](#futures-api-apifutures)
+   - [AI Bets API](#ai-bets-api-apiaibets)
+   - [MCP Integration API](#mcp-integration-api-apimcp)
+   - [Admin API](#admin-api-apiadmin)
 3. [Frontend Architecture](#frontend-architecture)
 
 ---
@@ -261,6 +269,219 @@ All endpoints return:
 }
 ```
 
+---
+
+### Authentication API (`/api/auth`)
+
+OAuth2 authentication with Microsoft and Google providers.
+
+#### `GET /api/auth/status`
+Get authentication status and available providers.
+
+**Response:**
+```json
+{
+  "authEnabled": true,
+  "authMode": "oauth2",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "provider": "microsoft"
+  },
+  "providers": {
+    "microsoft": true,
+    "google": true
+  }
+}
+```
+
+#### `GET /api/auth/microsoft`
+Initiate Microsoft/Azure AD OAuth2 flow.
+
+**Redirects** to Microsoft login page with configured scopes (`openid`, `profile`, `email`).
+
+#### `GET /api/auth/microsoft/callback`
+OAuth2 callback endpoint (handled automatically).
+
+#### `GET /api/auth/google`
+Initiate Google OAuth2 flow.
+
+**Redirects** to Google login page with configured scopes.
+
+#### `GET /api/auth/google/callback`
+Google OAuth2 callback endpoint (handled automatically).
+
+#### `POST /api/auth/logout`
+Log out current user and destroy session.
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### `GET /api/auth/me`
+Get current authenticated user.
+
+**Response:**
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "provider": "microsoft"
+  },
+  "authEnabled": true
+}
+```
+
+**401 Response** if not authenticated:
+```json
+{
+  "error": "Not authenticated"
+}
+```
+
+---
+
+### API Keys API (`/api/keys`)
+
+Manage API keys for programmatic access (alternative to OAuth2).
+
+#### `GET /api/keys`
+List all API keys for current user.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "keys": [
+      {
+        "id": "uuid",
+        "name": "Production Bot",
+        "keyPrefix": "btk_abc123",
+        "permissions": {
+          "read": true,
+          "write": true,
+          "bets": true,
+          "stats": true
+        },
+        "lastUsedAt": "2026-01-13T10:30:00Z",
+        "expiresAt": "2027-01-13T00:00:00Z",
+        "revoked": false,
+        "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-13T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+**Note:** Full API key is never returned in list endpoints. `keyPrefix` shows first 10 characters only.
+
+#### `POST /api/keys`
+Create a new API key.
+
+**Request Body:**
+```json
+{
+  "name": "Production Bot",
+  "permissions": {
+    "read": true,
+    "write": true,
+    "bets": true,
+    "stats": true
+  },
+  "expiresAt": "2027-01-13T00:00:00Z"  // optional
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "key": "btk_abc123xyz789def456ghi...",  // Full key - only shown ONCE!
+    "id": "uuid",
+    "name": "Production Bot",
+    "keyPrefix": "btk_abc123",
+    "permissions": { ... },
+    "expiresAt": "2027-01-13T00:00:00Z",
+    "createdAt": "2026-01-13T10:30:00Z"
+  },
+  "message": "API key created successfully. Save this key - it will not be shown again."
+}
+```
+
+**⚠️ CRITICAL:** The full API key is only returned on creation. Save it immediately - it cannot be retrieved later.
+
+#### `PUT /api/keys/:id`
+Update API key name or permissions.
+
+**Request Body:**
+```json
+{
+  "name": "Updated Name",
+  "permissions": {
+    "read": true,
+    "write": false,
+    "bets": true,
+    "stats": true
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "Updated Name",
+    "permissions": { ... },
+    "updatedAt": "2026-01-13T11:00:00Z"
+  }
+}
+```
+
+**Note:** Cannot update `keyHash`, `keyPrefix`, `expiresAt`, or `revoked` via this endpoint.
+
+#### `DELETE /api/keys/:id`
+Revoke (soft delete) an API key.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "API key revoked successfully"
+}
+```
+
+**Note:** Revoked keys are not deleted but marked as `revoked: true`. They can no longer be used for authentication.
+
+#### **Using API Keys**
+
+Include API key in request header:
+```http
+Authorization: Bearer btk_abc123xyz789def456ghi...
+```
+
+Or as query parameter (not recommended for production):
+```
+GET /api/games?apiKey=btk_abc123xyz789def456ghi...
+```
+
+**Authentication Order:**
+1. Check for API key in `Authorization` header
+2. Check for API key in query parameter
+3. Check for session authentication (OAuth2)
+
+---
+
 ### Bets API (`/api/bets`)
 
 #### `GET /api/bets`
@@ -509,6 +730,278 @@ The API accepts the user's timezone offset to correctly filter games by date. Fo
   }
 }
 ```
+
+---
+
+### Futures API (`/api/futures`)
+
+Manage futures bets (championship winners, season awards, long-term props).
+
+#### `GET /api/futures`
+Get all active futures with current odds.
+
+**Query Parameters:**
+- `sportKey` (string): Filter by sport (e.g., `basketball_nba`, `americanfootball_nfl`)
+- `status` (string): Filter by status (`active`, `completed`, `settled`) - default: `active`
+
+**Response:**
+```json
+{
+  "futures": [
+    {
+      "id": "uuid",
+      "externalId": "odds_api_future_id",
+      "sportId": "uuid",
+      "sport": {
+        "key": "basketball_nba",
+        "name": "NBA Basketball"
+      },
+      "title": "NBA Championship Winner 2025-26",
+      "description": "Which team will win the 2026 NBA Championship?",
+      "status": "active",
+      "commenceTime": "2025-10-22T00:00:00Z",
+      "closeTime": "2026-06-01T00:00:00Z",
+      "settleTime": null,
+      "currentOdds": [
+        {
+          "id": "uuid",
+          "outcome": "Boston Celtics",
+          "bookmaker": "draftkings",
+          "price": 400,
+          "lastUpdated": "2026-01-13T10:00:00Z"
+        },
+        {
+          "outcome": "Los Angeles Lakers",
+          "bookmaker": "draftkings",
+          "price": 650,
+          "lastUpdated": "2026-01-13T10:00:00Z"
+        }
+      ],
+      "groupedOutcomes": [
+        {
+          "outcome": "Boston Celtics",
+          "bookmakers": [
+            { "bookmaker": "draftkings", "price": 400 },
+            { "bookmaker": "fanduel", "price": 380 },
+            { "bookmaker": "betmgm", "price": 425 }
+          ],
+          "bestOdds": 425
+        }
+      ],
+      "createdAt": "2025-10-01T00:00:00Z",
+      "updatedAt": "2026-01-13T10:00:00Z"
+    }
+  ]
+}
+```
+
+**Note:** `groupedOutcomes` consolidates all bookmaker odds for each outcome, making it easier to compare odds across sportsbooks.
+
+#### `GET /api/futures/:id`
+Get a specific future with all odds and historical snapshots.
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "externalId": "odds_api_future_id",
+  "sportId": "uuid",
+  "sport": {
+    "key": "basketball_nba",
+    "name": "NBA Basketball"
+  },
+  "title": "NBA Championship Winner 2025-26",
+  "description": "Which team will win the 2026 NBA Championship?",
+  "status": "active",
+  "commenceTime": "2025-10-22T00:00:00Z",
+  "closeTime": "2026-06-01T00:00:00Z",
+  "currentOdds": [ ... ],
+  "groupedOutcomes": [
+    {
+      "outcome": "Boston Celtics",
+      "bookmakers": [
+        {
+          "bookmaker": "draftkings",
+          "price": 400,
+          "lastUpdated": "2026-01-13T10:00:00Z"
+        }
+      ],
+      "bestOdds": 425,
+      "averageOdds": 402
+    }
+  ],
+  "oddsSnapshots": [
+    {
+      "id": "uuid",
+      "outcome": "Boston Celtics",
+      "bookmaker": "draftkings",
+      "price": 380,
+      "capturedAt": "2026-01-12T10:00:00Z"
+    },
+    {
+      "outcome": "Boston Celtics",
+      "bookmaker": "draftkings",
+      "price": 400,
+      "capturedAt": "2026-01-13T10:00:00Z"
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "uuid",
+      "outcome": "Boston Celtics",
+      "status": "pending",
+      "settledAt": null
+    }
+  ]
+}
+```
+
+**Line Movement Data:** The `oddsSnapshots` array contains the last 100 historical snapshots for tracking odds movement over time. Use this data to:
+- Display line movement charts
+- Identify best odds entry points
+- Track market sentiment shifts
+
+---
+
+### AI Bets API (`/api/ai/bets`)
+
+Simplified bet creation endpoint for AI/MCP integration using game IDs.
+
+**Authentication:** Requires API key via `apiKeyAuth` middleware.
+
+#### `POST /api/ai/bets`
+Create a bet from AI-extracted data.
+
+**Request Body:**
+```json
+{
+  "selections": [
+    {
+      "gameId": "uuid",
+      "type": "moneyline",
+      "selection": "home",
+      "odds": -150,
+      "teamName": "Los Angeles Lakers"
+    },
+    {
+      "gameId": "uuid2",
+      "type": "spread",
+      "selection": "away",
+      "odds": -110,
+      "line": 5.5,
+      "teamName": "Boston Celtics"
+    }
+  ],
+  "betType": "parlay",
+  "stake": 100.00,
+  "notes": "AI recommendation from Claude",
+  "source": "mcp"
+}
+```
+
+**Field Definitions:**
+- `selections` (array, required): Array of bet selections
+  - `gameId` (string, required): UUID of the game from database
+  - `type` (string, required): `moneyline`, `spread`, or `total`
+  - `selection` (string, required): `home`, `away`, `over`, or `under`
+  - `odds` (number, required): American odds (e.g., -150, +200)
+  - `line` (number, required for spread/total): The line/point value
+  - `teamName` (string, optional): Display name for the selection
+- `betType` (string, required): `single`, `parlay`, or `teaser`
+- `stake` (number, required): Amount to wager
+- `teaserPoints` (number, optional): Points for teaser (6, 6.5, or 7)
+- `notes` (string, optional): Additional notes about the bet
+- `source` (string, optional): Source of bet (`mcp`, `image`, `text`, `conversation`) - default: `mcp`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "bet": {
+      "id": "uuid",
+      "name": "2-Leg Parlay",
+      "betType": "parlay",
+      "stake": 100.00,
+      "status": "pending",
+      "oddsAtPlacement": 264,
+      "potentialPayout": 364.00,
+      "notes": "AI recommendation from Claude",
+      "source": "mcp",
+      "createdAt": "2026-01-13T10:30:00Z",
+      "legs": [
+        {
+          "id": "uuid1",
+          "gameId": "uuid",
+          "selectionType": "moneyline",
+          "selection": "home",
+          "teamName": "Los Angeles Lakers",
+          "odds": -150,
+          "status": "pending"
+        },
+        {
+          "id": "uuid2",
+          "gameId": "uuid2",
+          "selectionType": "spread",
+          "selection": "away",
+          "teamName": "Boston Celtics",
+          "line": 5.5,
+          "odds": -110,
+          "status": "pending"
+        }
+      ]
+    },
+    "isSameGameParlay": false,
+    "parlayCalculation": {
+      "decimalOdds": [1.67, 1.91],
+      "combinedDecimal": 3.19,
+      "americanOdds": 264,
+      "potentialPayout": 364.00
+    }
+  }
+}
+```
+
+**Same Game Parlay (SGP) Detection:**
+The endpoint automatically detects when multiple selections are from the same game:
+- Groups selections by `gameId`
+- For SGP games, multiplies all leg odds together
+- Sets `isSameGameParlay: true` in response
+- Provides detailed parlay calculation breakdown
+
+**Validation:**
+- All `gameId` values must exist in database (404 if not found)
+- `type` must be valid: `moneyline`, `spread`, `total`
+- `selection` must be valid: `home`, `away`, `over`, `under`
+- `odds` is required for all selections
+- `line` is required for `spread` and `total` bets
+- `stake` must be positive number
+- `betType` must be `single`, `parlay`, or `teaser`
+
+**Error Responses:**
+
+400 - Missing or invalid fields:
+```json
+{
+  "success": false,
+  "error": "Selection 1 missing required odds value"
+}
+```
+
+400 - Game IDs not found:
+```json
+{
+  "success": false,
+  "error": "Some game IDs not found",
+  "details": {
+    "requestedGames": 2,
+    "foundGames": 1,
+    "missingGameIds": ["uuid2"]
+  }
+}
+```
+
+---
 
 ### Admin API (`/api/admin`)
 

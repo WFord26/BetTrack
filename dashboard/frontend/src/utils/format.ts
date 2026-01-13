@@ -87,16 +87,27 @@ export function formatTime(date: string): string {
  * @param date - ISO date string (YYYY-MM-DD format)
  * @returns Formatted date like "Mon, Jan 8"
  */
-export function formatDate(date: string): string {
-  // Parse date string as local date to avoid UTC conversion
-  // "2026-01-09" should display as "Thu, Jan 9" regardless of timezone
-  const [year, month, day] = date.split('-').map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
+export function formatDate(date: string | null | undefined): string {
+  if (!date) {
+    return 'Unknown Date';
+  }
+  
+  try {
+    // Handle both ISO datetime strings and simple date strings
+    const d = new Date(date);
+    
+    if (isNaN(d.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (error) {
+    return 'Invalid Date';
+  }
 }
 
 /**
@@ -127,8 +138,18 @@ export function formatPercentage(value: number): string {
  * @param date - ISO date string
  * @returns Formatted relative time string
  */
-export function formatRelativeTime(date: string): string {
+export function formatRelativeTime(date: string | null | undefined): string {
+  if (!date) {
+    return 'Unknown';
+  }
+  
   const d = new Date(date);
+  
+  // Check if date is invalid
+  if (isNaN(d.getTime())) {
+    return 'Invalid Date';
+  }
+  
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);

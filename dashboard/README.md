@@ -24,6 +24,7 @@
 - **Live Odds** - Real-time odds from 5+ bookmakers (DraftKings, FanDuel, BetMGM, etc.)
 - **Bet Slip** - Global bet slip accessible across all pages
 - **Odds Adjustment** - Manually adjust odds and lines before placing bets
+- **Parlay Boosts** - Apply percentage boosts to parlay odds (profit-based calculation)
 
 ### 📊 Analytics & Tracking
 - **Performance Dashboard** - Win/loss tracking with visual charts

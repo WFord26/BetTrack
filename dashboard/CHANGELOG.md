@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.4] - 2026-01-13
+
 ### Added
+- **Parlay Odds Boost Feature**: Interactive odds boost slider for parlays
+  - Frontend: 0-100% boost slider with live preview of boosted odds and payout
+  - Profit-based boost calculation (increases profit, back-calculates required odds)
+  - Visual boost indicator with gradient fill on slider
+  - Boosted bets display "BOOSTED" badge in bet history
+  - Backend: Validation and processing for `boostedCombinedOdds` parameter
+  - Backend calculates boosted payout while preserving original odds
+- **React Portals for Modals**: Fixed modal clipping issues
+  - All modals (Settle, Cash Out, Delete) now render at document.body level
+  - Proper z-index layering and positioning outside parent containers
 - **NPM Publishing Infrastructure**: Complete GitHub Packages setup
   - Both components published as scoped packages (`@wford26/bettrack-*`)
   - Automated publishing workflow (`.github/workflows/npm-publish-dashboard.yml`)
@@ -16,6 +30,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Package metadata: repository info, keywords, files list
   - Documentation: `NPM-PUBLISHING.md` with complete guide
   - `.npmrc` configuration for GitHub Packages authentication
+
+### Changed
+- **Bet Display Logic**: Improved boost detection and display
+  - Detects boosts by comparing expected payout vs actual payout
+  - Back-calculates boosted odds from payout for display
+  - Removed per-leg boost indicators (boost is parlay-level only)
+  - Shows original odds in "TO WIN" calculation
+- **Date Formatting**: Game dates now display correctly
+  - formatDate function handles ISO datetime strings properly
+  - formatRelativeTime includes null/undefined validation
+- **Backend Odds Calculation**: Simplified parlay odds calculation
+  - Removed per-leg `userAdjustedOdds` handling
+  - Boost now applied only to final combined odds
+  - Single `boostedCombinedOdds` parameter replaces individual leg adjustments
+
+### Fixed
+- **Prisma Decimal Conversion**: Fixed type errors with numeric fields
+  - Convert Decimal string values to numbers before arithmetic operations
+  - Fixed `.toFixed()` errors on potentialPayout, stake, actualPayout
+  - Proper number conversion throughout BetCard component
+
+### Component Versions
+- **Backend**: v0.2.1
+- **Frontend**: v0.3.1
 
 ---
 

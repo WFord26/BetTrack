@@ -9,6 +9,7 @@ Welcome to the **BetTrack** documentation! Complete sports betting data platform
 ## 🚀 Quick Links
 
 - **[Quick Start Guide](Quick-Start)** - Get up and running in 5 minutes
+- **[Getting API Key](Getting-API-Key)** - Obtain your free Odds API key
 - **[Installation Guide](Installation-Guide)** - Detailed installation instructions
 - **[API Documentation](API-DOCUMENTATION)** - Complete API reference
 

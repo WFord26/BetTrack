@@ -79,8 +79,10 @@ export function useBetSlip() {
 
   /**
    * Submit bet to API
+   * @param name - Bet name
+   * @param boostedCombinedOdds - Optional boosted combined odds for parlay
    */
-  const submitBet = async ({ name }: SubmitBetParams): Promise<boolean> => {
+  const submitBet = async ({ name, boostedCombinedOdds }: SubmitBetParams & { boostedCombinedOdds?: number }): Promise<boolean> => {
     if (!isValid) {
       setSubmitError('Invalid bet configuration');
       return false;
@@ -90,6 +92,13 @@ export function useBetSlip() {
     setSubmitError(null);
 
     try {
+      console.log('Submitting bet:', { 
+        betType,
+        stake,
+        boostedCombinedOdds,
+        legs: legs.map(l => ({ gameId: l.gameId, odds: l.odds }))
+      });
+      
       // Prepare bet data
       const betData: any = {
         name: name.trim(),
@@ -99,18 +108,23 @@ export function useBetSlip() {
           gameId: leg.gameId,
           selectionType: leg.selectionType,
           selection: leg.selection,
-          odds: leg.odds,
+          odds: Math.round(leg.odds), // Always use original odds
           line: leg.line
         }))
       };
+      
+      // Only add boostedCombinedOdds if it's defined
+      if (boostedCombinedOdds !== undefined) {
+        betData.boostedCombinedOdds = boostedCombinedOdds;
+        console.log('Adding boostedCombinedOdds to request:', boostedCombinedOdds);
+      }
 
       // Include futures legs if present
       if (futureLegs.length > 0) {
         betData.futureLegs = futureLegs.map((futureLeg) => ({
           futureId: futureLeg.futureId,
           outcome: futureLeg.outcome,
-          odds: Math.round(futureLeg.userAdjustedOdds ?? futureLeg.odds),
-          userAdjustedOdds: futureLeg.userAdjustedOdds ? Math.round(futureLeg.userAdjustedOdds) : undefined
+          odds: Math.round(futureLeg.odds) // Always use original odds
         }));
       }
 

@@ -39,6 +39,7 @@ export interface CreateBetInput {
   futureLegs?: CreateFutureLegInput[];
   teaserPoints?: number;
   notes?: string;
+  boostedCombinedOdds?: number; // For parlay boosts - use this for payout instead of calculating from legs
 }
 
 // ============================================================================

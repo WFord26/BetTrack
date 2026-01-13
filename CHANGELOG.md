@@ -16,7 +16,22 @@ For detailed change history, see the component-specific changelogs:
 
 Changes that affect the entire project structure:
 
-### [Unreleased]
+## [2026-01-13]
+
+### Release Summary
+Dashboard patch release adding interactive parlay odds boost feature with profit-based calculation, React portals for proper modal positioning, and various bug fixes for Prisma Decimal handling and date formatting.
+
+### Component Versions
+- **Dashboard Backend**: v0.2.1
+- **Dashboard Frontend**: v0.3.1
+
+### Dashboard Enhancements
+- **Parlay Odds Boost**: Interactive 0-100% profit-based odds boost slider for parlays
+  - Backend validation and processing for boosted combined odds
+  - Frontend detection via payout comparison with BOOSTED badge display
+  - React portals fix for modal positioning (Settle, Cash Out, Delete modals)
+- **Bug Fixes**: Prisma Decimal type conversions, date formatting improvements
+- **Documentation**: Updated READMEs for root, frontend, and backend with new features
 
 ---
 

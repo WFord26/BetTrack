@@ -37,6 +37,11 @@ export class BetService {
    */
   async createBet(data: CreateBetInput): Promise<BetResponse> {
     logger.info(`Creating ${data.betType} bet: ${data.name}`);
+    
+    // Debug logging for boost
+    if (data.boostedCombinedOdds) {
+      logger.info(`Boost detected in request: ${data.boostedCombinedOdds}`);
+    }
 
     // Validation
     await this.validateBetCreation(data);
@@ -81,7 +86,7 @@ export class BetService {
 
       // Create bet legs with SGP group IDs
       for (const legData of data.legs) {
-        const effectiveOdds = legData.userAdjustedOdds || legData.odds;
+        // Always use original odds for the odds field, userAdjustedOdds for boosted/adjusted
         const effectiveLine = legData.userAdjustedLine ?? legData.line;
 
         let teaserAdjustedLine: Decimal | null = null;
@@ -102,7 +107,7 @@ export class BetService {
             selection: legData.selection,
             teamName: legData.teamName || null,
             line: effectiveLine !== undefined ? new Decimal(effectiveLine) : null,
-            odds: effectiveOdds,
+            odds: legData.odds, // Always store original odds here
             userAdjustedLine: legData.userAdjustedLine ? new Decimal(legData.userAdjustedLine) : null,
             userAdjustedOdds: legData.userAdjustedOdds || null,
             teaserAdjustedLine,
@@ -628,13 +633,13 @@ export class BetService {
       // Check if it's a game leg or futures leg
       if (data.legs.length === 1) {
         const leg = data.legs[0];
-        const odds = leg.userAdjustedOdds || leg.odds;
+        const odds = leg.odds;
         const payout = calculatePayout(data.stake, odds);
         return { combinedOdds: odds, potentialPayout: payout };
       } else {
         // Single futures leg
         const futureLeg = data.futureLegs![0];
-        const odds = futureLeg.userAdjustedOdds || futureLeg.odds;
+        const odds = futureLeg.odds;
         const payout = calculatePayout(data.stake, odds);
         return { combinedOdds: odds, potentialPayout: payout };
       }
@@ -650,33 +655,40 @@ export class BetService {
         gameGroups.get(leg.gameId)!.push(leg);
       });
 
-      // Build effective odds array (multiply all legs within SGP groups)
-      const effectiveOdds: number[] = [];
+      // Build original odds array for oddsAtPlacement
+      const originalOdds: number[] = [];
       
       // Add game leg odds
       gameGroups.forEach((legs) => {
-        if (legs.length > 1) {
-          // SGP: Add all legs' odds to multiply them
-          legs.forEach((leg) => effectiveOdds.push(leg.userAdjustedOdds || leg.odds));
-        } else {
-          // Regular: Single leg on this game
-          effectiveOdds.push(legs[0].userAdjustedOdds || legs[0].odds);
-        }
+        legs.forEach((leg) => {
+          originalOdds.push(leg.odds); // Always original for oddsAtPlacement
+        });
       });
       
       // Add futures leg odds
       if (data.futureLegs && data.futureLegs.length > 0) {
         data.futureLegs.forEach((futureLeg) => {
-          effectiveOdds.push(futureLeg.userAdjustedOdds || futureLeg.odds);
+          originalOdds.push(futureLeg.odds);
         });
       }
 
-      // Calculate parlay odds using effective odds
-      const legsForCalc = effectiveOdds.map(odds => ({ odds }));
-      const decimalOdds = calculateParlayOdds(legsForCalc);
-      const americanOdds = decimalToAmerican(decimalOdds);
-      const payout = calculatePayout(data.stake, americanOdds);
-      return { combinedOdds: americanOdds, potentialPayout: payout };
+      // Calculate parlay odds - use ORIGINAL odds for oddsAtPlacement
+      const legsForOriginalCalc = originalOdds.map(odds => ({ odds }));
+      const originalDecimalOdds = calculateParlayOdds(legsForOriginalCalc);
+      const originalAmericanOdds = decimalToAmerican(originalDecimalOdds);
+      
+      // Calculate payout
+      let payout: number;
+      if (data.boostedCombinedOdds) {
+        // Use boosted combined odds for payout calculation
+        payout = calculatePayout(data.stake, data.boostedCombinedOdds);
+        logger.info(`Parlay boost applied: ${originalAmericanOdds} → ${data.boostedCombinedOdds}`);
+      } else {
+        // Use original combined odds for payout
+        payout = calculatePayout(data.stake, originalAmericanOdds);
+      }
+      
+      return { combinedOdds: originalAmericanOdds, potentialPayout: payout };
     }
 
     if (data.betType === 'teaser' && data.teaserPoints) {

@@ -41,14 +41,18 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
   const [editingFutureId, setEditingFutureId] = useState<string | null>(null);
   const [editFutureOdds, setEditFutureOdds] = useState('');
   const [editFutureOddsDecimal, setEditFutureOddsDecimal] = useState('');
+  const [previousLegsCount, setPreviousLegsCount] = useState(0);
+  const [oddsBoostPercentage, setOddsBoostPercentage] = useState(0);
 
-  // Auto-expand bet slip when legs are added
+  // Auto-expand bet slip when legs are added (but allow manual minimize)
   React.useEffect(() => {
     const totalLegs = legs.length + (futureLegs?.length || 0);
-    if (totalLegs > 0 && isMinimized) {
+    // Only auto-expand when legs are actually added, not when user manually minimizes
+    if (totalLegs > previousLegsCount && isMinimized) {
       setIsMinimized(false);
     }
-  }, [legs.length, futureLegs?.length, isMinimized]);
+    setPreviousLegsCount(totalLegs);
+  }, [legs.length, futureLegs?.length]);
 
   // Sync stakeInput with stake changes from quick buttons
   React.useEffect(() => {
@@ -98,6 +102,37 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
   // Quick stake buttons
   const quickStakes = [10, 25, 50, 100, 250, 500];
 
+  // Calculate boosted payout and odds
+  // Boost applies to PROFIT, not odds multiplier
+  const { boostedCombinedOdds, boostedPotentialPayout, boostedPotentialProfit } = React.useMemo(() => {
+    if (oddsBoostPercentage === 0) {
+      return {
+        boostedCombinedOdds: combinedOdds,
+        boostedPotentialPayout: potentialPayout,
+        boostedPotentialProfit: potentialPayout - stake
+      };
+    }
+
+    // Calculate original profit
+    const originalProfit = potentialPayout - stake;
+    
+    // Boost the profit by percentage
+    const boostedProfit = originalProfit * (1 + oddsBoostPercentage / 100);
+    const boostedPayout = stake + boostedProfit;
+    
+    // Back-calculate odds needed for boosted payout
+    const boostedDecimal = boostedPayout / stake;
+    const boostedAmerican = boostedDecimal >= 2.0
+      ? Math.round((boostedDecimal - 1) * 100)
+      : Math.round(-100 / (boostedDecimal - 1));
+    
+    return {
+      boostedCombinedOdds: boostedAmerican,
+      boostedPotentialPayout: boostedPayout,
+      boostedPotentialProfit: boostedProfit
+    };
+  }, [combinedOdds, potentialPayout, stake, oddsBoostPercentage]);
+
   // Handle clear with callback
   const handleClearSlip = () => {
     clearSlip();
@@ -118,10 +153,27 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
   const handleSubmit = async () => {
     if (!isValid || !betName.trim()) return;
 
-    const success = await submitBet({ name: betName.trim() });
+    // For parlay boost, DON'T boost individual legs - only the combined odds
+    // Pass boostedCombinedOdds to backend which will apply it to the entire parlay
+    const oddsToSubmit = oddsBoostPercentage > 0 ? boostedCombinedOdds : undefined;
+    
+    if (oddsBoostPercentage > 0) {
+      console.log(`Applying ${oddsBoostPercentage}% parlay boost:`);
+      console.log(`- Original combined odds: ${combinedOdds}`);
+      console.log(`- Boosted combined odds: ${oddsToSubmit}`);
+      console.log(`- Original payout: $${potentialPayout.toFixed(2)}`);
+      console.log(`- Boosted payout: $${boostedPotentialPayout.toFixed(2)}`);
+    }
+
+    // Submit with boosted combined odds (bypasses Redux state entirely)
+    const success = await submitBet({ 
+      name: betName.trim(),
+      boostedCombinedOdds: oddsToSubmit
+    });
     
     if (success) {
       setBetName('');
+      setOddsBoostPercentage(0); // Reset boost slider
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
       
@@ -744,6 +796,49 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               ))}
             </div>
           </div>
+
+          {/* Odds Boost Slider */}
+          <div className="border-2 border-amber-400 dark:border-amber-500 rounded-lg p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚡</span>
+                <label className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                  Odds Boost
+                </label>
+              </div>
+              <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                +{oddsBoostPercentage}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={oddsBoostPercentage}
+              onChange={(e) => setOddsBoostPercentage(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              style={{
+                background: `linear-gradient(to right, rgb(245 158 11) 0%, rgb(245 158 11) ${oddsBoostPercentage}%, rgb(209 213 219) ${oddsBoostPercentage}%, rgb(209 213 219) 100%)`
+              }}
+            />
+            <div className="flex justify-between text-xs text-amber-800 dark:text-amber-300 mt-1">
+              <span>0%</span>
+              <span>50%</span>
+              <span>100%</span>
+            </div>
+            {oddsBoostPercentage > 0 && (
+              <div className="mt-3 p-2 bg-amber-100 dark:bg-amber-900/40 rounded text-xs text-amber-900 dark:text-amber-200">
+                <div className="flex justify-between mb-1">
+                  <span>Original odds:</span>
+                  <span className="font-bold">{formatOdds(combinedOdds, useDecimalOdds)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Boosted odds:</span>
+                  <span className="font-bold text-green-700 dark:text-green-400">{formatOdds(boostedCombinedOdds, useDecimalOdds)}</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -752,9 +847,19 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
         {/* Combined Odds */}
         <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Combined Odds:</span>
-          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-            {combinedOdds ? formatOdds(combinedOdds, useDecimalOdds) : '—'}
-          </span>
+          <div className="flex items-center gap-2">
+            {oddsBoostPercentage > 0 && (
+              <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
+                {formatOdds(combinedOdds, useDecimalOdds)}
+              </span>
+            )}
+            <span className={`text-lg font-bold ${oddsBoostPercentage > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+              {combinedOdds ? formatOdds(oddsBoostPercentage > 0 ? boostedCombinedOdds : combinedOdds, useDecimalOdds) : '—'}
+            </span>
+            {oddsBoostPercentage > 0 && (
+              <span className="text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">+{oddsBoostPercentage}%</span>
+            )}
+          </div>
         </div>
 
         {/* Potential Payout */}
@@ -762,13 +867,13 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-green-800 dark:text-green-300">Potential Payout:</span>
             <span className="text-2xl font-bold text-green-700 dark:text-green-400">
-              {stake > 0 ? formatCurrency(potentialPayout) : '$0.00'}
+              {stake > 0 ? formatCurrency(oddsBoostPercentage > 0 ? boostedPotentialPayout : potentialPayout) : '$0.00'}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm pt-2 border-t border-green-200 dark:border-green-700/50">
             <span className="text-green-700 dark:text-green-400 font-medium">Profit:</span>
             <span className="font-bold text-green-800 dark:text-green-300">
-              {stake > 0 ? formatCurrency(potentialProfit) : '$0.00'}
+              {stake > 0 ? formatCurrency(oddsBoostPercentage > 0 ? boostedPotentialProfit : potentialProfit) : '$0.00'}
             </span>
           </div>
         </div>

@@ -41,7 +41,8 @@ const createBetSchema = z.object({
   legs: z.array(createBetLegSchema).optional().default([]),
   futureLegs: z.array(createFutureLegSchema).optional().default([]),
   teaserPoints: z.number().optional(),
-  notes: z.string().max(500).optional()
+  notes: z.string().max(500).optional(),
+  boostedCombinedOdds: z.number().optional() // For parlay boosts
 }).refine(
   (data) => (data.legs?.length || 0) + (data.futureLegs?.length || 0) >= 1,
   { message: 'At least one leg (game or future) is required' }

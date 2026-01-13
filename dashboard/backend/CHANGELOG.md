@@ -5,17 +5,20 @@ All notable changes to the Dashboard Backend will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.1] - 2026-01-13
 
 ### Added
-- **NPM Publishing**: GitHub Packages integration
-  - Scoped package name: `@wford26/bettrack-backend`
-  - Published to GitHub Packages registry
-  - Automated publishing via GitHub Actions on release
-  - Manual workflow trigger with package selection
-  - `.npmignore` for excluding dev files from package
-  - `files` field specifying dist, prisma schema, and docs
-  - Repository, keywords, and publishConfig metadata
+- **Parlay Boost Support**: Backend processing for profit-based odds boosts
+  - Added `boostedCombinedOdds` field to `CreateBetInput` type
+  - Updated Zod validation schema to accept optional `boostedCombinedOdds` parameter
+  - Backend calculates boosted payout while preserving original odds in `oddsAtPlacement`
+  - Logging for boost detection and application in bet creation
+
+### Changed
+- **Bet Odds Calculation**: Simplified parlay odds calculation
+  - Removed per-leg `userAdjustedOdds` handling
+  - Boost now applied only to final combined odds
+  - Single `boostedCombinedOdds` parameter replaces individual leg adjustments
 
 ---
 

@@ -2,6 +2,16 @@
 
 Node.js + Express + TypeScript + Prisma backend for the Sports Betting Dashboard.
 
+## Features
+
+- **RESTful API** - Bets, games, futures, odds endpoints
+- **Prisma ORM** - Type-safe database access with PostgreSQL
+- **Scheduled Jobs** - Automatic odds sync and bet settlement (node-cron)
+- **Background Processing** - Non-blocking admin operations
+- **Timezone Handling** - Accurate game filtering across timezones
+- **Validation** - Zod schemas for request validation
+- **Parlay Boosts** - Support for profit-based odds boosting
+
 ## Setup
 
 1. Install dependencies:

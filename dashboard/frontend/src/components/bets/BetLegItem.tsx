@@ -24,6 +24,7 @@ export default function BetLegItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editLine, setEditLine] = useState(leg.line?.toString() || '');
   const [editOdds, setEditOdds] = useState(leg.odds.toString());
+  const [editOddsDisplay, setEditOddsDisplay] = useState('');
 
   // Handle odds increment/decrement based on format
   const adjustOdds = (delta: number) => {
@@ -35,6 +36,7 @@ export default function BetLegItem({
       const newDecimal = Math.max(1.01, +(decimal + (delta * 0.05)).toFixed(2));
       const newAmerican = decimalToAmerican(newDecimal);
       setEditOdds(newAmerican.toString());
+      setEditOddsDisplay(newDecimal.toFixed(2));
     } else {
       // For American odds, adjust by 5 point increments
       let newOdds = currentOdds + (delta * 5);
@@ -50,6 +52,7 @@ export default function BetLegItem({
       }
       
       setEditOdds(newOdds.toString());
+      setEditOddsDisplay(newOdds.toString());
     }
   };
 
@@ -101,7 +104,7 @@ export default function BetLegItem({
   // Handle apply edits
   const handleApply = () => {
     const updates: Partial<BetLeg> = {
-      odds: parseFloat(editOdds) || leg.odds
+      odds: parseInt(editOdds) || leg.odds
     };
 
     if (leg.selectionType === 'spread' || leg.selectionType === 'total') {
@@ -110,6 +113,7 @@ export default function BetLegItem({
 
     onUpdate(index, updates);
     setIsEditing(false);
+    setEditOddsDisplay('');
   };
 
   // Check if adjusted
@@ -212,21 +216,25 @@ export default function BetLegItem({
               <input
                 type="text"
                 inputMode="decimal"
-                value={useDecimalOdds ? americanToDecimal(parseInt(editOdds) || 0).toFixed(2) : editOdds}
+                value={editOddsDisplay || (useDecimalOdds ? americanToDecimal(parseInt(editOdds) || 0).toFixed(2) : editOdds)}
                 onChange={(e) => {
                   const value = e.target.value;
+                  setEditOddsDisplay(value);
+                  
                   if (useDecimalOdds) {
                     // Allow typing decimal values freely
                     const decimal = parseFloat(value);
                     if (!isNaN(decimal) && decimal >= 1.01) {
                       setEditOdds(decimalToAmerican(decimal).toString());
-                    } else if (value === '' || value.endsWith('.')) {
-                      // Allow empty or partial input while typing
-                      return;
                     }
                   } else {
                     // Allow typing American odds freely (including negatives)
                     setEditOdds(value);
+                  }
+                }}
+                onFocus={() => {
+                  if (!editOddsDisplay) {
+                    setEditOddsDisplay(useDecimalOdds ? americanToDecimal(parseInt(editOdds) || 0).toFixed(2) : editOdds);
                   }
                 }}
                 className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"

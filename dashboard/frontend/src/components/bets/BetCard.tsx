@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bet } from '../../types/game.types';
 import { formatCurrency, formatOdds, formatDate, formatRelativeTime, getSportDisplayName, getSportColorClass } from '../../utils/format';
 import api from '../../services/api';
@@ -12,7 +13,48 @@ export default function BetCard({ bet }: BetCardProps) {
   const [showCashOutModal, setShowCashOutModal] = useState(false);
   const [cashOutAmount, setCashOutAmount] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [settleStatus, setSettleStatus] = useState<'won' | 'lost' | 'push'>('won');
+  const [settleAmount, setSettleAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Calculate actual odds (boosted if payout is higher than expected)
+  const displayedOdds = React.useMemo(() => {
+    // Convert string values to numbers (Prisma returns Decimal as string)
+    const stake = Number(bet.stake);
+    const potentialPayout = Number(bet.potentialPayout);
+    
+    // Calculate what payout SHOULD be based on oddsAtPlacement
+    const expectedPayout = bet.oddsAtPlacement > 0
+      ? stake * (1 + bet.oddsAtPlacement / 100)
+      : stake * (1 + 100 / Math.abs(bet.oddsAtPlacement));
+    
+    // Check if actual payout is higher (boosted)
+    const isBoosted = Math.abs(potentialPayout - expectedPayout) > 0.01;
+    
+    console.log(`[BetCard ${bet.name}] Boost detection:`, {
+      oddsAtPlacement: bet.oddsAtPlacement,
+      stake: stake,
+      expectedPayout: expectedPayout.toFixed(2),
+      actualPayout: potentialPayout.toFixed(2),
+      isBoosted
+    });
+    
+    if (!isBoosted) {
+      return bet.oddsAtPlacement;
+    }
+    
+    // Back-calculate boosted odds from actual payout
+    const boostedDecimal = potentialPayout / stake;
+    const boostedAmerican = boostedDecimal >= 2
+      ? Math.round((boostedDecimal - 1) * 100)
+      : Math.round(-100 / (boostedDecimal - 1));
+    
+    console.log(`[BetCard ${bet.name}] Boosted odds:`, boostedAmerican);
+    return boostedAmerican;
+  }, [bet.oddsAtPlacement, bet.stake, bet.potentialPayout, bet.name]);
+
+  const wasBoosted = displayedOdds !== bet.oddsAtPlacement;
 
   // Group legs by SGP
   const groupedLegs = React.useMemo(() => {
@@ -145,6 +187,27 @@ export default function BetCard({ bet }: BetCardProps) {
     }
   };
 
+  // Handle settle
+  const handleSettle = async () => {
+    setIsProcessing(true);
+    try {
+      const payload: any = { status: settleStatus };
+      
+      // If custom amount provided, use it; otherwise let backend calculate
+      if (settleAmount && parseFloat(settleAmount) > 0) {
+        payload.actualPayout = parseFloat(settleAmount);
+      }
+
+      await api.post(`/bets/${bet.id}/settle`, payload);
+      window.location.reload();
+    } catch (error) {
+      console.error('Error settling bet:', error);
+      alert('Failed to settle bet. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Handle delete
   const handleDelete = async () => {
     setIsProcessing(true);
@@ -191,16 +254,28 @@ export default function BetCard({ bet }: BetCardProps) {
           </div>
           <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg p-3 border border-gray-200/50 dark:border-gray-700/50">
             <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Odds</p>
-            <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-0.5">{formatOdds(bet.oddsAtPlacement)}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{formatOdds(displayedOdds)}</p>
+              {wasBoosted && (
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded">
+                  BOOSTED
+                </span>
+              )}
+            </div>
+            {wasBoosted && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 line-through mt-0.5">
+                {formatOdds(bet.oddsAtPlacement)}
+              </p>
+            )}
           </div>
           <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg p-3 border border-gray-200/50 dark:border-gray-700/50">
             <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-              {bet.status === 'pending' ? 'Potential' : 'Payout'}
+              {bet.status === 'pending' ? 'To Win' : 'Payout'}
             </p>
             <p className="text-lg font-bold text-purple-600 dark:text-purple-400 mt-0.5">
               {bet.status === 'pending'
-                ? formatCurrency(bet.potentialPayout || 0)
-                : formatCurrency(bet.actualPayout || 0)}
+                ? formatCurrency(Number(bet.potentialPayout || 0) - Number(bet.stake))
+                : formatCurrency(Number(bet.actualPayout || 0))}
             </p>
           </div>
           {profit !== null && (
@@ -292,22 +367,26 @@ export default function BetCard({ bet }: BetCardProps) {
 
                 {/* SGP Legs */}
                 <div className="space-y-2">
-                  {legs.map((leg, idx) => (
-                    <div key={leg.id || idx} className="flex items-center justify-between bg-white/80 dark:bg-gray-800/80 p-2.5 rounded-lg border border-purple-200/50 dark:border-purple-800/50">
-                      <div className="flex items-center gap-2 flex-1">
-                        <span className="text-purple-600 dark:text-purple-400 font-bold text-lg">•</span>
-                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                          {formatLegSelection(leg)}
-                        </span>
-                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                          ({formatOdds(leg.odds)})
-                        </span>
+                  {legs.map((leg, idx) => {
+                    return (
+                      <div key={leg.id || idx} className="flex items-center justify-between bg-white/80 dark:bg-gray-800/80 p-2.5 rounded-lg border border-purple-200/50 dark:border-purple-800/50">
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-purple-600 dark:text-purple-400 font-bold text-lg">•</span>
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                            {formatLegSelection(leg)}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                              ({formatOdds(leg.odds)})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="ml-4 flex-shrink-0">
+                          {getLegStatusBadge(leg.status || 'pending')}
+                        </div>
                       </div>
-                      <div className="ml-4 flex-shrink-0">
-                        {getLegStatusBadge(leg.status || 'pending')}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -363,9 +442,11 @@ export default function BetCard({ bet }: BetCardProps) {
                       <p className="text-sm font-bold text-gray-900 dark:text-white">
                         {formatLegSelection(leg)}
                       </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 font-medium">
-                        Odds: {formatOdds(leg.odds)}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                          Odds: {formatOdds(leg.odds)}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -388,6 +469,16 @@ export default function BetCard({ bet }: BetCardProps) {
       ) : (
         <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 border-t border-gray-100 dark:border-gray-600 flex gap-2">
           <button
+            onClick={() => {
+              setSettleStatus('won');
+              setSettleAmount(bet.potentialPayout?.toString() || '');
+              setShowSettleModal(true);
+            }}
+            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            Settle
+          </button>
+          <button
             onClick={() => setShowCashOutModal(true)}
             className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
           >
@@ -403,7 +494,7 @@ export default function BetCard({ bet }: BetCardProps) {
       )}
 
       {/* Cash Out Modal */}
-      {showCashOutModal && (
+      {showCashOutModal && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Cash Out Bet</h3>
@@ -447,11 +538,12 @@ export default function BetCard({ bet }: BetCardProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
+      {showDeleteModal && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Delete Bet</h3>
@@ -475,7 +567,108 @@ export default function BetCard({ bet }: BetCardProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Settle Bet Modal */}
+      {showSettleModal && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Settle Bet Manually</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Manually settle this bet when games are not tracked automatically.
+            </p>
+            
+            {/* Outcome Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Outcome
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => {
+                    setSettleStatus('won');
+                    setSettleAmount(bet.potentialPayout?.toString() || '');
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    settleStatus === 'won'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-500'
+                  }`}
+                >
+                  Won
+                </button>
+                <button
+                  onClick={() => {
+                    setSettleStatus('lost');
+                    setSettleAmount('0');
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    settleStatus === 'lost'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-500'
+                  }`}
+                >
+                  Lost
+                </button>
+                <button
+                  onClick={() => {
+                    setSettleStatus('push');
+                    setSettleAmount(bet.stake.toString());
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    settleStatus === 'push'
+                      ? 'bg-gray-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-500'
+                  }`}
+                >
+                  Push
+                </button>
+              </div>
+            </div>
+
+            {/* Payout Amount */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Payout Amount ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={settleAmount}
+                onChange={(e) => setSettleAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+                <p>Stake: {formatCurrency(Number(bet.stake))}</p>
+                <p>Expected payout (if won): {formatCurrency(Number(bet.potentialPayout || 0))}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowSettleModal(false);
+                  setSettleAmount('');
+                }}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-900 dark:text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSettle}
+                disabled={isProcessing}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? 'Settling...' : 'Settle Bet'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

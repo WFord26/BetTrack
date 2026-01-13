@@ -2,6 +2,17 @@
 
 React + TypeScript + Vite + Tailwind CSS frontend for the Sports Betting Dashboard.
 
+## Features
+
+- **Modern React** - React 18 with functional components and hooks
+- **TypeScript** - Full type safety with strict mode
+- **Redux Toolkit** - State management for bet slip and preferences
+- **Tailwind CSS** - Utility-first styling with dark mode support
+- **React Router** - Client-side routing with protected routes
+- **Vite** - Lightning-fast dev server and build tool
+- **Odds Boost UI** - Interactive slider for parlay boosts (0-100%)
+- **React Portals** - Modal rendering for proper z-index layering
+
 ## Setup
 
 1. Install dependencies:

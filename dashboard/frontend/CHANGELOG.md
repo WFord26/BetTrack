@@ -5,17 +5,34 @@ All notable changes to the Dashboard Frontend will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.1] - 2026-01-13
 
 ### Added
-- **NPM Publishing**: GitHub Packages integration
-  - Scoped package name: `@wford26/bettrack-frontend`
-  - Published to GitHub Packages registry
-  - Automated publishing via GitHub Actions on release
-  - Manual workflow trigger with package selection
-  - `.npmignore` for excluding dev files from package
-  - `files` field specifying dist, src, configs, and docs
-  - Repository, keywords, and publishConfig metadata
+- **Parlay Odds Boost Feature**: Interactive odds boost slider for parlays
+  - 0-100% boost slider with live preview of boosted odds and payout
+  - Profit-based boost calculation (increases profit, back-calculates required odds)
+  - Visual boost indicator with gradient fill on slider
+  - Boosted bets display "BOOSTED" badge in bet history
+  - Backend integration to persist boosted payouts
+- **React Portals for Modals**: Fixed modal clipping issues
+  - All modals (Settle, Cash Out, Delete) now render at document.body level
+  - Proper z-index layering and positioning outside parent containers
+
+### Changed
+- **Bet Display Logic**: Improved boost detection and display
+  - Detects boosts by comparing expected payout vs actual payout
+  - Back-calculates boosted odds from payout for display
+  - Removed per-leg boost indicators (boost is parlay-level only)
+  - Shows original odds in "TO WIN" calculation
+- **Date Formatting**: Game dates now display correctly
+  - formatDate function handles ISO datetime strings properly
+  - formatRelativeTime includes null/undefined validation
+
+### Fixed
+- **Prisma Decimal Conversion**: Fixed type errors with numeric fields
+  - Convert Decimal string values to numbers before arithmetic operations
+  - Fixed `.toFixed()` errors on potentialPayout, stake, actualPayout
+  - Proper number conversion throughout BetCard component
 
 ---
 
