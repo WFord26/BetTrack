@@ -58,12 +58,12 @@ jobs:
         run: npm ci
       
       - name: Setup test database
-        working-directory: ./dashboard
+        working-directory: ./dashboard/backend
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
         run: |
-          npm run prisma:deploy --workspace=backend
-          npm run prisma:generate --workspace=backend
+          npx prisma migrate deploy
+          npx prisma generate
       
       - name: Run linter
         working-directory: ./dashboard
