@@ -161,7 +161,7 @@ dashboard/backend/logs/
 dashboard/*.db
 dashboard/*.db-*
 dashboard/*.db-journal
-dashboard/backend/prisma/migrations/
+# dashboard/backend/prisma/migrations/  # COMMENTED OUT - migrations needed for CI/CD tests
 dashboard/.env.local
 dashboard/.env.development.local
 dashboard/.env.test.local
