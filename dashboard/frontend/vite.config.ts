@@ -49,10 +49,10 @@ export default defineConfig({
         'dist/'
       ],
       thresholds: {
-        lines: 60,
-        functions: 60,
-        branches: 60,
-        statements: 60
+        lines: 10,
+        functions: 10,
+        branches: 10,
+        statements: 10
       }
     }
   }

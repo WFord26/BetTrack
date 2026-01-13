@@ -12,63 +12,8 @@ process.env.ODDS_API_KEY = 'test-api-key';
 process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.SESSION_SECRET = 'test-session-secret';
 
-// Mock Prisma Client
-jest.mock('@prisma/client', () => {
-  const mockPrismaClient = {
-    sport: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      deleteMany: jest.fn()
-    },
-    game: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      deleteMany: jest.fn()
-    },
-    bet: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      deleteMany: jest.fn()
-    },
-    betLeg: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      deleteMany: jest.fn()
-    },
-    oddSnapshot: {
-      create: jest.fn(),
-      createMany: jest.fn(),
-      findMany: jest.fn(),
-      deleteMany: jest.fn()
-    },
-    $disconnect: jest.fn(),
-    $connect: jest.fn(),
-    $transaction: jest.fn((callback: any) => callback(mockPrismaClient)),
-    $on: jest.fn()
-  };
-
-  return {
-    PrismaClient: jest.fn(() => mockPrismaClient),
-    Prisma: {
-      PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {
-        code: string;
-        constructor(message: string, { code }: { code: string }) {
-          super(message);
-          this.code = code;
-        }
-      }
-    }
-  };
-});
+// NOTE: Prisma is NOT mocked here to allow integration tests to use real database
+// Unit tests should mock Prisma within their own test files if needed
 
 // Increase timeout for integration tests
 jest.setTimeout(10000);
