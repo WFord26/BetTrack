@@ -5,33 +5,9 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import MockAdapter from 'axios-mock-adapter';
-
-// Mock axios - MUST be before service import
-jest.mock('axios', () => {
-  const mockAxiosInstance = {
-    get: jest.fn(),
-    interceptors: {
-      request: { use: jest.fn() },
-      response: { use: jest.fn() }
-    }
-  };
-  const mockAxios = {
-    create: jest.fn(() => mockAxiosInstance),
-    ...mockAxiosInstance
-  };
-  return {
-    __esModule: true,
-    default: mockAxios
-  };
-});
-
-import { EspnWeatherService } from '../src/services/espn-weather.service';
-
-// Get mocked instances after imports
 import axios from 'axios';
-
-const mockAxios = axios as jest.Mocked<typeof axios>;
+import MockAdapter from 'axios-mock-adapter';
+import { EspnWeatherService } from '../src/services/espn-weather.service';
 
 describe('EspnWeatherService', () => {
   let service: EspnWeatherService;
