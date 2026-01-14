@@ -58,10 +58,16 @@ jobs:
         run: npm ci
       
       - name: Setup test database
-        working-directory: ./dashboard/backend
+        working-directory: ./dashboard
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          PGPASSWORD: test
         run: |
+          psql -h localhost -U test -d test_db -c "GRANT ALL PRIVILEGES ON SCHEMA public TO test;"
+          psql -h localhost -U test -d test_db -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO test;"
+          psql -h localhost -U test -d test_db -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO test;"
+          psql -h localhost -U test -d test_db -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO test;"
+          psql -h localhost -U test -d test_db -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO test;"
           npx prisma migrate deploy
           npx prisma generate
       

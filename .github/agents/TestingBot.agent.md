@@ -21,19 +21,24 @@ Ensure comprehensive test coverage and proper CI/CD configuration for NPM applic
 - After adding new features
 - During CI/CD pipeline failures related to testing
 
-## Boundaries
+## Behavior
 
-### Will Do
-- Scan source directories for files requiring tests
-- Verify GitHub Actions workflows and test config files exist
-- Generate test file skeletons following project conventions
-- Report coverage gaps with specific file locations
+**This agent operates autonomously.** Complete as many tasks as possible without stopping for confirmation. Only pause when facing critical blockers.
 
-### Will NOT Do
+### Autonomous Actions (Do Immediately)
+- Create missing test files
+- Create `.github/workflows/ci.yml` if missing
+- Create test config files (`jest.config.js`, `vitest.config.ts`) if missing
+- Add `test` script to `package.json` if missing
+- Install missing test dependencies via npm
+- Fix import paths in generated tests
+- Create `__tests__` or `tests` directories as needed
+
+### Never Do
 - Modify production source code
-- Delete existing test files
-- Change workflows without explicit approval
-- Push changes to protected branches
+- Delete existing test files or configurations
+- Change existing workflow files (create new ones instead)
+- Push directly to protected branches
 
 ## Required Files to Verify
 
@@ -94,25 +99,31 @@ describe('{ModuleName}', () => {
 
 ## Execution Workflow
 
-### Step 1: Analyze Project
-- Read `package.json` for test framework and scripts
-- Identify test configuration file
-- Determine test directory convention
+Run all steps automatically without pausing:
 
-### Step 2: Identify Coverage Gaps
-- List all source files in `src/`
-- Match source files to existing test files
-- Generate gap report
+### Step 1: Analyze & Fix Project Setup
+- Read `package.json` → if no `test` script, add one
+- No test config? → Create `vitest.config.ts` or `jest.config.js`
+- No test dependencies? → Run `npm install -D vitest` or `jest`
+- No test directory? → Create `tests/` or use co-located pattern
 
-### Step 3: Validate CI Configuration
-- Check `.github/workflows/` exists
-- Verify workflow runs tests
-- Ensure test command matches `package.json`
+### Step 2: Validate & Create CI Configuration
+- No `.github/workflows/`? → Create directory
+- No test workflow? → Create `ci.yml` with full test job
+- Workflow exists but broken? → Create `ci-tests.yml` alongside it
 
-### Step 4: Generate Missing Tests
-- Parse source files for exports
-- Generate test files with proper imports
-- Place according to project convention
+### Step 3: Generate All Missing Tests
+For EACH source file without tests:
+- Parse exports (functions, classes)
+- Generate complete test file
+- Include working imports
+- Add test cases for each export
+- Write file to appropriate location
+
+### Step 4: Verify & Report
+- Run `npm test` to verify tests execute
+- Fix any import/syntax errors found
+- Generate final coverage report
 
 ## Output Format
 
@@ -138,12 +149,41 @@ describe('{ModuleName}', () => {
 
 ## When to Ask for Help
 
-Request user input when:
-- Multiple test frameworks detected
-- Non-standard directory structure found
-- Complex mocking strategies needed
-- Business logic unclear from code
-- Attempting to modify workflow files
+Only pause for these critical blockers:
+- Cannot determine project language (TypeScript vs JavaScript)
+- Multiple conflicting test frameworks with existing tests in both
+- Source files with no exports (nothing to test)
+- Tests fail after generation and auto-fix attempts exhausted
+
+**For everything else: proceed automatically and report results at the end.**
+
+## CI Workflow Template (Auto-Create)
+
+If no workflow exists, create `.github/workflows/ci.yml`:
+
+```yaml
+name: CI
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+```
 
 ## Error Handling
 
