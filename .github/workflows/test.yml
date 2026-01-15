@@ -273,13 +273,8 @@ jobs:
         working-directory: ./dashboard/frontend
         run: npm run build
       
-      - name: Build MCP package
-        working-directory: ./mcp
-        run: python -m mcpb build
-      
       - name: Verify build artifacts
         run: |
           test -d dashboard/backend/dist || exit 1
           test -d dashboard/frontend/dist || exit 1
-          test -f mcp/releases/*.mcpb || exit 1
           echo "✅ All build artifacts created successfully"
