@@ -360,6 +360,138 @@ High-level description of what changed in this release across all components.
 2. On release: Update root `CHANGELOG.md` with high-level summary and component versions
 3. Release command: `.\build.ps1 -FullRelease -VersionBump patch -PushDocker`
 
+### API & Database Documentation Management
+
+**CRITICAL**: When making changes to APIs or database schema, **ALWAYS update the corresponding documentation files directly**. Do not create separate documentation files - modify the existing comprehensive documentation in place.
+
+#### API Documentation Updates
+
+**File**: `docs/wiki/API-DOCUMENTATION.md`
+
+**Update when**:
+- Adding new REST API endpoints
+- Modifying existing endpoint behavior
+- Changing request/response formats
+- Adding/removing query parameters
+- Updating authentication requirements
+- Modifying MCP tools or their parameters
+- Changing error response formats
+
+**How to update**:
+1. **Locate the relevant section** in API-DOCUMENTATION.md:
+   - MCP tools → "MCP API (Claude Desktop Integration)" section
+   - Backend endpoints → Specific API section (Auth, Bets, Games, Admin, etc.)
+   - Frontend architecture → "Frontend Architecture" section
+
+2. **Modify inline** (do not create new files):
+   - **Add**: Insert new endpoint/tool documentation in alphabetical order within its section
+   - **Change**: Update existing endpoint documentation with new parameters, responses, or behavior
+   - **Delete**: Remove deprecated endpoint documentation and add deprecation note if needed
+   - **Move**: Reorganize sections if API structure changes significantly
+
+3. **Maintain consistency**:
+   - Use existing format for code blocks and examples
+   - Include request/response examples
+   - Document all parameters with types
+   - Show error responses for new endpoints
+   - Update Table of Contents if adding new sections
+
+**Example API Change**:
+```markdown
+# WRONG: Do not create new file
+docs/wiki/NEW-ENDPOINT-DOCS.md
+
+# CORRECT: Update existing file inline
+docs/wiki/API-DOCUMENTATION.md
+  → Navigate to "### Bets API (`/api/bets`)"
+  → Add new endpoint: "#### `POST /api/bets/bulk`"
+  → Include request body, response, and examples
+```
+
+#### Database Documentation Updates
+
+**File**: `docs/wiki/Database-Guide.md`
+
+**Update when**:
+- Creating new database models
+- Modifying Prisma schema
+- Adding/removing fields from models
+- Changing relationships or constraints
+- Adding new indexes
+- Updating migration procedures
+- Changing query patterns
+
+**How to update**:
+1. **Locate the relevant section**:
+   - New model → "## Core Models" section
+   - Schema changes → Specific model subsection
+   - Relationships → "## Relationships" section
+   - Performance → "## Indexes & Performance" section
+   - Migrations → "## Migrations" section
+   - Queries → "## Queries & Examples" section
+
+2. **Modify inline**:
+   - **Add**: Insert new model documentation with full Prisma schema block
+   - **Change**: Update existing model's Prisma schema and key points
+   - **Delete**: Remove deprecated models and add migration note
+   - **Move**: Update relationship diagrams if schema structure changes
+
+3. **Update related sections**:
+   - Update ERD diagram if relationships change
+   - Add new query examples for new models
+   - Document new indexes in performance section
+   - Add migration examples for complex schema changes
+
+**Example Database Change**:
+```markdown
+# WRONG: Do not create new file
+docs/wiki/NEW-TABLE-SCHEMA.md
+
+# CORRECT: Update existing file inline
+docs/wiki/Database-Guide.md
+  → Navigate to "## Core Models"
+  → Add new model section: "### Future Model"
+  → Include full Prisma schema block
+  → Update ERD diagram in "## Schema Design"
+  → Add query examples in "## Queries & Examples"
+```
+
+#### Documentation Update Checklist
+
+Before completing any API or database change:
+
+**API Changes**:
+- [ ] Updated endpoint documentation in API-DOCUMENTATION.md
+- [ ] Added/updated request/response examples
+- [ ] Documented all parameters and types
+- [ ] Updated Table of Contents if needed
+- [ ] Verified code blocks format correctly
+- [ ] Added error response examples
+- [ ] Updated related changelog entry
+
+**Database Changes**:
+- [ ] Updated model documentation in Database-Guide.md
+- [ ] Added/updated Prisma schema blocks
+- [ ] Updated ERD diagram if relationships changed
+- [ ] Added query examples for new functionality
+- [ ] Documented new indexes or constraints
+- [ ] Updated migration section if complex change
+- [ ] Updated related changelog entry
+
+**Common Mistakes to Avoid**:
+- ❌ Creating separate "supplemental" documentation files
+- ❌ Leaving outdated documentation alongside new additions
+- ❌ Forgetting to update Table of Contents
+- ❌ Not providing examples for new endpoints/queries
+- ❌ Updating code but not documentation
+- ❌ Creating duplicate documentation in README.md
+
+**Documentation Priority**:
+1. **API-DOCUMENTATION.md** - Complete API reference (comprehensive, 1400+ lines)
+2. **Database-Guide.md** - Complete database reference (comprehensive, 800+ lines)
+3. **CHANGELOG.md** - High-level change summary (brief, user-facing)
+4. **README.md** - Quick start and overview only (no detailed API docs)
+
 ### Markets System (Betting)
 **Game Markets**: `h2h` (moneyline), `spreads`, `totals`, `outrights`
 

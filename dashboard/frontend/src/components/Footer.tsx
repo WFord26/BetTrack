@@ -30,7 +30,7 @@ export default function Footer() {
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-gray-800 text-white py-3 px-6 flex items-center justify-between text-sm z-40">
       <div className="flex items-center gap-3">
-        <span>© {currentYear} Sports Odds Dashboard</span>
+        <span>© {currentYear} BetTrack</span>
         <span className="text-gray-400">•</span>
         <span className="text-gray-400">v{__APP_VERSION__}</span>
       </div>
