@@ -137,7 +137,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: dashboard/package-lock.json
+          cache-dependency-path: package-lock.json
       
       - name: Install dependencies
         working-directory: ./dashboard
@@ -251,9 +251,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: |
-            dashboard/backend/package-lock.json
-            dashboard/frontend/package-lock.json
+          cache-dependency-path: dashboard/package-lock.json
       
       - name: Setup Python
         uses: actions/setup-python@v5
