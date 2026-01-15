@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/WFord26/BetTrack/wiki
+    about: Check the wiki for guides, tutorials, and API documentation
+  - name: 💬 Discussions
+    url: https://github.com/WFord26/BetTrack/discussions
+    about: Ask questions, share ideas, and connect with the community
+  - name: 🔒 Private Security Report
+    url: https://github.com/WFord26/BetTrack/security/advisories/new
+    about: Report security vulnerabilities privately (recommended)

@@ -1,94 +1,92 @@
-# Changelog
+# Sports Odds MCP - Master Changelog
 
-All notable changes to Sports Data MCP will be documented in this file.
+This project consists of two main components:
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+- **MCP Server**: FastMCP server providing sports data to Claude Desktop ([mcp/CHANGELOG.md](mcp/CHANGELOG.md))
+- **Web Dashboard**: React + Node.js web application for bet tracking ([dashboard/CHANGELOG.md](dashboard/CHANGELOG.md))
 
-## [Unreleased]
+## Component Changelogs
 
-### Added
-- **Team Logo URLs**: Helper function for generating ESPN CDN logo URLs
-  - `get_team_logo_url()` generates logo URLs by team name
-  - Supports NFL, NBA, NHL with both standard and dark mode logos (500px PNG format)
-  - Available for future web integrations
+For detailed change history, see the component-specific changelogs:
 
-### Changed
-- **BREAKING: ESPN Tools Streamlined** to prevent message overflow
-  - `get_espn_scoreboard()`: Now returns only essential game data (scores, teams, status)
-    - Default limit reduced from 50 to 10 games, max 25
-    - Removed verbose ESPN API response fields
-    - Added note directing users to `get_formatted_scoreboard()` for visual output
-  - `get_espn_teams()`: Returns concise team list (name, id, abbreviation, logo only)
-    - Removed full team objects with extensive metadata
-    - Logo URL included for each team
-  - `get_espn_team_details()`: Added warning about verbose output
-  - `get_espn_game_summary()`: Added warning about massive data size
-  - All tools now include usage notes directing to more appropriate alternatives
+- [MCP Server Changelog](mcp/CHANGELOG.md) - FastMCP server, tools, formatters, API integrations
+- [Dashboard Changelog](dashboard/CHANGELOG.md) - Web UI, backend API, database, bet management
 
-- **Beta Build from Git Hash**: Build script improvements
-  - `-Beta` flag now works WITHOUT requiring `-VersionBump`
-  - Beta versions use git commit hash (e.g., `v0.1.10-beta.928845c`)
-  - No version bump needed for quick beta testing iterations
-  - Fallback to timestamp if git not available
+## Project-Level Changes
 
-- **Formatted Output Tools**: 7 new tools for visual display of sports data
-  - `get_formatted_scoreboard`: Compact table view of games (replaces verbose JSON)
-  - `get_matchup_cards`: ESPN-style matchup cards with ASCII art borders
-  - `get_formatted_standings`: League standings in table format
-  - `get_odds_comparison`: Side-by-side odds from multiple bookmakers
-  - `get_team_reference`: Quick lookup tables for NFL/NBA/NHL teams with IDs
-  - `find_team`: Search teams by name or abbreviation across leagues
-  - `get_odds_comparison`: Formatted odds comparison across bookmakers
+Changes that affect the entire project structure:
 
-- **Team Reference Database**: Complete team data for major leagues
-  - NFL: 32 teams with ESPN IDs, abbreviations, divisions
-  - NBA: 30 teams with ESPN IDs, abbreviations, divisions
-  - NHL: 32 teams with ESPN IDs, abbreviations, divisions
-  - Quick team ID lookup for API calls
+## [2026-01-13]
 
-- **Enhanced Matchup Cards**: Visual improvements and new features
-  - TV broadcast information from ESPN API (TNT, ESPN, ABC, etc.)
-  - Multiple bookmaker odds display (up to 3 bookmakers per card)
-  - Cleaner single-line box drawing characters (┌─┐├┤│└┘)
-  - Wider card format (66 characters) for better readability
-  - Smart team name truncation preserving team names (e.g., "Golden St... Warriors")
-  - Fixed-width odds column for consistent alignment
-  - Support for spread with point displays
-  - Live score display for in-progress games
+### Release Summary
+Dashboard patch release adding interactive parlay odds boost feature with profit-based calculation, React portals for proper modal positioning, and various bug fixes for Prisma Decimal handling and date formatting.
 
-- **Beta Release Support**: Build script enhancements
-  - `-Beta` flag for creating beta releases (e.g., v0.1.8-beta.1)
-  - Sequential beta versioning (beta.1, beta.2, etc.)
-  - Beta releases excluded from GitHub releases
-  - Promotion from beta to stable version
+### Component Versions
+- **Dashboard Backend**: v0.2.1
+- **Dashboard Frontend**: v0.3.1
 
-- **Persistent Configuration**: Environment file preservation
-  - `.env` file stored in persistent config directory (`%APPDATA%/Claude/sports-mcp-config/`)
-  - Configuration survives all package updates
-  - First-time setup creates `.env` from `.env.example` with helpful instructions
-  - API keys never overwritten on updates
+### Dashboard Enhancements
+- **Parlay Odds Boost**: Interactive 0-100% profit-based odds boost slider for parlays
+  - Backend validation and processing for boosted combined odds
+  - Frontend detection via payout comparison with BOOSTED badge display
+  - React portals fix for modal positioning (Settle, Cash Out, Delete modals)
+- **Bug Fixes**: Prisma Decimal type conversions, date formatting improvements
+- **Documentation**: Updated READMEs for root, frontend, and backend with new features
 
-### Changed
-- Improved matchup card visual design with better spacing and alignment
-- Enhanced odds display with bookmaker labels and consistent formatting
-- Positive odds now display with `+` prefix (e.g., `+185` instead of `185`)
-- Matchup cards now merge ESPN broadcast data with Odds API betting odds
-- Build script now supports both stable and beta version bumps
+---
 
-### Fixed
-- Missing `Optional` and `Dict` type imports in `team_reference.py`
-- Odds column alignment pushing outside box borders
-- Team name truncation cutting names awkwardly mid-word
-- `.env` file being overwritten on package updates
-- Import errors preventing module loading
+## [2026-01-12]
 
-### Technical
-- Formatter module with 4 formatting functions for cards and tables
-- Team reference module with complete league databases
-- Persistent config directory support via `SPORTS_MCP_CONFIG_DIR` env var
-- Enhanced build script with beta versioning logic
-- Auto-creation of config directory on first run
+### Release Summary
+Major release adding comprehensive testing infrastructure, production-ready security features, and enhanced user experience across all components. Key highlights include OAuth2 authentication system, Docker secrets support, live game tracking with real-time updates, and complete test coverage setup for frontend and backend.
+
+### Component Versions
+- **MCP Server**: v0.2.0
+- **Dashboard**: v0.2.3
+- **Dashboard Backend**: v0.2.0
+- **Dashboard Frontend**: v0.3.0
+
+### MCP Server (v0.2.0)
+- Dual-target build system supporting both MCP and Dashboard builds
+- Player prop betting markets (NBA, NFL, MLB, NHL) with 70+ market types
+- Bookmaker filtering with BOOKMAKERS_FILTER and BOOKMAKERS_LIMIT configuration
+- Pre-built HTML artifact tool for instant odds comparison cards with team logos
+- Visual scoreboard cards with automatic React artifact rendering in Claude Desktop
+
+### Dashboard Backend (v0.2.0)
+- Jest testing infrastructure with PostgreSQL service container support
+- Docker secrets management for production deployments (AWS, Azure, Kubernetes)
+- Live game tracking with period and clock fields from ESPN API
+- OAuth2 authentication system with Passport.js (Azure AD, Google)
+- Admin settings API for site branding configuration
+- Timezone-aware game filtering preventing off-by-one date errors
+
+### Dashboard Frontend (v0.3.0)
+- Vitest testing infrastructure with React Testing Library and coverage reporting
+- OAuth2 authentication UI with login page, user menu, and protected routes
+- Admin settings page for site branding customization
+- Live game state display with period and clock information
+- Enhanced UX: "vs" instead of "@", right-aligned scores, better bet slip behavior
+- Dark mode support across all bet management components
+
+### [Previous Releases]
+
+#### v0.1.14 - Project Structure Reorganization
+- **Project Structure**: Renamed `src/` folder to `mcp/`
+  - Separates MCP server code from dashboard components
+  - Makes project structure more intuitive for dual-platform project
+  - Updated all documentation and build scripts to reflect new structure
+  - Each component now has its own changelog and versioning
+
+#### v0.1.0 - Dual-Platform Architecture
+- **Architecture**: Established dual-platform design
+  - MCP Server for Claude Desktop (stdio transport, FastMCP)
+  - Web Dashboard for browser-based interaction (HTTP, React + Node.js)
+  - Shared data sources: The Odds API and ESPN API
+  - Independent build systems for each platform
+  - Component-specific versioning and changelog tracking
+
+---
 
 ## [0.1.0] - 2026-01-07
 

@@ -1,0 +1,45 @@
+# Development files
+src/
+tests/
+*.test.ts
+*.spec.ts
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Build artifacts
+node_modules/
+logs/
+*.log
+npm-debug.log*
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+jest.config.js
+tsconfig.test.json
+test-connection.js
+test-prisma.ts
+
+# Docker
+Dockerfile
+Dockerfile.dev
+.dockerignore
+docker-compose*.yml
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Config files
+eslint.config.js

@@ -1,0 +1,134 @@
+# Production Docker Compose with Secrets Support
+# Use this for production deployments with proper secret management
+
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: sports-dashboard-nginx
+    restart: always
+    environment:
+      # Domain configuration - set this in .env file
+      DOMAIN: ${DOMAIN:-yourdomain.com}
+      # SSL certificate paths (optional, defaults to Let's Encrypt paths)
+      SSL_CERT: ${SSL_CERT:-}
+      SSL_KEY: ${SSL_KEY:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/conf.d/nginx.conf.template:ro
+      - ./nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/lib/letsencrypt:/var/lib/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - dashboard-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: sports-dashboard-db-prod
+    restart: always
+    environment:
+      POSTGRES_DB: sports_betting_dashboard
+      POSTGRES_USER_FILE: /run/secrets/db_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    secrets:
+      - db_user
+      - db_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/db_user) -d sports_betting_dashboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dashboard-network
+
+  backend:
+    image: ghcr.io/${GITHUB_OWNER:-wford26}/bettrack-backend:${VERSION:-latest}
+    container_name: sports-dashboard-backend-prod
+    restart: always
+    environment:
+      # Non-sensitive configuration via env vars
+      NODE_ENV: production
+      PORT: 3001
+      LOG_LEVEL: info
+      ODDS_SYNC_INTERVAL: 1440
+      OUTCOME_CHECK_INTERVAL: 5
+      AUTO_MIGRATE: "true"
+      # Database URL constructed from secrets
+      DATABASE_URL: postgresql://$${DB_USER}:$${DB_PASSWORD}@postgres:5432/sports_betting_dashboard
+    secrets:
+      - db_user
+      - db_password
+      - odds_api_key
+      - session_secret
+    # Internal port only, accessed via nginx
+    expose:
+      - "3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dashboard-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ghcr.io/${GITHUB_OWNER:-wford26}/bettrack-frontend:${VERSION:-latest}
+    container_name: sports-dashboard-frontend-prod
+    restart: always
+    environment:
+      # Backend API URL for production (via nginx)
+      # Uses DOMAIN variable from .env file
+      VITE_API_URL: https://api.${DOMAIN:-yourdomain.com}
+    # Internal port only, accessed via nginx
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - dashboard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  dashboard-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+
+secrets:
+  db_user:
+    file: ./secrets/db_user.txt
+  db_password:
+    file: ./secrets/db_password.txt
+  odds_api_key:
+    file: ./secrets/odds_api_key.txt
+  session_secret:
+    file: ./secrets/session_secret.txt

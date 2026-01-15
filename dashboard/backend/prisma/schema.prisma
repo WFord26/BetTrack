@@ -1,0 +1,318 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Sports reference table
+model Sport {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(100)
+  groupName String   @map("group_name") @db.VarChar(50)
+  isActive  Boolean  @default(true) @map("is_active")
+  teams     Team[]
+  games     Game[]
+  futures   Future[]
+
+  @@map("sports")
+}
+
+// Teams reference table
+model Team {
+  id         Int       @id @default(autoincrement())
+  sportId    Int       @map("sport_id")
+  externalId String?   @map("external_id") @db.VarChar(50)
+  name       String    @db.VarChar(100)
+  abbreviation String? @db.VarChar(10)
+  logoUrl    String?   @map("logo_url") @db.VarChar(500)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  sport      Sport     @relation(fields: [sportId], references: [id])
+  homeGames  Game[]    @relation("HomeTeam")
+  awayGames  Game[]    @relation("AwayTeam")
+
+  @@map("teams")
+}
+
+// Games/Events table
+model Game {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  externalId    String         @unique @map("external_id") @db.VarChar(100)
+  sportId       Int            @map("sport_id")
+  homeTeamId    Int?           @map("home_team_id")
+  awayTeamId    Int?           @map("away_team_id")
+  homeTeamName  String         @map("home_team_name") @db.VarChar(100)
+  awayTeamName  String         @map("away_team_name") @db.VarChar(100)
+  commenceTime  DateTime       @map("commence_time") @db.Timestamptz(6)
+  venue         String?        @db.VarChar(200)
+  weather       String?        @db.VarChar(100)
+  status        String         @default("scheduled") @db.VarChar(20)
+  homeScore     Int?           @map("home_score")
+  awayScore     Int?           @map("away_score")
+  period        String?        @db.VarChar(20)
+  clock         String?        @db.VarChar(20)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sport         Sport          @relation(fields: [sportId], references: [id])
+  homeTeam      Team?          @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam      Team?          @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  currentOdds   CurrentOdds[]
+  oddsSnapshots OddsSnapshot[]
+  betLegs       BetLeg[]
+
+  @@index([commenceTime])
+  @@index([status])
+  @@map("games")
+}
+
+// Futures (outrights) - championship/tournament winners
+model Future {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  externalId      String             @unique @map("external_id") @db.VarChar(100)
+  sportId         Int                @map("sport_id")
+  title           String             @db.VarChar(200) // e.g., "NFL Super Bowl Winner 2026"
+  description     String?            @db.Text
+  season          String?            @db.VarChar(20)
+  status          String             @default("active") @db.VarChar(20) // active, suspended, settled
+  settlementDate  DateTime?          @map("settlement_date") @db.Timestamptz(6)
+  winner          String?            @db.VarChar(100) // Winning outcome after settlement
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sport           Sport              @relation(fields: [sportId], references: [id])
+  outcomes        FutureOutcome[]
+  currentOdds     CurrentFutureOdds[]
+  oddsSnapshots   FutureOddsSnapshot[]
+  betLegs         BetLegFuture[]
+
+  @@index([sportId])
+  @@index([status])
+  @@map("futures")
+}
+
+// Possible outcomes for a future (teams, players, etc.)
+model FutureOutcome {
+  id          Int       @id @default(autoincrement())
+  futureId    String    @map("future_id") @db.Uuid
+  outcome     String    @db.VarChar(200) // Team name, player name, etc.
+  description String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  future      Future    @relation(fields: [futureId], references: [id], onDelete: Cascade)
+
+  @@unique([futureId, outcome])
+  @@map("future_outcomes")
+}
+
+// Current futures odds (latest per future/bookmaker/outcome)
+model CurrentFutureOdds {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  futureId    String   @map("future_id") @db.Uuid
+  bookmaker   String   @db.VarChar(50)
+  outcome     String   @db.VarChar(200)
+  price       Int
+  lastUpdated DateTime @default(now()) @map("last_updated") @db.Timestamptz(6)
+  future      Future   @relation(fields: [futureId], references: [id], onDelete: Cascade)
+
+  @@unique([futureId, bookmaker, outcome])
+  @@index([futureId])
+  @@map("current_future_odds")
+}
+
+// Futures odds history
+model FutureOddsSnapshot {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  futureId   String   @map("future_id") @db.Uuid
+  bookmaker  String   @db.VarChar(50)
+  outcome    String   @db.VarChar(200)
+  price      Int
+  capturedAt DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
+  future     Future   @relation(fields: [futureId], references: [id], onDelete: Cascade)
+
+  @@map("future_odds_snapshots")
+}
+
+// Current odds (latest per game/bookmaker/market)
+model CurrentOdds {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId          String   @map("game_id") @db.Uuid
+  bookmaker       String   @db.VarChar(50)
+  marketType      String   @map("market_type") @db.VarChar(20)
+  homePrice       Int?     @map("home_price")
+  awayPrice       Int?     @map("away_price")
+  homeSpread      Decimal? @map("home_spread") @db.Decimal(4, 1)
+  homeSpreadPrice Int?     @map("home_spread_price")
+  awaySpread      Decimal? @map("away_spread") @db.Decimal(4, 1)
+  awaySpreadPrice Int?     @map("away_spread_price")
+  totalLine       Decimal? @map("total_line") @db.Decimal(5, 1)
+  overPrice       Int?     @map("over_price")
+  underPrice      Int?     @map("under_price")
+  lastUpdated     DateTime @default(now()) @map("last_updated") @db.Timestamptz(6)
+  game            Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, bookmaker, marketType])
+  @@index([gameId])
+  @@map("current_odds")
+}
+
+// Odds history for tracking line movement
+model OddsSnapshot {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId          String   @map("game_id") @db.Uuid
+  bookmaker       String   @db.VarChar(50)
+  marketType      String   @map("market_type") @db.VarChar(20)
+  homePrice       Int?     @map("home_price")
+  awayPrice       Int?     @map("away_price")
+  homeSpread      Decimal? @map("home_spread") @db.Decimal(4, 1)
+  homeSpreadPrice Int?     @map("home_spread_price")
+  awaySpread      Decimal? @map("away_spread") @db.Decimal(4, 1)
+  awaySpreadPrice Int?     @map("away_spread_price")
+  totalLine       Decimal? @map("total_line") @db.Decimal(5, 1)
+  overPrice       Int?     @map("over_price")
+  underPrice      Int?     @map("under_price")
+  capturedAt      DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
+  game            Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("odds_snapshots")
+}
+
+// Users table (for OAuth2 authentication)
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  name          String?   @db.VarChar(255)
+  avatarUrl     String?   @map("avatar_url") @db.VarChar(500)
+  provider      String    @db.VarChar(50) // 'microsoft', 'google', 'github'
+  providerId    String    @map("provider_id") @db.VarChar(255) // External ID from OAuth provider
+  isAdmin       Boolean   @default(false) @map("is_admin")
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  bets          Bet[]
+  apiKeys       ApiKey[]
+  
+  @@unique([provider, providerId])
+  @@index([email])
+  @@map("users")
+}
+
+// Bets table
+model Bet {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String?   @map("user_id") @db.Uuid // Nullable for backward compatibility (standalone mode)
+  name            String    @db.VarChar(100)
+  betType         String    @map("bet_type") @db.VarChar(20)
+  stake           Decimal   @db.Decimal(10, 2)
+  potentialPayout Decimal?  @map("potential_payout") @db.Decimal(10, 2)
+  actualPayout    Decimal?  @map("actual_payout") @db.Decimal(10, 2)
+  status          String    @default("pending") @db.VarChar(20)
+  oddsAtPlacement Int?      @map("odds_at_placement")
+  teaserPoints    Decimal?  @map("teaser_points") @db.Decimal(3, 1)
+  notes           String?   @db.Text
+  placedAt        DateTime  @default(now()) @map("placed_at") @db.Timestamptz(6)
+  settledAt       DateTime? @map("settled_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User?     @relation(fields: [userId], references: [id])
+  legs            BetLeg[]
+  futureLegs      BetLegFuture[]
+
+  @@index([status])
+  @@index([placedAt])
+  @@index([userId])
+  @@map("bets")
+}
+
+// Bet legs (individual selections)
+model BetLeg {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  betId               String   @map("bet_id") @db.Uuid
+  gameId              String   @map("game_id") @db.Uuid
+  selectionType       String   @map("selection_type") @db.VarChar(20)
+  selection           String   @db.VarChar(50)
+  teamName            String?  @map("team_name") @db.VarChar(100)
+  line                Decimal? @db.Decimal(5, 1)
+  odds                Int
+  sgpGroupId          String?  @map("sgp_group_id") @db.VarChar(50) // Groups legs that are part of same-game parlay
+  userAdjustedLine    Decimal? @map("user_adjusted_line") @db.Decimal(5, 1)
+  userAdjustedOdds    Int?     @map("user_adjusted_odds")
+  teaserAdjustedLine  Decimal? @map("teaser_adjusted_line") @db.Decimal(5, 1)
+  status              String   @default("pending") @db.VarChar(20)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  bet                 Bet      @relation(fields: [betId], references: [id], onDelete: Cascade)
+  game                Game     @relation(fields: [gameId], references: [id])
+
+  @@index([gameId])
+  @@map("bet_legs")
+}
+
+// Bet legs for futures
+model BetLegFuture {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  betId            String   @map("bet_id") @db.Uuid
+  futureId         String   @map("future_id") @db.Uuid
+  outcome          String   @db.VarChar(200)
+  odds             Int
+  userAdjustedOdds Int?     @map("user_adjusted_odds")
+  status           String   @default("pending") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  bet              Bet      @relation(fields: [betId], references: [id], onDelete: Cascade)
+  future           Future   @relation(fields: [futureId], references: [id])
+
+  @@index([futureId])
+  @@map("bet_leg_futures")
+}
+
+// API keys for programmatic access (MCP, Claude, etc.)
+model ApiKey {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String?       @map("user_id") @db.Uuid
+  name        String        @db.VarChar(100)
+  keyHash     String        @unique @map("key_hash") @db.VarChar(255)
+  keyPrefix   String        @map("key_prefix") @db.VarChar(20)
+  permissions Json          @default("{\"read\": true, \"write\": true, \"bets\": true, \"stats\": true}")
+  lastUsedAt  DateTime?     @map("last_used_at") @db.Timestamptz(6)
+  expiresAt   DateTime?     @map("expires_at") @db.Timestamptz(6)
+  revoked     Boolean       @default(false)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usage       ApiKeyUsage[]
+
+  @@index([userId])
+  @@index([revoked])
+  @@map("api_keys")
+}
+
+// API key usage tracking
+model ApiKeyUsage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKeyId  String   @map("api_key_id") @db.Uuid
+  endpoint  String   @db.VarChar(200)
+  method    String   @db.VarChar(10)
+  ipAddress String?  @map("ip_address") @db.VarChar(50)
+  userAgent String?  @map("user_agent") @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@index([apiKeyId])
+  @@index([createdAt])
+  @@map("api_key_usage")
+}
+
+// Site configuration for branding
+model SiteConfig {
+  id          Int      @id @default(1)
+  siteName    String   @default("Sports Betting") @map("site_name") @db.VarChar(100)
+  logoUrl     String?  @map("logo_url") @db.VarChar(500)
+  domainUrl   String?  @map("domain_url") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("site_config")
+}

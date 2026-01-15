@@ -1,0 +1,39 @@
+# Development files
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+node_modules/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+vitest.config.ts
+
+# Docker
+Dockerfile
+Dockerfile.dev
+.dockerignore
+docker-compose*.yml
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Logs
+*.log
+npm-debug.log*

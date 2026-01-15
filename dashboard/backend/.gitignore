@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+
+# Test coverage
+coverage/
+
+# Test output files
+*.txt
+test-output.txt
+full-test.txt
+futures-test-out.txt
+games-test-output.txt
+outcome-test.txt
+outcome-test2.txt
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
