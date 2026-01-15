@@ -262,9 +262,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          cd dashboard/backend && npm ci
-          cd ../frontend && npm ci
-          cd ../../mcp && pip install -r requirements.txt
+          cd dashboard && npm ci
+          cd ../mcp && pip install -r requirements.txt
       
       - name: Build backend
         working-directory: ./dashboard/backend
