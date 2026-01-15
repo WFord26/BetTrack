@@ -49,5 +49,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: wiki/
+          repository: ${{ github.repository }}
           strategy: init
           commit-message: 'Update wiki from ${{ github.sha }}'
