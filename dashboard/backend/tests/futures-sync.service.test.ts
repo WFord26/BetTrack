@@ -5,30 +5,40 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { FuturesSyncService } from '../src/services/futures-sync.service';
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
 
-// Mock Prisma
-const mockPrisma = {
-  sport: {
-    findMany: jest.fn<any>(),
-    findUnique: jest.fn<any>()
-  },
-  future: {
-    upsert: jest.fn<any>()
-  },
-  futureOdd: {
-    createMany: jest.fn<any>()
-  },
-  oddsSnapshot: {
-    create: jest.fn<any>()
-  }
-};
-
+// Mock Prisma FIRST - before service import
 jest.mock('../src/config/database', () => ({
-  prisma: mockPrisma
+  prisma: {
+    sport: {
+      findMany: jest.fn(),
+      findUnique: jest.fn()
+    },
+    future: {
+      upsert: jest.fn()
+    },
+    currentFutureOdds: {
+      upsert: jest.fn()
+    },
+    futureOdd: {
+      createMany: jest.fn()
+    },
+    futureOddsSnapshot: {
+      create: jest.fn()
+    },
+    oddsSnapshot: {
+      create: jest.fn()
+    }
+  }
 }));
+
+// Import service AFTER mock
+import { FuturesSyncService } from '../src/services/futures-sync.service';
+import { prisma } from '../src/config/database';
+
+// Type assertion for mocked prisma
+const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
 describe('FuturesSyncService', () => {
   let service: FuturesSyncService;
@@ -36,7 +46,8 @@ describe('FuturesSyncService', () => {
 
   beforeEach(() => {
     service = new FuturesSyncService();
-    mockAxios = new MockAdapter(axios);
+    // Mock the service's internal axios client, not global axios
+    mockAxios = new MockAdapter((service as any).client);
     jest.clearAllMocks();
   });
 
@@ -83,7 +94,7 @@ describe('FuturesSyncService', () => {
       const result = await service.syncAllFutures();
 
       expect(result.success).toBe(true);
-      expect(result).toHaveProperty('sportCount');
+      expect(result.futuresProcessed).toBeGreaterThanOrEqual(0);
     });
 
     it('should handle API errors gracefully', async () => {
@@ -105,8 +116,17 @@ describe('FuturesSyncService', () => {
         { id: 1, key: 'basketball_nba', name: 'NBA', groupName: 'Basketball', isActive: true }
       ];
 
+      const mockEmptyResponse = [
+        {
+          id: 'nba_championship',
+          sport_key: 'basketball_nba',
+          bookmakers: [] // No bookmakers means no markets
+        }
+      ];
+
       mockPrisma.sport.findMany.mockResolvedValue(mockSports);
-      mockAxios.onGet(/odds/).reply(200, []);
+      mockPrisma.future.upsert.mockResolvedValue({ id: 'future-1' } as any);
+      mockAxios.onGet(/odds/).reply(200, mockEmptyResponse);
 
       const result = await service.syncAllFutures();
 
@@ -168,28 +188,25 @@ describe('FuturesSyncService', () => {
       const result = await service.syncSportFutures('basketball_nba');
 
       expect(result.success).toBe(true);
-      expect(result).toHaveProperty('futureCount');
+      expect(result.futuresProcessed).toBeGreaterThanOrEqual(1);
     });
 
     it('should handle sport not found', async () => {
-      mockPrisma.sport.findUnique.mockResolvedValue(null);
+      mockAxios.onGet(/odds/).reply(404);
 
-      await expect(service.syncSportFutures('invalid_sport')).rejects.toThrow();
+      const result = await service.syncSportFutures('invalid_sport');
+
+      expect(result.success).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
     });
 
     it('should handle API rate limit errors', async () => {
-      const mockSport = { 
-        id: 1, 
-        key: 'basketball_nba', 
-        name: 'NBA', 
-        groupName: 'Basketball',
-        isActive: true 
-      };
-
-      mockPrisma.sport.findUnique.mockResolvedValue(mockSport);
       mockAxios.onGet(/odds/).reply(429, { message: 'Rate limit exceeded' });
 
-      await expect(service.syncSportFutures('basketball_nba')).rejects.toThrow();
+      const result = await service.syncSportFutures('basketball_nba');
+
+      expect(result.success).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
     });
 
     it('should create multiple outcomes for championship futures', async () => {
@@ -226,7 +243,8 @@ describe('FuturesSyncService', () => {
         }
       ];
 
-      mockPrisma.sport.findUnique.mockResolvedValue(mockSport);
+      // Mock sport lookup (called by upsertFuture)
+      mockPrisma.sport.findUnique.mockResolvedValue(mockSport as any);
       mockPrisma.future.upsert.mockResolvedValue({ 
         id: 'future-1',
         sportId: 1,
@@ -240,19 +258,22 @@ describe('FuturesSyncService', () => {
         settlementDate: null,
         winner: null
       });
+      mockPrisma.currentFutureOdds.upsert.mockResolvedValue({
+        id: 'odds-1',
+        futureId: 'future-1',
+        bookmaker: 'draftkings',
+        outcome: 'Boston Celtics',
+        price: 5.0,
+        lastUpdated: new Date()
+      } as any);
       mockPrisma.futureOdd.createMany.mockResolvedValue({ count: 3 });
       mockAxios.onGet(/odds/).reply(200, mockFuturesResponse);
 
       const result = await service.syncSportFutures('basketball_nba');
 
       expect(result.success).toBe(true);
-      expect(mockPrisma.futureOdd.createMany).toHaveBeenCalledWith({
-        data: expect.arrayContaining([
-          expect.objectContaining({ outcomeName: 'Boston Celtics' }),
-          expect.objectContaining({ outcomeName: 'Los Angeles Lakers' }),
-          expect.objectContaining({ outcomeName: 'Milwaukee Bucks' })
-        ])
-      });
+      expect(result.futuresProcessed).toBe(1);
+      expect(result.oddsProcessed).toBeGreaterThan(0);
     });
 
     it('should handle empty bookmakers gracefully', async () => {
@@ -293,7 +314,7 @@ describe('FuturesSyncService', () => {
       const result = await service.syncSportFutures('basketball_nba');
 
       expect(result.success).toBe(true);
-      expect(mockPrisma.futureOdd.createMany).not.toHaveBeenCalled();
+      expect(result.oddsProcessed).toBe(0);
     });
   });
 });

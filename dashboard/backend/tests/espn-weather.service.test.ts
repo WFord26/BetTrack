@@ -15,50 +15,57 @@ describe('EspnWeatherService', () => {
 
   beforeEach(() => {
     service = new EspnWeatherService();
-    mockAxios = new MockAdapter(axios);
+    // Mock the service's internal axios client, not the global axios
+    mockAxios = new MockAdapter((service as any).client);
     jest.clearAllMocks();
   });
 
   describe('getWeatherForGame', () => {
     it('should return weather data for outdoor NFL games', async () => {
-        const mockWeatherResponse = {
-            events: [{
-            competitions: [{
-                weather: {
-                temperature: 72,
-                displayValue: 'Sunny',
-                conditionId: '1'
-                }
-            }]
-            }]
-        };
+      const mockWeatherResponse = {
+        events: [{
+          competitions: [{
+            competitors: [
+              { homeAway: 'home', team: { displayName: 'Kansas City Chiefs' } },
+              { homeAway: 'away', team: { displayName: 'Buffalo Bills' } }
+            ],
+            weather: {
+              temperature: 72,
+              displayValue: 'Sunny',
+              conditionId: '1'
+            }
+          }]
+        }]
+      };
 
-        mockAxios.onGet(/.+/).reply(200, mockWeatherResponse);
+      mockAxios.onGet(/.+/).reply(200, mockWeatherResponse);
 
-        const result = await service.getWeatherForGame(
-            'americanfootball_nfl',
-            'Kansas City Chiefs',
-            'Buffalo Bills'
-        );
+      const result = await service.getWeatherForGame(
+        'americanfootball_nfl',
+        'Kansas City Chiefs',
+        'Buffalo Bills'
+      );
 
-        expect(result).toBeDefined();
-        expect(result?.temperature).toBe(72);
-        expect(result?.condition).toBe('Sunny');
-        });
+      expect(result).toBeDefined();
+      expect(result?.temperature).toBe(72);
+      expect(result?.condition).toBe('Sunny');
+    });
 
     it('should return weather data for outdoor MLB games', async () => {
       const mockWeatherResponse = {
-        data: {
-          events: [{
-            competitions: [{
-              weather: {
-                temperature: 85,
-                displayValue: 'Partly Cloudy',
-                conditionId: '2'
-              }
-            }]
+        events: [{
+          competitions: [{
+            competitors: [
+              { homeAway: 'home', team: { displayName: 'New York Yankees' } },
+              { homeAway: 'away', team: { displayName: 'Boston Red Sox' } }
+            ],
+            weather: {
+              temperature: 85,
+              displayValue: 'Partly Cloudy',
+              conditionId: '2'
+            }
           }]
-        }
+        }]
       };
 
       mockAxios.onGet(/.+/).reply(200, mockWeatherResponse);
@@ -106,9 +113,7 @@ describe('EspnWeatherService', () => {
 
     it('should return null when no matching game is found', async () => {
       const mockWeatherResponse = {
-        data: {
-          events: []
-        }
+        events: []
       };
 
       mockAxios.onGet(/.+/).reply(200, mockWeatherResponse);
@@ -148,11 +153,9 @@ describe('EspnWeatherService', () => {
 
     it('should handle missing weather data in response', async () => {
       const mockWeatherResponse = {
-        data: {
-          events: [{
-            competitions: [{}] // No weather field
-          }]
-        }
+        events: [{
+          competitions: [{}] // No weather field
+        }]
       };
 
       mockAxios.onGet(/.+/).reply(200, mockWeatherResponse);
@@ -168,21 +171,19 @@ describe('EspnWeatherService', () => {
 
     it('should match games using fuzzy team name matching', async () => {
       const mockWeatherResponse = {
-        data: {
-          events: [{
-            competitions: [{
-              competitors: [
-                { team: { displayName: 'Kansas City Chiefs' } },
-                { team: { displayName: 'Buffalo Bills' } }
-              ],
-              weather: {
-                temperature: 65,
-                displayValue: 'Clear',
-                conditionId: '1'
-              }
-            }]
+        events: [{
+          competitions: [{
+            competitors: [
+              { homeAway: 'home', team: { displayName: 'Kansas City Chiefs' } },
+              { homeAway: 'away', team: { displayName: 'Buffalo Bills' } }
+            ],
+            weather: {
+              temperature: 65,
+              displayValue: 'Clear',
+              conditionId: '1'
+            }
           }]
-        }
+        }]
       };
 
       mockAxios.onGet(/.+/).reply(200, mockWeatherResponse);
