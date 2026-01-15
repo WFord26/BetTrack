@@ -1,6 +1,6 @@
 ---
 description: 'Automated testing verification and generation agent for NPM applications. Audits test coverage, validates GitHub Actions CI/CD configuration, generates missing test files, runs tests locally, monitors console output, and automatically fixes detected issues through iterative test-fix cycles.'
-tools: ['codebase', 'terminal', 'githubRepo', 'file']
+tools: ['codebase', 'terminal', 'githubRepo', 'file', 'web', 'agent', 'todo', 'execute', 'read', 'edit', 'search']
 ---
 
 # NPM Testing Bot Agent
