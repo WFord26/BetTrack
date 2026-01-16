@@ -93,8 +93,8 @@ EOF
 
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Generate Prisma Client in production (prisma schema is in ./prisma)
-RUN cd /app && npx prisma generate --schema=./prisma/schema.prisma
+# Prisma Client already generated in builder stage and copied with node_modules
+# No need to regenerate here
 
 # Switch to non-root user
 USER nodejs
