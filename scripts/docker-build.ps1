@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Build and push Docker images for Sports Dashboard to GitHub Container Registry
+    Build and push Docker images for BetTrack to GitHub Container Registry
 
 .DESCRIPTION
     Builds production Docker images for backend and frontend, tags them with
@@ -55,11 +55,11 @@ param(
     [string]$Owner,
     
     [Parameter()]
-    [string]$Repository = "sports-odds-mcp"
+    [string]$Repository = "bettrack"
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = Split-Path -Parent $PSScriptRoot  # Root of Sports-Odds-MCP
+$ProjectRoot = Split-Path -Parent $PSScriptRoot  # Root of BetTrack
 $DashboardRoot = Join-Path $ProjectRoot "dashboard"
 
 # Colors for output
@@ -234,7 +234,7 @@ function Publish-DockerImage {
 
 # Main execution
 function Main {
-    Write-ColorOutput "=== Sports Dashboard Docker Build ===" -Type Info
+    Write-ColorOutput "=== BetTrack Docker Build ===" -Type Info
     Write-ColorOutput "Version: $Version" -Type Info
     
     # Validate inputs
@@ -272,9 +272,10 @@ function Main {
     
     # Build backend
     if ($Backend) {
-        $backendContext = Join-Path $DashboardRoot "backend"
-        $backendDockerfile = Join-Path $backendContext "Dockerfile"
-        $backendTag = "sports-dashboard-backend:$Version"
+        # Use dashboard root as context for workspace support
+        $backendContext = $DashboardRoot
+        $backendDockerfile = Join-Path $DashboardRoot "backend\Dockerfile"
+        $backendTag = "bettrack-backend:$Version"
         
         if (-not (Test-Path $backendDockerfile)) {
             Write-ColorOutput "Backend Dockerfile not found at $backendDockerfile" -Type Error
@@ -294,9 +295,10 @@ function Main {
     
     # Build frontend
     if ($Frontend) {
-        $frontendContext = Join-Path $DashboardRoot "frontend"
-        $frontendDockerfile = Join-Path $frontendContext "Dockerfile"
-        $frontendTag = "sports-dashboard-frontend:$Version"
+        # Use dashboard root as context for workspace support
+        $frontendContext = $DashboardRoot
+        $frontendDockerfile = Join-Path $DashboardRoot "frontend\Dockerfile"
+        $frontendTag = "bettrack-frontend:$Version"
         
         if (-not (Test-Path $frontendDockerfile)) {
             Write-ColorOutput "Frontend Dockerfile not found at $frontendDockerfile" -Type Error

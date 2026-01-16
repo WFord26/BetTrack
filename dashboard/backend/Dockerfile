@@ -1,6 +1,7 @@
 # Multi-stage production build for Sports Dashboard Backend
 # Optimized for size and security
 # Supports .env files and Docker secrets for configuration
+# Build context: dashboard/ (workspace root)
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
@@ -10,26 +11,29 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache python3 make g++ openssl
 
-# Copy package files
+# Copy workspace package files
 COPY package*.json ./
 
-# Install dependencies (including dev dependencies for build)
+# Copy backend package files
+COPY backend/package*.json ./backend/
+
+# Install dependencies from workspace root
 RUN npm ci
 
 # Copy prisma schema
-COPY prisma ./prisma
+COPY backend/prisma ./backend/prisma
 
 # Generate Prisma Client
-RUN npx prisma generate
+RUN cd backend && npx prisma generate
 
 # Copy TypeScript source
-COPY tsconfig*.json ./
-COPY src ./src
+COPY backend/tsconfig*.json ./backend/
+COPY backend/src ./backend/src
 
 # Build TypeScript to JavaScript
-RUN npm run build
+RUN cd backend && npm run build
 
-# Prune dev dependencies
+# Prune dev dependencies (run from workspace root)
 RUN npm prune --production
 
 # Stage 2: Production runtime
@@ -45,10 +49,10 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 # Copy built application from builder
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/backend/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/backend/prisma ./prisma
+COPY --from=builder --chown=nodejs:nodejs /app/backend/package*.json ./
 
 # Copy startup script for Docker secrets support
 COPY --chown=nodejs:nodejs <<'EOF' /app/docker-entrypoint.sh
@@ -89,8 +93,8 @@ EOF
 
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Generate Prisma Client in production
-RUN npx prisma generate
+# Generate Prisma Client in production (prisma schema is in ./prisma)
+RUN cd /app && npx prisma generate --schema=./prisma/schema.prisma
 
 # Switch to non-root user
 USER nodejs

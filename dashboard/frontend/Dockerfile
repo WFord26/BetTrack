@@ -1,22 +1,26 @@
 # Multi-stage production build for Sports Dashboard Frontend
 # Optimized for size with nginx serving
+# Build context: dashboard/ (workspace root)
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy workspace package files
 COPY package*.json ./
 
-# Install dependencies
+# Copy frontend package files
+COPY frontend/package*.json ./frontend/
+
+# Install dependencies from workspace root
 RUN npm ci
 
 # Copy source files
-COPY . .
+COPY frontend ./frontend
 
 # Build production bundle
-RUN npm run build
+RUN cd frontend && npm run build
 
 # Stage 2: Production runtime with nginx
 FROM nginx:1.25-alpine
@@ -64,8 +68,8 @@ server {
 }
 EOF
 
-# Copy built assets from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy built assets from builder (frontend dist is in frontend/dist)
+COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 # Create non-root user
 RUN addgroup -g 1001 -S nginx-user && \
