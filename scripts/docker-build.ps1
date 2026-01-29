@@ -7,7 +7,7 @@
     version and latest, and pushes to GitHub Container Registry (ghcr.io).
 
 .PARAMETER Version
-    Version tag for the images (e.g., "2026.01.12" or "0.2.3")
+    Version tag for the images (e.g., "2026.01.12" or "0.2.3"). If not specified, will auto-detect from package.json files.
 
 .PARAMETER Backend
     Build and push backend image
@@ -36,7 +36,7 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
     [string]$Version,
     
     [Parameter()]
@@ -100,6 +100,27 @@ function Get-GitHubOwner {
         # Ignore errors
     }
     return $null
+}
+
+# Get version from package.json
+function Get-PackageVersion {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$PackageJsonPath
+    )
+    
+    if (-not (Test-Path $PackageJsonPath)) {
+        Write-ColorOutput "package.json not found at: $PackageJsonPath" -Type Warning
+        return $null
+    }
+    
+    try {
+        $packageJson = Get-Content $PackageJsonPath -Raw | ConvertFrom-Json
+        return $packageJson.version
+    } catch {
+        Write-ColorOutput "Failed to read version from $PackageJsonPath : $_" -Type Error
+        return $null
+    }
 }
 
 # Check if Docker is available
@@ -235,7 +256,33 @@ function Publish-DockerImage {
 # Main execution
 function Main {
     Write-ColorOutput "=== BetTrack Docker Build ===" -Type Info
-    Write-ColorOutput "Version: $Version" -Type Info
+
+# Auto-detect version if not provided
+if (-not $Version) {
+    Write-ColorOutput "Version not specified, auto-detecting from package.json..." -Type Info
+    
+    if ($Backend) {
+        $backendPackage = Join-Path $DashboardRoot "backend/package.json"
+        $Version = Get-PackageVersion -PackageJsonPath $backendPackage
+        if ($Version) {
+            Write-ColorOutput "Using backend version: $Version" -Type Info
+        }
+    }
+    
+    if (-not $Version -and $Frontend) {
+        $frontendPackage = Join-Path $DashboardRoot "frontend/package.json"
+        $Version = Get-PackageVersion -PackageJsonPath $frontendPackage
+        if ($Version) {
+            Write-ColorOutput "Using frontend version: $Version" -Type Info
+        }
+    }
+    
+    if (-not $Version) {
+        Write-ColorOutput "Could not auto-detect version. Please specify -Version parameter" -Type Error
+        exit 1
+    }
+}
+
     
     # Validate inputs
     if (-not $Backend -and -not $Frontend) {
