@@ -14,6 +14,13 @@ const envSchema = z.object({
   OUTCOME_CHECK_INTERVAL: z.string().default('5'),
   LOG_LEVEL: z.string().default('info'),
   
+  // API-Sports configuration
+  API_SPORTS_KEY: z.string().optional(),
+  API_SPORTS_TIER: z.enum(['free', 'pro', 'ultra', 'mega']).default('pro'),
+  STATS_POLL_INTERVAL_MS: z.string().default('15000'),
+  ENABLE_WEBSOCKETS: z.string().default('false'),
+  REDIS_URL: z.string().optional(),
+  
   // Auth configuration
   AUTH_MODE: z.enum(['none', 'oauth2']).default('none'),
   BASE_URL: z.string().default('http://localhost:3001'),

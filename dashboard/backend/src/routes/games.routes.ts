@@ -92,6 +92,46 @@ router.get('/', async (req: Request, res: Response) => {
       const spreadOdds = game.currentOdds.find(o => o.marketType === 'spreads');
       const totalOdds = game.currentOdds.find(o => o.marketType === 'totals');
       
+      // Group odds by bookmaker for frontend card format
+      const bookmakerOddsMap = new Map<string, any>();
+      game.currentOdds.forEach(odd => {
+        if (!bookmakerOddsMap.has(odd.bookmaker)) {
+          bookmakerOddsMap.set(odd.bookmaker, {
+            key: odd.bookmaker,
+            title: odd.bookmaker.charAt(0).toUpperCase() + odd.bookmaker.slice(1),
+            markets: []
+          });
+        }
+        
+        const bookmaker = bookmakerOddsMap.get(odd.bookmaker);
+        
+        if (odd.marketType === 'h2h' && odd.homePrice && odd.awayPrice) {
+          bookmaker.markets.push({
+            key: 'h2h',
+            outcomes: [
+              { name: game.awayTeamName, price: odd.awayPrice },
+              { name: game.homeTeamName, price: odd.homePrice }
+            ]
+          });
+        } else if (odd.marketType === 'spreads' && odd.homeSpread && odd.awaySpread) {
+          bookmaker.markets.push({
+            key: 'spreads',
+            outcomes: [
+              { name: game.awayTeamName, price: odd.awaySpreadPrice || 0, point: Number(odd.awaySpread) },
+              { name: game.homeTeamName, price: odd.homeSpreadPrice || 0, point: Number(odd.homeSpread) }
+            ]
+          });
+        } else if (odd.marketType === 'totals' && odd.totalLine) {
+          bookmaker.markets.push({
+            key: 'totals',
+            outcomes: [
+              { name: 'Over', price: odd.overPrice || 0, point: Number(odd.totalLine) },
+              { name: 'Under', price: odd.underPrice || 0, point: Number(odd.totalLine) }
+            ]
+          });
+        }
+      });
+      
       return {
         id: game.id,
         externalId: game.externalId,
@@ -105,7 +145,9 @@ router.get('/', async (req: Request, res: Response) => {
         status: game.status,
         homeScore: game.homeScore,
         awayScore: game.awayScore,
-        // Format odds for frontend
+        // Bookmakers array for frontend card
+        bookmakers: Array.from(bookmakerOddsMap.values()),
+        // Legacy format for compatibility
         homeOdds: {
           moneyline: h2hOdds?.homePrice || undefined,
           spread: spreadOdds ? {

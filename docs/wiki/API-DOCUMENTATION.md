@@ -15,6 +15,7 @@ Comprehensive API reference for MCP tools, Backend HTTP endpoints, and Frontend 
    - [Futures API](#futures-api-apifutures)
    - [AI Bets API](#ai-bets-api-apiaibets)
    - [MCP Integration API](#mcp-integration-api-apimcp)
+   - [Stats API](#stats-api-apistats)
    - [Admin API](#admin-api-apiadmin)
 3. [Frontend Architecture](#frontend-architecture)
 
@@ -1000,6 +1001,232 @@ The endpoint automatically detects when multiple selections are from the same ga
   }
 }
 ```
+
+---
+
+### Stats API (`/api/stats`)
+
+Retrieve live game statistics, player performance, and historical team data from API-Sports integration.
+
+#### `GET /api/stats/game/:gameId`
+Get comprehensive game statistics including live scores, team stats, player stats, and season averages.
+
+**Path Parameters:**
+- `gameId` (string): The game's unique identifier
+
+**Response:**
+```json
+{
+  "teamStats": [
+    {
+      "id": "uuid",
+      "gameId": "uuid",
+      "teamId": "uuid",
+      "isHome": true,
+      "homeScore": 105,
+      "awayScore": 98,
+      "quarterScores": [28, 25, 27, 25],
+      "stats": {
+        "field_goals": 42,
+        "field_goal_percentage": 48.3,
+        "three_pointers": 12,
+        "rebounds": 45,
+        "assists": 24,
+        "steals": 8,
+        "blocks": 5,
+        "turnovers": 12
+      },
+      "team": {
+        "id": "uuid",
+        "name": "Los Angeles Lakers",
+        "abbreviation": "LAL"
+      }
+    }
+  ],
+  "playerStats": [
+    {
+      "id": "uuid",
+      "gameId": "uuid",
+      "playerId": "uuid",
+      "stats": {
+        "minutes": "35:24",
+        "points": 28,
+        "rebounds": 8,
+        "assists": 6,
+        "field_goals_made": 10,
+        "field_goals_attempts": 18,
+        "three_pointers_made": 4,
+        "free_throws_made": 4
+      },
+      "player": {
+        "id": "uuid",
+        "name": "LeBron James",
+        "externalId": "237"
+      }
+    }
+  ],
+  "seasonAverages": [
+    {
+      "teamId": "uuid",
+      "totalGames": 45,
+      "homeGames": 23,
+      "awayGames": 22,
+      "avgStats": {
+        "points": 112.5,
+        "field_goal_percentage": 46.8,
+        "three_pointers": 13.2,
+        "rebounds": 44.3,
+        "assists": 26.1,
+        "steals": 7.8,
+        "blocks": 5.2
+      }
+    }
+  ]
+}
+```
+
+**Features:**
+- **Live Updates**: Real-time scores and stats during games
+- **Quarter Breakdown**: Period-by-period scoring (NBA: 4 quarters, NFL: 4 quarters, NHL: 3 periods, Soccer: final score)
+- **Season Averages**: Calculated averages across all games this season for both teams
+- **Home/Away Splits**: Separate statistics for home and away performances
+
+#### `GET /api/stats/team/:teamId`
+Get team season statistics with home/away filtering and historical game log.
+
+**Path Parameters:**
+- `teamId` (string): The team's unique identifier
+
+**Query Parameters:**
+- `season` (number, optional): Specific season year (defaults to current season)
+- `location` (string, optional): Filter by location - `home`, `away`, or `all` (default: `all`)
+
+**Response:**
+```json
+{
+  "seasonStats": {
+    "teamId": "uuid",
+    "season": 2026,
+    "gamesPlayed": 45,
+    "wins": 32,
+    "losses": 13,
+    "avgPoints": 112.5,
+    "avgOpponentPoints": 106.8
+  },
+  "gameHistory": [
+    {
+      "id": "uuid",
+      "gameId": "uuid",
+      "teamId": "uuid",
+      "isHome": true,
+      "homeScore": 105,
+      "awayScore": 98,
+      "stats": { "..." },
+      "game": {
+        "id": "uuid",
+        "commenceTime": "2026-01-28T19:00:00Z",
+        "homeTeam": { "name": "Lakers" },
+        "awayTeam": { "name": "Celtics" }
+      }
+    }
+  ],
+  "splits": {
+    "home": {
+      "gamesPlayed": 23,
+      "avgPoints": 115.2,
+      "avgRebounds": 46.1,
+      "avgAssists": 27.3,
+      "field_goal_percentage": 48.5
+    },
+    "away": {
+      "gamesPlayed": 22,
+      "avgPoints": 109.7,
+      "avgRebounds": 42.5,
+      "avgAssists": 24.9,
+      "field_goal_percentage": 45.1
+    },
+    "overall": {
+      "gamesPlayed": 45,
+      "avgPoints": 112.5,
+      "avgRebounds": 44.3,
+      "avgAssists": 26.1,
+      "field_goal_percentage": 46.8
+    }
+  }
+}
+```
+
+**Features:**
+- **Location Filtering**: View stats for home games only, away games only, or all games
+- **Split Statistics**: Compare home vs away performance automatically
+- **Historical Averages**: Season-long averages for all numeric stats
+- **Game Log**: Up to 20 most recent games with full stats
+
+#### `GET /api/stats/player/:playerId`
+Get individual player statistics and game log.
+
+**Path Parameters:**
+- `playerId` (string): The player's unique identifier
+
+**Query Parameters:**
+- `season` (number, optional): Specific season year (defaults to current season)
+- `limit` (number, optional): Number of recent games to return (default: 10, max: 50)
+
+**Response:**
+```json
+{
+  "player": {
+    "id": "uuid",
+    "externalId": "237",
+    "name": "LeBron James",
+    "sport": "basketball_nba",
+    "team": {
+      "id": "uuid",
+      "name": "Los Angeles Lakers",
+      "abbreviation": "LAL"
+    }
+  },
+  "seasonStats": {
+    "gamesPlayed": 42,
+    "avgPoints": 27.8,
+    "avgRebounds": 7.2,
+    "avgAssists": 8.5,
+    "field_goal_percentage": 52.3,
+    "three_point_percentage": 38.9,
+    "free_throw_percentage": 73.1
+  },
+  "gameLog": [
+    {
+      "id": "uuid",
+      "gameId": "uuid",
+      "stats": {
+        "minutes": "35:24",
+        "points": 28,
+        "rebounds": 8,
+        "assists": 6
+      },
+      "game": {
+        "id": "uuid",
+        "commenceTime": "2026-01-28T19:00:00Z",
+        "homeTeam": { "name": "Lakers" },
+        "awayTeam": { "name": "Celtics" }
+      }
+    }
+  ]
+}
+```
+
+**Supported Sports:**
+- **Basketball** (NBA, NCAAB): Points, rebounds, assists, shooting percentages, steals, blocks, turnovers
+- **Football** (NFL, NCAAF): Passing yards/TDs, rushing yards/TDs, receptions, receiving yards, tackles, sacks
+- **Hockey** (NHL): Goals, assists, points, shots on goal, plus/minus, penalty minutes
+- **Soccer** (EPL, MLS, etc.): Goals, assists, shots, passes, tackles, interceptions, cards, goalkeeper saves
+
+**Notes:**
+- Stats sync runs every 15 seconds during game hours (10 AM - 2 AM ET)
+- Requires `API_SPORTS_KEY` environment variable to be configured
+- Free tier API-Sports accounts limited to 10 requests/day
+- Rate limiting: 5 requests/second for Pro tier
 
 ---
 

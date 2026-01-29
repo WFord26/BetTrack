@@ -9,6 +9,13 @@ interface SiteConfig {
   logoUrl: string | null;
 }
 
+interface NavItem {
+  path: string;
+  label: string;
+  icon: string;
+  badge?: string;
+}
+
 export default function Header() {
   const location = useLocation();
   const { isDarkMode, toggleDarkMode } = useDarkMode();
@@ -62,6 +69,7 @@ export default function Header() {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
+    { path: '/v2', label: 'Dashboard V2', icon: '🎮', badge: 'NEW' },
     { path: '/history', label: 'Bet History', icon: '📜' },
     { path: '/futures', label: 'Futures', icon: '🏆' },
     { path: '/stats', label: 'Statistics', icon: '📈' }
@@ -98,7 +106,7 @@ export default function Header() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                className={`relative px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
                   isActive(item.path)
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
@@ -106,6 +114,11 @@ export default function Header() {
               >
                 <span className="text-lg">{item.icon}</span>
                 <span className="hidden sm:inline">{item.label}</span>
+                {item.badge && (
+                  <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full animate-pulse">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
