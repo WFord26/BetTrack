@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDarkMode } from '../../contexts/DarkModeContext';
 
 interface GameFiltersProps {
   selectedSports: string[];
@@ -7,6 +8,10 @@ interface GameFiltersProps {
   onStatusChange: (status: string) => void;
   selectedBookmaker: string;
   onBookmakerChange: (bookmaker: string) => void;
+  oddsFormat: 'american' | 'decimal' | 'fractional';
+  onOddsFormatChange: (format: 'american' | 'decimal' | 'fractional') => void;
+  selectedDate: string;
+  onDateChange: (date: string) => void;
   availableSports: { key: string; name: string; count: number }[];
   availableBookmakers: string[];
 }
@@ -75,6 +80,10 @@ export default function GameFilters({
   onStatusChange,
   selectedBookmaker,
   onBookmakerChange,
+  oddsFormat,
+  onOddsFormatChange,
+  selectedDate,
+  onDateChange,
   availableSports,
   availableBookmakers,
 }: GameFiltersProps) {
@@ -122,16 +131,18 @@ export default function GameFilters({
     return allSports.some(sport => selectedSports.includes(sport.key));
   };
 
+  const { isDarkMode } = useDarkMode();
+
   return (
     <div 
-      className="mb-6 relative"
+      className="relative"
       style={{
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        backgroundColor: '#020617',
-        color: '#e5e7eb',
-        border: '4px solid #e5e7eb',
-        padding: '12px 16px',
-        boxShadow: '0 0 0 2px rgba(229,231,235,0.12) inset, 0 8px 16px rgba(0,0,0,0.4)',
+        backgroundColor: isDarkMode ? '#020617' : '#f8fafc',
+        color: isDarkMode ? '#e5e7eb' : '#1e293b',
+        border: `4px solid ${isDarkMode ? '#e5e7eb' : '#cbd5e1'}`,
+        padding: '16px',
+        boxShadow: isDarkMode ? '0 0 0 2px rgba(229,231,235,0.12) inset, 0 8px 16px rgba(0,0,0,0.4)' : '0 0 0 2px rgba(203,213,225,0.3) inset, 0 8px 16px rgba(0,0,0,0.1)',
         imageRendering: 'pixelated',
       }}
     >
@@ -140,18 +151,34 @@ export default function GameFilters({
         style={{
           position: 'absolute',
           inset: 0,
-          backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+          backgroundImage: isDarkMode 
+            ? 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)'
+            : 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)',
           backgroundSize: '6px 6px',
           pointerEvents: 'none',
         }}
       />
 
-      {/* Single Line Filter Layout */}
-      <div className="relative z-10 flex items-center gap-4 flex-wrap">
+      {/* Vertical Filter Layout */}
+      <div className="relative z-10 space-y-6">
+        {/* Date Filter */}
+        <div>
+          <h3 className="text-[10px] font-bold tracking-wider uppercase opacity-60 mb-3">Date</h3>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => onDateChange(e.target.value)}
+            className="w-full bg-gray-800 dark:bg-gray-800 bg-white text-gray-900 dark:text-white px-3 py-2 rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
+            style={{
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            }}
+          />
+        </div>
+
         {/* Status Filters */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold tracking-wider uppercase opacity-60">Status:</span>
-          <div className="flex gap-1.5">
+        <div>
+          <h3 className="text-[10px] font-bold tracking-wider uppercase opacity-60 mb-3">Status</h3>
+          <div className="flex flex-col gap-1.5">
             {[
               { value: 'all', label: 'All' },
               { value: 'upcoming', label: 'Upcoming' },
@@ -162,7 +189,7 @@ export default function GameFilters({
                 key={status.value}
                 onClick={() => onStatusChange(status.value)}
                 className={`
-                  px-3 py-1 font-bold text-[10px] tracking-wider transition-all rounded-full
+                  w-full px-3 py-1.5 font-bold text-[10px] tracking-wider transition-all rounded
                   ${
                     selectedStatus === status.value
                       ? 'bg-red-600 text-white'
@@ -177,13 +204,10 @@ export default function GameFilters({
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="h-8 w-px bg-gray-700" />
-
         {/* Sport Filters */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold tracking-wider uppercase opacity-60">Sports:</span>
-          <div className="flex gap-2 items-center">
+        <div>
+          <h3 className="text-[10px] font-bold tracking-wider uppercase opacity-60 mb-3">Sports</h3>
+          <div className="flex gap-2 items-center flex-wrap">
             {Object.entries(groupedSports).map(([baseKey, categories]) => {
               const hasGames = [...categories.professional, ...categories.college].length > 0;
               if (!hasGames) return null;
@@ -306,16 +330,13 @@ export default function GameFilters({
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="h-8 w-px bg-gray-700" />
-
         {/* Bookmaker Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold tracking-wider uppercase opacity-60">Book:</span>
+        <div>
+          <h3 className="text-[10px] font-bold tracking-wider uppercase opacity-60 mb-3">Bookmaker</h3>
           <select
             value={selectedBookmaker}
             onChange={(e) => onBookmakerChange(e.target.value)}
-            className="bg-gray-800 text-white text-[10px] font-bold tracking-wider px-3 py-1 rounded-full border-2 border-gray-700 hover:border-gray-600 focus:border-red-600 focus:outline-none transition-colors"
+            className="w-full bg-gray-800 text-white text-[10px] font-bold tracking-wider px-3 py-2 rounded border-2 border-gray-700 hover:border-gray-600 focus:border-red-600 focus:outline-none transition-colors"
           >
             <option value="all">All</option>
             {availableBookmakers.map(bookmaker => (
@@ -326,22 +347,46 @@ export default function GameFilters({
           </select>
         </div>
 
+        {/* Odds Format Filter */}
+        <div>
+          <h3 className="text-[10px] font-bold tracking-wider uppercase opacity-60 mb-3">Odds Format</h3>
+          <div className="flex flex-col gap-1.5">
+            {[
+              { value: 'american', label: 'American' },
+              { value: 'decimal', label: 'Decimal' },
+              { value: 'fractional', label: 'Fractional' },
+            ].map((format) => (
+              <button
+                key={format.value}
+                onClick={() => onOddsFormatChange(format.value as any)}
+                className={`
+                  w-full px-3 py-1.5 font-bold text-[10px] tracking-wider transition-all rounded
+                  ${
+                    oddsFormat === format.value
+                      ? 'bg-red-600 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  }
+                `}
+              >
+                {format.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Clear All Button */}
         {(selectedSports.length > 0 || selectedStatus !== 'all' || selectedBookmaker !== 'all') && (
-          <>
-            <div className="h-8 w-px bg-gray-700" />
-            <button
-              onClick={() => {
-                selectedSports.forEach(sport => onSportToggle(sport));
-                onStatusChange('all');
-                onBookmakerChange('all');
-                setActiveSportDropdown(null);
-              }}
-              className="text-red-400 hover:text-red-300 text-[10px] font-bold tracking-wider transition-colors px-3 py-1 rounded-full hover:bg-gray-800"
-            >
-              CLEAR ALL
-            </button>
-          </>
+          <button
+            onClick={() => {
+              selectedSports.forEach(sport => onSportToggle(sport));
+              onStatusChange('all');
+              onBookmakerChange('all');
+              setActiveSportDropdown(null);
+            }}
+            className="w-full text-red-400 hover:text-red-300 text-[10px] font-bold tracking-wider transition-colors px-3 py-2 rounded hover:bg-gray-800 border border-red-600"
+          >
+            CLEAR ALL FILTERS
+          </button>
         )}
       </div>
     </div>

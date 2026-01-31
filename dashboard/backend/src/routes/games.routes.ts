@@ -145,6 +145,8 @@ router.get('/', async (req: Request, res: Response) => {
         status: game.status,
         homeScore: game.homeScore,
         awayScore: game.awayScore,
+        period: game.period,
+        clock: game.clock,
         // Bookmakers array for frontend card
         bookmakers: Array.from(bookmakerOddsMap.values()),
         // Legacy format for compatibility

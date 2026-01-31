@@ -135,12 +135,22 @@ export class OutcomeResolverService {
     }
 
     try {
-      // Fetch scoreboard
+      // Format game date for ESPN API (YYYYMMDD)
+      const gameDate = new Date(game.commenceTime);
+      const dateStr = gameDate.toISOString().split('T')[0].replace(/-/g, '');
+      
+      // Fetch scoreboard for the game's date
       const response = await this.espnClient.get<EspnScoreboardResponse>(
-        `/${mapping.sport}/${mapping.league}/scoreboard`
+        `/${mapping.sport}/${mapping.league}/scoreboard`,
+        {
+          params: {
+            dates: dateStr // YYYYMMDD format
+          }
+        }
       );
 
       if (!response.data.events || response.data.events.length === 0) {
+        logger.debug(`No events found on ESPN for ${mapping.sport}/${mapping.league} on ${dateStr}`);
         return null;
       }
 
@@ -152,6 +162,7 @@ export class OutcomeResolverService {
       );
 
       if (!matchedEvent) {
+        logger.debug(`No matching event found for ${game.homeTeamName} vs ${game.awayTeamName} on ESPN (${response.data.events.length} events checked)`);
         return null;
       }
 
@@ -171,7 +182,8 @@ export class OutcomeResolverService {
       const awayScore = parseInt(awayCompetitor.score, 10);
 
       // Extract period and clock information (with type safety)
-      const period = (status as any).period ? `${(status as any).period}` : null;
+      // Both period and clock are on competition.status, not competition.status.type
+      const period = (competition.status as any).period ? `${(competition.status as any).period}` : null;
       const clock = (competition.status as any).displayClock || null;
 
       // Check if completed

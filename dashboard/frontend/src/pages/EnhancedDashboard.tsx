@@ -25,6 +25,8 @@ export default function EnhancedDashboard() {
   const [selectedSports, setSelectedSports] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedBookmaker, setSelectedBookmaker] = useState('all');
+  const [oddsFormat, setOddsFormat] = useState<'american' | 'decimal' | 'fractional'>('american');
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     const year = today.getFullYear();
@@ -106,6 +108,10 @@ export default function EnhancedDashboard() {
     setSelectedBookmaker(bookmaker);
   };
 
+  const handleOddsFormatChange = (format: 'american' | 'decimal' | 'fractional') => {
+    setOddsFormat(format);
+  };
+
   // Get unique bookmakers from games
   const availableBookmakers = React.useMemo(() => {
     const bookmakers = new Set<string>();
@@ -143,48 +149,65 @@ export default function EnhancedDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
-          <span className="text-5xl">🎮</span>
-          BetTrack Sports Hub
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-lg">
-          Track odds, place bets, and analyze stats across all major sports
-        </p>
-      </div>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-3 rounded-lg border-2 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-lg"
+        aria-label="Toggle filters"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {mobileFiltersOpen ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          )}
+        </svg>
+      </button>
 
-      {/* Date Selector */}
-      <div className="mb-6">
-        <label className="block text-white font-bold mb-2">Select Date</label>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-700 focus:border-red-600 focus:outline-none"
+      {/* Mobile Overlay */}
+      {mobileFiltersOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setMobileFiltersOpen(false)}
         />
-      </div>
+      )}
 
-      {/* Filters */}
-      <GameFilters
-        selectedSports={selectedSports}
-        onSportToggle={handleSportToggle}
-        selectedStatus={selectedStatus}
-        onStatusChange={handleStatusChange}
-        selectedBookmaker={selectedBookmaker}
-        onBookmakerChange={handleBookmakerChange}
-        availableSports={availableSports}
-        availableBookmakers={availableBookmakers}
-      />
+      {/* Fixed Left Sidebar */}
+      <aside className={`
+        w-80 h-screen overflow-y-auto bg-white dark:bg-gray-900 border-r-4 border-gray-200 dark:border-gray-800
+        fixed lg:relative z-40 lg:z-auto
+        transition-transform duration-300 ease-in-out
+        ${mobileFiltersOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <div className="p-4 pt-20 lg:pt-8">
+          <GameFilters
+            selectedSports={selectedSports}
+            onSportToggle={handleSportToggle}
+            selectedStatus={selectedStatus}
+            onStatusChange={handleStatusChange}
+            selectedBookmaker={selectedBookmaker}
+            onBookmakerChange={handleBookmakerChange}
+            oddsFormat={oddsFormat}
+            onOddsFormatChange={handleOddsFormatChange}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            availableSports={availableSports}
+            availableBookmakers={availableBookmakers}
+          />
+        </div>
+      </aside>
 
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto w-full">
+        <div className="container mx-auto px-4 py-8 lg:py-8 pt-20 lg:pt-8">
       {/* Games Count */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
           {filteredGames.length} {filteredGames.length === 1 ? 'Game' : 'Games'} Found
         </h2>
         {filteredGames.length !== games.length && (
-          <span className="text-gray-400 text-sm">
+          <span className="text-gray-600 dark:text-gray-400 text-sm">
             (filtered from {games.length} total)
           </span>
         )}
@@ -192,10 +215,10 @@ export default function EnhancedDashboard() {
 
       {/* Games Grid */}
       {filteredGames.length === 0 ? (
-        <div className="bg-gray-800 rounded-lg p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-12 text-center border-2 border-gray-200 dark:border-gray-700">
           <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-white text-xl font-bold mb-2">No Games Found</h3>
-          <p className="text-gray-400 mb-4">
+          <h3 className="text-gray-900 dark:text-white text-xl font-bold mb-2">No Games Found</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
             Try adjusting your filters or selecting a different date
           </p>
           <button
@@ -209,7 +232,7 @@ export default function EnhancedDashboard() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {filteredGames.map((game) => {
             // Filter bookmakers if a specific one is selected
             const filteredGame = selectedBookmaker !== 'all' ? {
@@ -217,13 +240,15 @@ export default function EnhancedDashboard() {
               bookmakers: game.bookmakers?.filter(b => b.key === selectedBookmaker)
             } : game;
             
-            return <EnhancedGameCard key={game.id} game={filteredGame} />;
+            return <EnhancedGameCard key={game.id} game={filteredGame} oddsFormat={oddsFormat} />;
           })}
         </div>
       )}
 
       {/* Bet Slip */}
       <BetSlip />
+        </div>
+      </main>
     </div>
   );
 }

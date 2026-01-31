@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addLeg } from '../../store/betSlipSlice';
 import { formatTime, getSportDisplayName } from '../../utils/format';
+import { useDarkMode } from '../../contexts/DarkModeContext';
 
 interface Bookmaker {
   key: string;
@@ -39,13 +40,16 @@ interface EnhancedGameCardProps {
   game: Game;
   onSelect?: (selection: any) => void;
   selectedBets?: Set<string>;
-  useDecimalOdds?: boolean;
+  oddsFormat?: 'american' | 'decimal' | 'fractional';
 }
 
-const BOOKMAKER_INFO: Record<string, { logo: string; color: string }> = {
-  draftkings: { logo: '👑', color: 'bg-green-600' },
-  fanduel: { logo: '🎯', color: 'bg-blue-600' },
-  betmgm: { logo: '🦁', color: 'bg-yellow-600' },
+const BOOKMAKER_INFO: Record<string, { logo: string; color: string; useImage?: boolean }> = {
+  draftkings: { logo: '/bookmaker/draftkings.png', color: 'bg-green-600', useImage: true },
+  fanduel: { logo: '/bookmaker/fanduel.png', color: 'bg-blue-600', useImage: true },
+  betmgm: { logo: '/bookmaker/betmgm.png', color: 'bg-yellow-600', useImage: true },
+  betrivers: { logo: '/bookmaker/betrivers.png', color: 'bg-blue-500', useImage: true },
+  betus: { logo: '/bookmaker/betus.png', color: 'bg-red-600', useImage: true },
+  mybookieag: { logo: '📚', color: 'bg-purple-600' },
   pointsbet: { logo: '⚡', color: 'bg-red-600' },
   bovada: { logo: '🐂', color: 'bg-red-700' },
   mybookie: { logo: '📚', color: 'bg-purple-600' },
@@ -79,7 +83,33 @@ function formatGameTime(commenceTime: string, status: string): string {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function EnhancedGameCard({ game, useDecimalOdds = false }: EnhancedGameCardProps) {
+function americanToDecimal(american: number): number {
+  if (american > 0) {
+    return (american / 100) + 1;
+  } else {
+    return (100 / Math.abs(american)) + 1;
+  }
+}
+
+function americanToFractional(american: number): string {
+  if (american > 0) {
+    return `${american}/100`;
+  } else {
+    return `100/${Math.abs(american)}`;
+  }
+}
+
+function formatOddsValue(american: number, format: 'american' | 'decimal' | 'fractional'): string {
+  if (format === 'decimal') {
+    return americanToDecimal(american).toFixed(2);
+  } else if (format === 'fractional') {
+    return americanToFractional(american);
+  } else {
+    return (american > 0 ? '+' : '') + american;
+  }
+}
+
+export default function EnhancedGameCard({ game, oddsFormat = 'american' }: EnhancedGameCardProps) {
   const [expandedBookmakers, setExpandedBookmakers] = useState(false);
   const [blinkOn, setBlinkOn] = useState(true);
   const dispatch = useDispatch();
@@ -100,33 +130,83 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
   const getBestOdds = () => {
     if (!game.bookmakers || game.bookmakers.length === 0) return null;
     
-    const h2hMarkets = game.bookmakers
-      .map(b => ({
-        bookmaker: b,
-        market: b.markets.find(m => m.key === 'h2h')
-      }))
-      .filter(item => item.market);
+    // Find best odds for each market type
+    const bestH2H = { away: null as any, home: null as any, bookmaker: '' };
+    const bestSpread = { away: null as any, home: null as any, bookmaker: '' };
+    const bestTotal = { over: null as any, under: null as any, bookmaker: '' };
 
-    if (h2hMarkets.length === 0) return null;
+    game.bookmakers.forEach(bookmaker => {
+      const h2hMarket = bookmaker.markets.find(m => m.key === 'h2h');
+      const spreadMarket = bookmaker.markets.find(m => m.key === 'spreads');
+      const totalMarket = bookmaker.markets.find(m => m.key === 'totals');
 
-    return h2hMarkets;
+      // Best moneyline (higher is better for positive, closer to 0 for negative)
+      if (h2hMarket) {
+        const awayML = h2hMarket.outcomes.find(o => o.name === game.awayTeamName);
+        const homeML = h2hMarket.outcomes.find(o => o.name === game.homeTeamName);
+        
+        if (awayML && (!bestH2H.away || awayML.price > bestH2H.away.price)) {
+          bestH2H.away = awayML;
+          if (!bestH2H.bookmaker) bestH2H.bookmaker = bookmaker.key;
+        }
+        if (homeML && (!bestH2H.home || homeML.price > bestH2H.home.price)) {
+          bestH2H.home = homeML;
+          if (!bestH2H.bookmaker) bestH2H.bookmaker = bookmaker.key;
+        }
+      }
+
+      // Best spread
+      if (spreadMarket) {
+        const awaySpread = spreadMarket.outcomes.find(o => o.name === game.awayTeamName);
+        const homeSpread = spreadMarket.outcomes.find(o => o.name === game.homeTeamName);
+        
+        if (awaySpread && (!bestSpread.away || awaySpread.price > bestSpread.away.price)) {
+          bestSpread.away = awaySpread;
+          if (!bestSpread.bookmaker) bestSpread.bookmaker = bookmaker.key;
+        }
+        if (homeSpread && (!bestSpread.home || homeSpread.price > bestSpread.home.price)) {
+          bestSpread.home = homeSpread;
+          if (!bestSpread.bookmaker) bestSpread.bookmaker = bookmaker.key;
+        }
+      }
+
+      // Best total
+      if (totalMarket) {
+        const over = totalMarket.outcomes.find(o => o.name === 'Over');
+        const under = totalMarket.outcomes.find(o => o.name === 'Under');
+        
+        if (over && (!bestTotal.over || over.price > bestTotal.over.price)) {
+          bestTotal.over = over;
+          if (!bestTotal.bookmaker) bestTotal.bookmaker = bookmaker.key;
+        }
+        if (under && (!bestTotal.under || under.price > bestTotal.under.price)) {
+          bestTotal.under = under;
+          if (!bestTotal.bookmaker) bestTotal.bookmaker = bookmaker.key;
+        }
+      }
+    });
+
+    return { bestH2H, bestSpread, bestTotal };
   };
 
   const bestOdds = getBestOdds();
-  const visibleBookmakers = expandedBookmakers ? bestOdds : bestOdds?.slice(0, 2);
+  const awayML = bestOdds?.bestH2H.away;
+  const homeML = bestOdds?.bestH2H.home;
+  const awaySpread = bestOdds?.bestSpread.away;
+  const homeSpread = bestOdds?.bestSpread.home;
+  const totalOver = bestOdds?.bestTotal.over;
+  const totalUnder = bestOdds?.bestTotal.under;
 
-  // Get primary bookmaker odds for inline display
-  const primaryBook = bestOdds?.[0];
-  const h2hMarket = primaryBook?.market;
-  const spreadMarket = primaryBook?.bookmaker.markets.find(m => m.key === 'spreads');
-  const totalMarket = primaryBook?.bookmaker.markets.find(m => m.key === 'totals');
-
-  const awayML = h2hMarket?.outcomes.find(o => o.name === game.awayTeamName);
-  const homeML = h2hMarket?.outcomes.find(o => o.name === game.homeTeamName);
-  const awaySpread = spreadMarket?.outcomes.find(o => o.name === game.awayTeamName);
-  const homeSpread = spreadMarket?.outcomes.find(o => o.name === game.homeTeamName);
-  const totalOver = totalMarket?.outcomes.find(o => o.name === 'Over');
-  const totalUnder = totalMarket?.outcomes.find(o => o.name === 'Under');
+  // Get primary bookmaker for icon display
+  const primaryBookmaker = game.bookmakers?.[0]?.key || 'draftkings';
+  const bookmakerInfo = BOOKMAKER_INFO[primaryBookmaker] || { logo: '🎲', color: 'bg-gray-600', useImage: false };
+  
+  console.log('Game data:', { 
+    id: game.id, 
+    period: game.period, 
+    clock: game.clock, 
+    status: game.status 
+  });
 
   // Handle adding bet to bet slip
   const handleAddToBetSlip = (type: 'moneyline' | 'spread' | 'total', selection: 'home' | 'away' | 'over' | 'under', odds: number, line?: number) => {
@@ -138,9 +218,16 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
       line: line,
       teamName: selection === 'home' ? game.homeTeamName : selection === 'away' ? game.awayTeamName : undefined,
       status: 'pending',
-      game: game
+      game: {
+        ...game,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: game.status as 'scheduled' | 'in_progress' | 'completed' | 'postponed' | 'cancelled'
+      }
     }));
   };
+
+  const { isDarkMode } = useDarkMode();
 
   return (
     <div className="relative group">
@@ -149,11 +236,11 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
         className="pixel-card"
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          backgroundColor: '#020617',
-          color: '#e5e7eb',
-          border: '4px solid #e5e7eb',
+          backgroundColor: isDarkMode ? '#020617' : '#f8fafc',
+          color: isDarkMode ? '#e5e7eb' : '#1e293b',
+          border: `4px solid ${isDarkMode ? '#e5e7eb' : '#cbd5e1'}`,
           padding: '12px',
-          boxShadow: '0 0 0 2px rgba(229,231,235,0.12) inset, 0 8px 16px rgba(0,0,0,0.4)',
+          boxShadow: isDarkMode ? '0 0 0 2px rgba(229,231,235,0.12) inset, 0 8px 16px rgba(0,0,0,0.4)' : '0 0 0 2px rgba(203,213,225,0.3) inset, 0 8px 16px rgba(0,0,0,0.1)',
           imageRendering: 'pixelated',
           userSelect: 'none',
           position: 'relative',
@@ -165,14 +252,34 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+            backgroundImage: isDarkMode 
+              ? 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)'
+              : 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)',
             backgroundSize: '6px 6px',
             pointerEvents: 'none',
           }}
         />
 
+        {/* Bookmaker Icon - Upper Left */}
+        <div className="absolute top-2 left-2 z-20">
+          <div 
+            className="flex items-center justify-center"
+            title={primaryBookmaker.charAt(0).toUpperCase() + primaryBookmaker.slice(1)}
+          >
+            {bookmakerInfo.useImage ? (
+              <img 
+                src={bookmakerInfo.logo} 
+                alt={primaryBookmaker}
+                className="h-14 w-auto"
+              />
+            ) : (
+              <span className="text-4xl">{bookmakerInfo.logo}</span>
+            )}
+          </div>
+        </div>
+
         {/* Sport Icon */}
-        <div className="absolute top-2 right-2 w-10 h-10 opacity-30">
+        <div className="absolute top-2 right-2 w-10 h-10 opacity-60">
           <img 
             src={sportImage}
             alt={getSportDisplayName(game.sportKey)} 
@@ -219,18 +326,20 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
           
           {/* Period/Clock Info */}
           <div className="text-center px-3">
-            {isLive && (game.period || game.clock || game.timeRemaining) ? (
+            {isLive && (game.period || game.clock) ? (
               <div 
                 className={`px-3 py-2 rounded text-white font-bold ${
                   blinkOn ? 'bg-red-600' : 'bg-red-900'
                 } transition-colors border-2 border-red-500`}
               >
-                <div className="text-[8px] tracking-wider leading-tight">
-                  {game.period || 'LIVE'}
-                </div>
-                {(game.clock || game.timeRemaining) && (
+                {game.period && (
+                  <div className="text-[8px] tracking-wider leading-tight">
+                    {game.period.match(/^\d+$/) ? `Q${game.period}` : game.period}
+                  </div>
+                )}
+                {game.clock && (
                   <div className="text-[9px] tracking-wider leading-tight mt-0.5">
-                    {game.clock || game.timeRemaining}
+                    {game.clock}
                   </div>
                 )}
               </div>
@@ -254,17 +363,18 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
           </div>
         </div>
 
-        {/* Betting Odds - Vertical Table Format - Always show all rows */}
-        <div className="mt-3 pt-3 border-t-2 border-gray-700 relative z-10">
-          <div className="text-[9px] space-y-1">
-            {/* Moneyline Row */}
-            <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-center">
+        {/* Betting Odds - Only show for scheduled and in_progress games */}
+        {game.status !== 'final' && (
+          <div className="mt-3 pt-3 border-t-2 border-gray-300 dark:border-gray-700 relative z-10">
+            <div className="text-[9px] space-y-1">
+              {/* Moneyline Row */}
+              <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-center">
               <button
                 onClick={() => awayML && handleAddToBetSlip('moneyline', 'away', awayML.price)}
                 disabled={!awayML}
-                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-[#38bdf8] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#38bdf8] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
-                {awayML ? (awayML.price > 0 ? '+' : '') + awayML.price : '--'}
+                {awayML ? formatOddsValue(awayML.price, oddsFormat) : '--'}
               </button>
               <div className="text-[8px] font-bold tracking-wider uppercase opacity-60 whitespace-nowrap text-center">
                 Moneyline
@@ -272,9 +382,9 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
               <button
                 onClick={() => homeML && handleAddToBetSlip('moneyline', 'home', homeML.price)}
                 disabled={!homeML}
-                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-[#f97316] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#f97316] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
-                {homeML ? (homeML.price > 0 ? '+' : '') + homeML.price : '--'}
+                {homeML ? formatOddsValue(homeML.price, oddsFormat) : '--'}
               </button>
             </div>
 
@@ -283,9 +393,13 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
               <button
                 onClick={() => awaySpread && handleAddToBetSlip('spread', 'away', awaySpread.price, awaySpread.point)}
                 disabled={!awaySpread}
-                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-[#38bdf8] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#38bdf8] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
-                {awaySpread ? (awaySpread.point > 0 ? '+' : '') + awaySpread.point : '--'}
+                {awaySpread ? (
+                  <>
+                    {awaySpread.point > 0 ? '+' : ''}{awaySpread.point} ({formatOddsValue(awaySpread.price, oddsFormat)})
+                  </>
+                ) : '--'}
               </button>
               <div className="text-[8px] font-bold tracking-wider uppercase opacity-60 whitespace-nowrap text-center">
                 Spread
@@ -293,9 +407,13 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
               <button
                 onClick={() => homeSpread && handleAddToBetSlip('spread', 'home', homeSpread.price, homeSpread.point)}
                 disabled={!homeSpread}
-                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-[#f97316] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#f97316] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
-                {homeSpread ? (homeSpread.point > 0 ? '+' : '') + homeSpread.point : '--'}
+                {homeSpread ? (
+                  <>
+                    {homeSpread.point > 0 ? '+' : ''}{homeSpread.point} ({formatOddsValue(homeSpread.price, oddsFormat)})
+                  </>
+                ) : '--'}
               </button>
             </div>
 
@@ -304,9 +422,13 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
               <button
                 onClick={() => totalOver && handleAddToBetSlip('total', 'over', totalOver.price, totalOver.point)}
                 disabled={!totalOver}
-                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-green-500 px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-green-500 px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
-                {totalOver ? `O ${totalOver.point}` : '--'}
+                {totalOver ? (
+                  <>
+                    O {totalOver.point} ({formatOddsValue(totalOver.price, oddsFormat)})
+                  </>
+                ) : '--'}
               </button>
               <div className="text-[8px] font-bold tracking-wider uppercase opacity-60 whitespace-nowrap text-center">
                 Total
@@ -314,13 +436,18 @@ export default function EnhancedGameCard({ game, useDecimalOdds = false }: Enhan
               <button
                 onClick={() => totalUnder && handleAddToBetSlip('total', 'under', totalUnder.price, totalUnder.point)}
                 disabled={!totalUnder}
-                className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-green-500 px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-green-500 px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
-                {totalUnder ? `U ${totalUnder.point}` : '--'}
+                {totalUnder ? (
+                  <>
+                    U {totalUnder.point} ({formatOddsValue(totalUnder.price, oddsFormat)})
+                  </>
+                ) : '--'}
               </button>
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* View Details Button */}

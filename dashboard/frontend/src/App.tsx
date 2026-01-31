@@ -16,6 +16,7 @@ import Stats from './pages/Stats';
 import GameDetail from './pages/GameDetail';
 import TeamDetail from './pages/TeamDetail';
 import EnhancedDashboard from './pages/EnhancedDashboard';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import ApiKeysSettings from './pages/ApiKeysSettings';
 import Preferences from './pages/Preferences';
@@ -167,8 +168,9 @@ function App() {
               <main className="pb-12">
                 <Routes>
                   <Route path="/login" element={<Login />} />
-                  <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/" element={<Home />} />
                   <Route path="/v2" element={<ProtectedRoute><EnhancedDashboard /></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/history" element={<ProtectedRoute><BetHistory /></ProtectedRoute>} />
                   <Route path="/futures" element={<ProtectedRoute><Futures /></ProtectedRoute>} />
                   <Route path="/stats" element={<ProtectedRoute><Stats /></ProtectedRoute>} />
