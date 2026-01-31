@@ -15,10 +15,11 @@ export default function Home() {
                  backgroundSize: 'cover',
                  backgroundPosition: 'center',
                  backgroundRepeat: 'no-repeat',
-                 imageRendering: 'pixelated'
+                 imageRendering: 'pixelated',
+                 minHeight: '600px'
                }}>
         {/* Dark overlay for better text contrast */}
-        <div className="absolute inset-0 bg-black opacity-40" />
+        <div className="absolute inset-0 bg-black opacity-60" />
         
         {/* Pixel art background pattern with scanlines */}
         <div 
@@ -56,7 +57,7 @@ export default function Home() {
           {/* Cowboy Dollar Logo */}
           <div className="flex justify-center mb-8">
             <img 
-              src="/cowboy-dollar.png" 
+              src="/cowboy-dollar.svg" 
               alt="BetTrack - Yeehaw!" 
               className="w-80 h-auto"
               style={{ 
@@ -74,7 +75,7 @@ export default function Home() {
                 letterSpacing: '0.05em',
                 imageRendering: 'pixelated'
               }}>
-            🤠 BET LIKE A COWBOY 🎰
+            BET LIKE A COWBOY
           </h1>
           
           <p className="text-2xl md:text-3xl text-center mb-12 text-white"
@@ -97,7 +98,7 @@ export default function Home() {
                 imageRendering: 'pixelated'
               }}
             >
-              🎲 START TRACKING →
+              START TRACKING →
             </Link>
             <Link
               to="#what-we-do"
@@ -109,21 +110,21 @@ export default function Home() {
                 imageRendering: 'pixelated'
               }}
             >
-              📖 LEARN MORE
+              LEARN MORE
             </Link>
           </div>
         </div>
       </section>
 
       {/* What We Are Section */}
-      <section id="what-we-are" className="py-20 px-4 bg-white dark:bg-gray-800">
+      <section id="what-we-are" className="py-20 px-4 bg-white dark:bg-gray-800 relative overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-12 text-red-600 dark:text-red-500"
               style={{ 
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                 textShadow: '3px 3px 0px rgba(0,0,0,0.2)'
               }}>
-            💰 WHAT WE ARE
+            WHAT WE ARE
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -197,14 +198,14 @@ export default function Home() {
       </section>
 
       {/* What We Do Section */}
-      <section id="what-we-do" className="py-20 px-4 bg-gradient-to-r from-red-600 to-red-700 text-white">
-        <div className="max-w-6xl mx-auto">
+      <section id="what-we-do" className="py-20 px-4 bg-gradient-to-r from-red-600 to-red-700 text-white relative overflow-hidden">
+        <div className="max-w-6xl mx-auto relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-12"
               style={{ 
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                 textShadow: '3px 3px 0px rgba(0,0,0,0.3)'
               }}>
-            🎰 WHAT WE DO
+            WHAT WE DO
           </h2>
           
           <div className="grid md:grid-cols-2 gap-8">
@@ -284,21 +285,21 @@ export default function Home() {
       </section>
 
       {/* Who We Are Section */}
-      <section id="who-we-are" className="py-20 px-4 bg-white dark:bg-gray-800">
-        <div className="max-w-4xl mx-auto text-center">
+      <section id="who-we-are" className="py-20 px-4 bg-white dark:bg-gray-800 relative overflow-hidden">
+        <div className="max-w-4xl mx-auto text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold mb-12 text-red-600 dark:text-red-500"
               style={{ 
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                 textShadow: '3px 3px 0px rgba(0,0,0,0.2)'
               }}>
-            🤠 WHO WE ARE
+            WHO WE ARE
           </h2>
           
           <div className="text-lg text-gray-700 dark:text-gray-300 space-y-6"
                style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
             <p className="text-2xl font-bold">
               We're a team of sports enthusiasts, developers, and data nerds who love betting 
-              as much as we love retro gaming. 🎮
+              as much as we love retro gaming.
             </p>
             
             <p>
@@ -309,12 +310,12 @@ export default function Home() {
 
             <p>
               Our mission is simple: Give bettors the tools they need to make informed decisions, 
-              track their action, and hopefully ride off into the sunset with more wins than losses. 🌅
+              track their action, and hopefully ride off into the sunset with more wins than losses.
             </p>
 
             <div className="mt-12 pt-12 border-t-4 border-red-600 dark:border-red-500">
               <p className="text-xl italic text-gray-600 dark:text-gray-400">
-                "In the Wild West of sports betting, we're your trusty sidekick." 🐴
+                "In the Wild West of sports betting, we're your trusty sidekick."
               </p>
             </div>
           </div>
@@ -322,14 +323,14 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="py-20 px-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white relative overflow-hidden">
+        <div className="max-w-4xl mx-auto text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold mb-6"
               style={{ 
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                 textShadow: '3px 3px 0px rgba(0,0,0,0.4)'
               }}>
-            Ready to Saddle Up? 🐎
+            Ready to Saddle Up?
           </h2>
           
           <p className="text-xl mb-12 text-gray-300"
@@ -347,13 +348,13 @@ export default function Home() {
               imageRendering: 'pixelated'
             }}
           >
-            🎲 LAUNCH DASHBOARD →
+            LAUNCH DASHBOARD →
           </Link>
 
           <div className="mt-12 flex justify-center gap-8 text-sm text-gray-400">
-            <span>✓ No Credit Card Required</span>
-            <span>✓ Free Forever</span>
-            <span>✓ Full Access</span>
+            <span>• No Credit Card Required</span>
+            <span>• Free Forever</span>
+            <span>• Full Access</span>
           </div>
         </div>
       </section>
