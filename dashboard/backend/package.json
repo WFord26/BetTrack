@@ -1,6 +1,6 @@
 {
   "name": "@wford26/bettrack-backend",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Backend API for sports betting tracker dashboard",
   "main": "dist/server.js",
   "types": "dist/server.d.ts",
