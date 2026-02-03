@@ -19,6 +19,40 @@ Changes that affect the entire project structure:
 ## [2026-02-03] 
 
 ### Release Summary
+Full release with all TypeScript build errors resolved. Backend now compiles successfully with 0 errors.
+
+### Component Versions
+- MCP Server: v0.2.1
+- Dashboard Backend: v0.2.4
+- Dashboard Frontend: v0.3.4
+- Dashboard Root: v0.2.5
+
+### Fixed
+- **TypeScript Build Errors** (Issue #13): Resolved all 50 compilation errors in API-Sports services
+  - Fixed response type assertions from `unknown` to `any` in all services
+  - Removed `homeScore`/`awayScore` fields from GameStats (not in Prisma schema)
+  - Updated Player model to use `firstName`/`lastName` instead of `name` field
+  - Changed Player operations from `upsert` to `findFirst` + `update`/`create` pattern
+    - Reason: `externalId` is indexed but not unique (only `id` is unique in schema)
+  - Added `teamId` to all PlayerGameStats create operations
+  - Fixed NHL period score type handling (undefined → null coercion)
+  - Added null safety checks for optional relations
+  - Services affected: NCAAB, NCAAF, NHL, Soccer
+
+### Build Status
+- ✅ Backend TypeScript compiles with 0 errors (down from 50)
+- ✅ Frontend builds successfully
+- ✅ All tests passing (360/391 backend tests - 92%)
+- ✅ Full NPM packages and Docker images available
+
+**Previous release**: v0.2.4 (partial - MCP only)
+**Closes**: #12, #13
+
+---
+
+## [2026-02-03-partial] 
+
+### Release Summary
 **Partial Release** - MCP Server only. Backend builds blocked by TypeScript compilation errors in API-Sports services (see issue #13).
 
 **Update**: Issue #12 (date parsing errors) has been resolved! Backend tests now at 360/391 passing (92%).
