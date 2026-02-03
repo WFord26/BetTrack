@@ -175,22 +175,32 @@ export class NCAABService {
 
         for (const playerData of players) {
           // Ensure player exists in database
-          const player = await prisma.player.upsert({
-            where: {
-              externalId: playerData.player?.id?.toString()
-            },
-            update: {
-              firstName: playerData.player?.name?.split(' ')[0] || '',
-              lastName: playerData.player?.name?.split(' ').slice(1).join(' ') || '',
-              teamId: team.id
-            },
-            create: {
-              externalId: playerData.player?.id?.toString(),
-              firstName: playerData.player?.name?.split(' ')[0] || '',
-              lastName: playerData.player?.name?.split(' ').slice(1).join(' ') || '',
-              teamId: team.id
-            }
+          const playerExternalId = playerData.player?.id?.toString();
+          const playerName = playerData.player?.name || '';
+          
+          let player = await prisma.player.findFirst({
+            where: { externalId: playerExternalId }
           });
+          
+          if (player) {
+            player = await prisma.player.update({
+              where: { id: player.id },
+              data: {
+                firstName: playerName.split(' ')[0] || '',
+                lastName: playerName.split(' ').slice(1).join(' ') || '',
+                teamId: team.id
+              }
+            });
+          } else {
+            player = await prisma.player.create({
+              data: {
+                externalId: playerExternalId,
+                firstName: playerName.split(' ')[0] || '',
+                lastName: playerName.split(' ').slice(1).join(' ') || '',
+                teamId: team.id
+              }
+            });
+          }
 
           // Prepare player stats
           const stats = {

@@ -44,7 +44,7 @@ export class SoccerService {
           }
         });
 
-        const games = response.data?.response || [];
+        const games = (response as any).data?.response || [];
         allGames.push(...games);
       }
 
@@ -91,6 +91,11 @@ export class SoccerService {
         const teamExternalId = teamData.team?.id?.toString();
         const isHome = teamExternalId === game.homeTeam.externalId;
         const teamId = isHome ? game.homeTeamId : game.awayTeamId;
+        
+        if (!teamId) {
+          logger.warn(`Missing teamId for game ${game.id}`);
+          continue;
+        }
 
         // Extract match score
         const fixtureData = await this.getFixtureDetails(externalGameId);
@@ -199,24 +204,32 @@ export class SoccerService {
 
         for (const playerData of players) {
           // Ensure player exists in database
+          const playerExternalId = playerData.player?.id?.toString();
           const playerName = playerData.player?.name || '';
-          const player = await prisma.player.upsert({
-            where: {
-              externalId: playerData.player?.id?.toString()
-            },
-            update: {
-              firstName: playerName.split(' ')[0] || '',
-              lastName: playerName.split(' ').slice(1).join(' ') || '',
-              teamId: team.id
-            },
-            create: {
-              externalId: playerData.player?.id?.toString(),
-              firstName: playerName.split(' ')[0] || '',
-              lastName: playerName.split(' ').slice(1).join(' ') || '',
-              teamId: team.id,
-              sportId: game.sportId
-            }
+          
+          let player = await prisma.player.findFirst({
+            where: { externalId: playerExternalId }
           });
+          
+          if (player) {
+            player = await prisma.player.update({
+              where: { id: player.id },
+              data: {
+                firstName: playerName.split(' ')[0] || '',
+                lastName: playerName.split(' ').slice(1).join(' ') || '',
+                teamId: team.id
+              }
+            });
+          } else {
+            player = await prisma.player.create({
+              data: {
+                externalId: playerExternalId,
+                firstName: playerName.split(' ')[0] || '',
+                lastName: playerName.split(' ').slice(1).join(' ') || '',
+                teamId: team.id
+              }
+            });
+          }
 
           // Prepare player stats
           const playerStats = playerData.statistics?.[0] || {};
