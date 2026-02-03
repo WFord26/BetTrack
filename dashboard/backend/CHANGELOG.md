@@ -5,6 +5,31 @@ All notable changes to the Dashboard Backend will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Multi-Sport Stats Integration**: API-Sports support for 6 sports
+  - NFL stats service with game stats, team stats, and live game detection
+  - NBA stats service with quarter scores, player stats, and shooting percentages
+  - NHL stats service with period scoring and live game tracking
+  - NCAA Basketball stats service with halftime scoring and player performance
+  - NCAA Football stats service with position-specific player stats (passing, rushing, receiving, defense, kicking)
+  - Soccer stats service supporting EPL, La Liga, Serie A, Bundesliga, Ligue 1, MLS, UEFA Champions League
+- **Historical Averages API**: Enhanced stats endpoints with season-long analytics
+  - `/api/stats/game/:gameId` now returns `seasonAverages` with calculated team averages
+  - Averages calculated across all games this season for both home and away teams
+  - Includes total games, home games, away games counts with averaged stats
+- **Home/Away Filtering**: Advanced team stats filtering
+  - `/api/stats/team/:teamId` accepts `location` query parameter (`home`, `away`, `all`)
+  - Returns split statistics comparing home vs away performance
+  - Filtered game history by location (up to 20 recent games)
+  - Separate averages for home games, away games, and overall performance
+- **Stats Sync Orchestration**: Unified service for all sports
+  - Updated `stats-sync.service.ts` to initialize all 6 sports services
+  - Parallel processing with 200ms delays between API calls for rate limiting
+  - Comprehensive error tracking and logging per sport
+  - Optional service initialization based on `API_SPORTS_KEY` configuration
+
 ## [0.2.2] - 2026-01-15
 
 ### Added

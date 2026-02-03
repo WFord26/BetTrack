@@ -49,8 +49,14 @@
 }
 
 @layer base {
-  body {
-    @apply bg-gray-50 text-gray-900;
+  html, body {
+    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    overflow: hidden;
+    height: 100%;
+  }
+  
+  #root {
+    height: 100%;
   }
 }
 
@@ -64,6 +70,6 @@
   }
 
   .card {
-    @apply bg-white rounded-lg shadow-md p-4;
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-4;
   }
 }

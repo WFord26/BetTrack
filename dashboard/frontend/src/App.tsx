@@ -13,6 +13,10 @@ import BetSlip from './components/bets/BetSlip';
 import BetHistory from './pages/BetHistory';
 import Futures from './pages/Futures';
 import Stats from './pages/Stats';
+import GameDetail from './pages/GameDetail';
+import TeamDetail from './pages/TeamDetail';
+import EnhancedDashboard from './pages/EnhancedDashboard';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import ApiKeysSettings from './pages/ApiKeysSettings';
 import Preferences from './pages/Preferences';
@@ -159,15 +163,19 @@ function App() {
         <DarkModeProvider>
           <PreferencesProvider>
             <AuthProvider>
-              <div className="app">
+              <div className="app h-full flex flex-col">
                 <Header />
-              <main className="pb-12">
+              <main className="flex-1 overflow-hidden">
                 <Routes>
                   <Route path="/login" element={<Login />} />
-                  <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/" element={<Home />} />
+                  <Route path="/v2" element={<ProtectedRoute><EnhancedDashboard /></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/history" element={<ProtectedRoute><BetHistory /></ProtectedRoute>} />
                   <Route path="/futures" element={<ProtectedRoute><Futures /></ProtectedRoute>} />
                   <Route path="/stats" element={<ProtectedRoute><Stats /></ProtectedRoute>} />
+                  <Route path="/game/:gameId" element={<ProtectedRoute><GameDetail /></ProtectedRoute>} />
+                  <Route path="/team/:teamId" element={<ProtectedRoute><TeamDetail /></ProtectedRoute>} />
                   <Route path="/settings/preferences" element={<ProtectedRoute><Preferences /></ProtectedRoute>} />
                   <Route path="/settings/api-keys" element={<ProtectedRoute><ApiKeysSettings /></ProtectedRoute>} />
                   <Route path="/settings/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />

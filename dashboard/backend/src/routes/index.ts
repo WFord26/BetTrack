@@ -6,6 +6,7 @@ import mcpRoutes from './mcp.routes';
 import adminRoutes from './admin.routes';
 import apiKeysRoutes from './api-keys.routes';
 import aiBetsRoutes from './ai-bets.routes';
+import statsRoutes from './stats.routes';
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use('/mcp', mcpRoutes);
 router.use('/admin', adminRoutes);
 router.use('/keys', apiKeysRoutes);
 router.use('/ai/bets', aiBetsRoutes);
+router.use('/stats', statsRoutes);
 
 export default router;

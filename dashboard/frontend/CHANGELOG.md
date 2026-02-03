@@ -5,6 +5,49 @@ All notable changes to the Dashboard Frontend will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Landing Page Enhancements**: Improved visual design and user experience
+  - Pixel art assets: animations (coin, star, tumbleweed) and decorations (badge, cards, chips, horseshoe, wanted poster)
+  - Cowboy dollar mascot logo (cowboy-dollar.svg) as main hero image
+  - Enhanced hero section with full background coverage and improved text contrast
+- **Footer Expansion**: More informative and professional footer
+  - Separate backend (v0.2.2) and frontend (v0.3.2) version display
+  - API requests counter now only visible in development environment
+  - Responsible gaming link to National Council on Problem Gambling
+  - GitHub repository link
+  - Disclaimer section with 1-800-GAMBLER helpline
+  - Monospace font matching 8-bit theme
+- **GameStatsPanel Enhancements**: Season averages toggle and display
+  - Toggle button to switch between current game stats and season averages
+  - Season averages section showing total games, home/away splits, and averaged stats
+  - Separate cards for home and away team season performance
+  - Displays historical averages alongside live game data
+- **TeamStatsView Component**: Comprehensive team statistics with filtering
+  - Filter buttons for All Games, Home Games, and Away Games
+  - Split statistics comparison (home vs away vs overall)
+  - Detailed stat cards with visual formatting and color coding
+  - Recent game history with location indicators (home/away)
+  - Integration with `/api/stats/team/:teamId` endpoint
+- **Team Detail Page**: Dedicated route for team statistics
+  - New `/team/:teamId` route in App.tsx
+  - TeamDetail page component with back navigation
+  - Full integration with TeamStatsView component
+- **Clickable Team Names**: Navigation links in GameCard
+  - Team names in GameCard now link to team stats pages
+  - Hover effects with color transitions
+  - Works for both completed and in-progress games
+  - Maintains existing layout and functionality
+
+### Changed
+- **Landing Page Polish**: Cleaner, more professional appearance
+  - Removed all emoji decorations from headings, buttons, and body text
+  - Removed subtle decorative GIFs (stars, tumbleweeds, coins, badge, cards)
+  - Removed floating horseshoe decoration from hero
+  - Removed wanted poster background overlay from "What We Do" section
+  - Increased dark overlay opacity for better text readability
+
 ## [0.3.2] - 2026-01-15
 
 ### Added

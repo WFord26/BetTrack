@@ -24,69 +24,162 @@ model Sport {
 
 // Teams reference table
 model Team {
-  id         Int       @id @default(autoincrement())
-  sportId    Int       @map("sport_id")
-  externalId String?   @map("external_id") @db.VarChar(50)
-  name       String    @db.VarChar(100)
-  abbreviation String? @db.VarChar(10)
-  logoUrl    String?   @map("logo_url") @db.VarChar(500)
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  sport      Sport     @relation(fields: [sportId], references: [id])
-  homeGames  Game[]    @relation("HomeTeam")
-  awayGames  Game[]    @relation("AwayTeam")
+  id              Int               @id @default(autoincrement())
+  sportId         Int               @map("sport_id")
+  externalId      String?           @map("external_id") @db.VarChar(50)
+  apiSportsTeamId Int?              @map("api_sports_team_id")
+  name            String            @db.VarChar(100)
+  abbreviation    String?           @db.VarChar(10)
+  logoUrl         String?           @map("logo_url") @db.VarChar(500)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  sport           Sport             @relation(fields: [sportId], references: [id])
+  homeGames       Game[]            @relation("HomeTeam")
+  awayGames       Game[]            @relation("AwayTeam")
+  teamStats       TeamStats[]
+  gameStats       GameStats[]
+  players         Player[]
+  playerGameStats PlayerGameStats[]
 
+  @@index([apiSportsTeamId])
   @@map("teams")
+}
+
+// Player reference table
+model Player {
+  id              Int               @id @default(autoincrement())
+  externalId      String?           @map("external_id") @db.VarChar(50)
+  apiSportsPlayerId Int?            @map("api_sports_player_id")
+  teamId          Int?              @map("team_id")
+  firstName       String            @map("first_name") @db.VarChar(50)
+  lastName        String            @map("last_name") @db.VarChar(50)
+  position        String?           @db.VarChar(20)
+  number          Int?
+  photoUrl        String?           @map("photo_url") @db.VarChar(500)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  team            Team?             @relation(fields: [teamId], references: [id])
+  gameStats       PlayerGameStats[]
+
+  @@index([teamId])
+  @@index([externalId])
+  @@index([apiSportsPlayerId])
+  @@map("players")
+}
+
+// Team season statistics
+model TeamStats {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teamId      Int      @map("team_id")
+  sportKey    String   @map("sport_key") @db.VarChar(50)
+  season      Int
+  seasonType  String   @default("regular") @map("season_type") @db.VarChar(20)
+  offense     Json     @default("{}")
+  defense     Json     @default("{}")
+  standings   Json     @default("{}") // wins, losses, ties, pct, streak
+  gamesPlayed Int      @default(0) @map("games_played")
+  lastUpdated DateTime @default(now()) @map("last_updated") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  team        Team     @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, season, seasonType])
+  @@index([sportKey, season])
+  @@map("team_stats")
+}
+
+// Individual game statistics (box scores)
+model GameStats {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId        String   @map("game_id") @db.Uuid
+  teamId        Int      @map("team_id")
+  isHome        Boolean  @map("is_home")
+  quarterScores Json?    @map("quarter_scores") // [7, 14, 3, 10] or periods
+  stats         Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  game          Game     @relation(fields: [gameId], references: [id])
+  team          Team     @relation(fields: [teamId], references: [id])
+
+  @@unique([gameId, teamId])
+  @@index([gameId])
+  @@map("game_stats")
+}
+
+// Player game statistics
+model PlayerGameStats {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId        String   @map("game_id") @db.Uuid
+  playerId      Int      @map("player_id")
+  teamId        Int      @map("team_id")
+  stats         Json     @default("{}")
+  started       Boolean  @default(false)
+  minutesPlayed String?  @map("minutes_played") @db.VarChar(10)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  game          Game     @relation(fields: [gameId], references: [id])
+  player        Player   @relation(fields: [playerId], references: [id])
+  team          Team     @relation(fields: [teamId], references: [id])
+
+  @@unique([gameId, playerId])
+  @@index([gameId])
+  @@index([playerId])
+  @@map("player_game_stats")
 }
 
 // Games/Events table
 model Game {
-  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  externalId    String         @unique @map("external_id") @db.VarChar(100)
-  sportId       Int            @map("sport_id")
-  homeTeamId    Int?           @map("home_team_id")
-  awayTeamId    Int?           @map("away_team_id")
-  homeTeamName  String         @map("home_team_name") @db.VarChar(100)
-  awayTeamName  String         @map("away_team_name") @db.VarChar(100)
-  commenceTime  DateTime       @map("commence_time") @db.Timestamptz(6)
-  venue         String?        @db.VarChar(200)
-  weather       String?        @db.VarChar(100)
-  status        String         @default("scheduled") @db.VarChar(20)
-  homeScore     Int?           @map("home_score")
-  awayScore     Int?           @map("away_score")
-  period        String?        @db.VarChar(20)
-  clock         String?        @db.VarChar(20)
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  sport         Sport          @relation(fields: [sportId], references: [id])
-  homeTeam      Team?          @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam      Team?          @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  currentOdds   CurrentOdds[]
-  oddsSnapshots OddsSnapshot[]
-  betLegs       BetLeg[]
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  externalId    String            @unique @map("external_id") @db.VarChar(100)
+  sportId            Int               @map("sport_id")
+  homeTeamId         Int?              @map("home_team_id")
+  awayTeamId         Int?              @map("away_team_id")
+  homeTeamName       String            @map("home_team_name") @db.VarChar(100)
+  awayTeamName       String            @map("away_team_name") @db.VarChar(100)
+  commenceTime       DateTime          @map("commence_time") @db.Timestamptz(6)
+  apiSportsGameId    String?           @map("api_sports_game_id") @db.VarChar(50)
+  apiSportsLeagueId  Int?              @map("api_sports_league_id")
+  season             String?           @db.VarChar(20)
+  seasonType         String?           @map("season_type") @db.VarChar(20)
+  venue              String?           @db.VarChar(200)
+  weather            String?           @db.VarChar(100)
+  status             String            @default("scheduled") @db.VarChar(20)
+  homeScore          Int?              @map("home_score")
+  awayScore          Int?              @map("away_score")
+  period             String?           @db.VarChar(20)
+  clock              String?           @db.VarChar(20)
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sport              Sport             @relation(fields: [sportId], references: [id])
+  homeTeam           Team?             @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam           Team?             @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  currentOdds        CurrentOdds[]
+  oddsSnapshots      OddsSnapshot[]
+  betLegs            BetLeg[]
+  gameStats          GameStats[]
+  playerStats        PlayerGameStats[]
 
   @@index([commenceTime])
   @@index([status])
+  @@index([apiSportsGameId])
+  @@index([season])
   @@map("games")
 }
 
 // Futures (outrights) - championship/tournament winners
 model Future {
-  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  externalId      String             @unique @map("external_id") @db.VarChar(100)
-  sportId         Int                @map("sport_id")
-  title           String             @db.VarChar(200) // e.g., "NFL Super Bowl Winner 2026"
-  description     String?            @db.Text
-  season          String?            @db.VarChar(20)
-  status          String             @default("active") @db.VarChar(20) // active, suspended, settled
-  settlementDate  DateTime?          @map("settlement_date") @db.Timestamptz(6)
-  winner          String?            @db.VarChar(100) // Winning outcome after settlement
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  sport           Sport              @relation(fields: [sportId], references: [id])
-  outcomes        FutureOutcome[]
-  currentOdds     CurrentFutureOdds[]
-  oddsSnapshots   FutureOddsSnapshot[]
-  betLegs         BetLegFuture[]
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  externalId     String               @unique @map("external_id") @db.VarChar(100)
+  sportId        Int                  @map("sport_id")
+  title          String               @db.VarChar(200) // e.g., "NFL Super Bowl Winner 2026"
+  description    String?              @db.Text
+  season         String?              @db.VarChar(20)
+  status         String               @default("active") @db.VarChar(20) // active, suspended, settled
+  settlementDate DateTime?            @map("settlement_date") @db.Timestamptz(6)
+  winner         String?              @db.VarChar(100) // Winning outcome after settlement
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sport          Sport                @relation(fields: [sportId], references: [id])
+  outcomes       FutureOutcome[]
+  currentOdds    CurrentFutureOdds[]
+  oddsSnapshots  FutureOddsSnapshot[]
+  betLegs        BetLegFuture[]
 
   @@index([sportId])
   @@index([status])
@@ -95,12 +188,12 @@ model Future {
 
 // Possible outcomes for a future (teams, players, etc.)
 model FutureOutcome {
-  id          Int       @id @default(autoincrement())
-  futureId    String    @map("future_id") @db.Uuid
-  outcome     String    @db.VarChar(200) // Team name, player name, etc.
-  description String?   @db.VarChar(500)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  future      Future    @relation(fields: [futureId], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  futureId    String   @map("future_id") @db.Uuid
+  outcome     String   @db.VarChar(200) // Team name, player name, etc.
+  description String?  @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  future      Future   @relation(fields: [futureId], references: [id], onDelete: Cascade)
 
   @@unique([futureId, outcome])
   @@map("future_outcomes")
@@ -180,20 +273,20 @@ model OddsSnapshot {
 
 // Users table (for OAuth2 authentication)
 model User {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email         String    @unique @db.VarChar(255)
-  name          String?   @db.VarChar(255)
-  avatarUrl     String?   @map("avatar_url") @db.VarChar(500)
-  provider      String    @db.VarChar(50) // 'microsoft', 'google', 'github'
-  providerId    String    @map("provider_id") @db.VarChar(255) // External ID from OAuth provider
-  isAdmin       Boolean   @default(false) @map("is_admin")
-  isActive      Boolean   @default(true) @map("is_active")
-  lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz(6)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  bets          Bet[]
-  apiKeys       ApiKey[]
-  
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String    @unique @db.VarChar(255)
+  name        String?   @db.VarChar(255)
+  avatarUrl   String?   @map("avatar_url") @db.VarChar(500)
+  provider    String    @db.VarChar(50) // 'microsoft', 'google', 'github'
+  providerId  String    @map("provider_id") @db.VarChar(255) // External ID from OAuth provider
+  isAdmin     Boolean   @default(false) @map("is_admin")
+  isActive    Boolean   @default(true) @map("is_active")
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  bets        Bet[]
+  apiKeys     ApiKey[]
+
   @@unique([provider, providerId])
   @@index([email])
   @@map("users")
@@ -201,22 +294,22 @@ model User {
 
 // Bets table
 model Bet {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId          String?   @map("user_id") @db.Uuid // Nullable for backward compatibility (standalone mode)
-  name            String    @db.VarChar(100)
-  betType         String    @map("bet_type") @db.VarChar(20)
-  stake           Decimal   @db.Decimal(10, 2)
-  potentialPayout Decimal?  @map("potential_payout") @db.Decimal(10, 2)
-  actualPayout    Decimal?  @map("actual_payout") @db.Decimal(10, 2)
-  status          String    @default("pending") @db.VarChar(20)
-  oddsAtPlacement Int?      @map("odds_at_placement")
-  teaserPoints    Decimal?  @map("teaser_points") @db.Decimal(3, 1)
-  notes           String?   @db.Text
-  placedAt        DateTime  @default(now()) @map("placed_at") @db.Timestamptz(6)
-  settledAt       DateTime? @map("settled_at") @db.Timestamptz(6)
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user            User?     @relation(fields: [userId], references: [id])
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String?        @map("user_id") @db.Uuid // Nullable for backward compatibility (standalone mode)
+  name            String         @db.VarChar(100)
+  betType         String         @map("bet_type") @db.VarChar(20)
+  stake           Decimal        @db.Decimal(10, 2)
+  potentialPayout Decimal?       @map("potential_payout") @db.Decimal(10, 2)
+  actualPayout    Decimal?       @map("actual_payout") @db.Decimal(10, 2)
+  status          String         @default("pending") @db.VarChar(20)
+  oddsAtPlacement Int?           @map("odds_at_placement")
+  teaserPoints    Decimal?       @map("teaser_points") @db.Decimal(3, 1)
+  notes           String?        @db.Text
+  placedAt        DateTime       @default(now()) @map("placed_at") @db.Timestamptz(6)
+  settledAt       DateTime?      @map("settled_at") @db.Timestamptz(6)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User?          @relation(fields: [userId], references: [id])
   legs            BetLeg[]
   futureLegs      BetLegFuture[]
 
@@ -228,23 +321,23 @@ model Bet {
 
 // Bet legs (individual selections)
 model BetLeg {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  betId               String   @map("bet_id") @db.Uuid
-  gameId              String   @map("game_id") @db.Uuid
-  selectionType       String   @map("selection_type") @db.VarChar(20)
-  selection           String   @db.VarChar(50)
-  teamName            String?  @map("team_name") @db.VarChar(100)
-  line                Decimal? @db.Decimal(5, 1)
-  odds                Int
-  sgpGroupId          String?  @map("sgp_group_id") @db.VarChar(50) // Groups legs that are part of same-game parlay
-  userAdjustedLine    Decimal? @map("user_adjusted_line") @db.Decimal(5, 1)
-  userAdjustedOdds    Int?     @map("user_adjusted_odds")
-  teaserAdjustedLine  Decimal? @map("teaser_adjusted_line") @db.Decimal(5, 1)
-  status              String   @default("pending") @db.VarChar(20)
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  bet                 Bet      @relation(fields: [betId], references: [id], onDelete: Cascade)
-  game                Game     @relation(fields: [gameId], references: [id])
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  betId              String   @map("bet_id") @db.Uuid
+  gameId             String   @map("game_id") @db.Uuid
+  selectionType      String   @map("selection_type") @db.VarChar(20)
+  selection          String   @db.VarChar(50)
+  teamName           String?  @map("team_name") @db.VarChar(100)
+  line               Decimal? @db.Decimal(5, 1)
+  odds               Int
+  sgpGroupId         String?  @map("sgp_group_id") @db.VarChar(50) // Groups legs that are part of same-game parlay
+  userAdjustedLine   Decimal? @map("user_adjusted_line") @db.Decimal(5, 1)
+  userAdjustedOdds   Int?     @map("user_adjusted_odds")
+  teaserAdjustedLine Decimal? @map("teaser_adjusted_line") @db.Decimal(5, 1)
+  status             String   @default("pending") @db.VarChar(20)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  bet                Bet      @relation(fields: [betId], references: [id], onDelete: Cascade)
+  game               Game     @relation(fields: [gameId], references: [id])
 
   @@index([gameId])
   @@map("bet_legs")
@@ -307,12 +400,12 @@ model ApiKeyUsage {
 
 // Site configuration for branding
 model SiteConfig {
-  id          Int      @id @default(1)
-  siteName    String   @default("Sports Betting") @map("site_name") @db.VarChar(100)
-  logoUrl     String?  @map("logo_url") @db.VarChar(500)
-  domainUrl   String?  @map("domain_url") @db.VarChar(255)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id        Int      @id @default(1)
+  siteName  String   @default("Sports Betting") @map("site_name") @db.VarChar(100)
+  logoUrl   String?  @map("logo_url") @db.VarChar(500)
+  domainUrl String?  @map("domain_url") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("site_config")
 }

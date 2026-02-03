@@ -13,7 +13,27 @@ Welcome to the **BetTrack** documentation! Complete sports betting data platform
 - **[Installation Guide](Installation-Guide)** - Detailed installation instructions
 - **[API Documentation](API-DOCUMENTATION)** - Complete API reference
 
-## 📚 Component Guides
+## � Screenshots
+
+### Dashboard Home Page
+<div align="center">
+  <img src="https://raw.githubusercontent.com/WFord26/BetTrack/main/docs/assets/home-page.png" alt="BetTrack Home Page" width="800"/>
+  <p><em>Landing page with feature overview and quick start guide</em></p>
+</div>
+
+### Dashboard V2 - Dark Mode
+<div align="center">
+  <img src="https://raw.githubusercontent.com/WFord26/BetTrack/main/docs/assets/dashboard-dark.png" alt="Dashboard V2 Dark Mode" width="800"/>
+  <p><em>Enhanced dashboard with live odds, game cards, and bet slip in dark mode</em></p>
+</div>
+
+### Dashboard V2 - Light Mode
+<div align="center">
+  <img src="https://raw.githubusercontent.com/WFord26/BetTrack/main/docs/assets/dashboard-light.png" alt="Dashboard V2 Light Mode" width="800"/>
+  <p><em>Clean light mode interface with filtering sidebar and responsive layout</em></p>
+</div>
+
+## �📚 Component Guides
 
 - **[MCP Server Guide](MCP-Server-Guide)** - Architecture, tools, and development
 - **[Dashboard Guide](Dashboard-Guide)** - Full-stack React app for bet tracking

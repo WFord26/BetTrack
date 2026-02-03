@@ -8,6 +8,7 @@ Complete guide to the BetTrack web dashboard - full-stack React application for 
 
 ## Table of Contents
 
+- [Screenshots](#screenshots)
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
@@ -18,6 +19,27 @@ Complete guide to the BetTrack web dashboard - full-stack React application for 
 - [Development](#development)
 - [Deployment](#deployment)
 - [API Reference](#api-reference)
+
+---
+
+## Screenshots
+
+### Dashboard V2 Interface
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/WFord26/BetTrack/main/docs/assets/dashboard-dark.png" alt="Dashboard Dark Mode" width="700"/>
+  <p><em>Dark mode with live odds, game cards, filters, and bet slip</em></p>
+  <br>
+  <img src="https://raw.githubusercontent.com/WFord26/BetTrack/main/docs/assets/dashboard-light.png" alt="Dashboard Light Mode" width="700"/>
+  <p><em>Light mode with clean interface and responsive layout</em></p>
+</div>
+
+### Key Features Shown:
+- **Left Sidebar**: Sport filters, status filters, date picker, bookmaker selection
+- **Main Content**: Game cards with live scores, odds comparison, and betting markets
+- **Bet Slip**: Floating right panel for bet management (visible on larger screens)
+- **Responsive Design**: Mobile-friendly with hamburger menu for filters
+- **Dark/Light Mode**: Full theme support with purple accent colors
 
 ---
 

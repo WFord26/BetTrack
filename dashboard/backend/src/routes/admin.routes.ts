@@ -157,6 +157,98 @@ router.post('/sync-futures', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/admin/sports
+ * Get all sports with their active status
+ */
+router.get('/sports', async (_req: Request, res: Response) => {
+  try {
+    const sports = await prisma.sport.findMany({
+      orderBy: [
+        { groupName: 'asc' },
+        { name: 'asc' }
+      ],
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        groupName: true,
+        isActive: true,
+        _count: {
+          select: {
+            games: true,
+            teams: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      status: 'success',
+      data: sports
+    });
+  } catch (error: any) {
+    logger.error('Failed to get sports:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get sports',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PATCH /api/admin/sports/:sportKey
+ * Update sport active status
+ */
+router.patch('/sports/:sportKey', async (req: Request, res: Response) => {
+  try {
+    const { sportKey } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'isActive must be a boolean value'
+      });
+    }
+
+    const sport = await prisma.sport.update({
+      where: { key: sportKey },
+      data: { isActive },
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        groupName: true,
+        isActive: true
+      }
+    });
+
+    logger.info(`Sport ${sport.name} (${sport.key}) ${isActive ? 'activated' : 'deactivated'}`);
+
+    res.json({
+      status: 'success',
+      message: `Sport ${sport.name} ${isActive ? 'activated' : 'deactivated'} successfully`,
+      data: sport
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Sport not found'
+      });
+    }
+
+    logger.error('Failed to update sport:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to update sport',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/admin/stats
  * Get database statistics
  */

@@ -16,6 +16,38 @@ For detailed change history, see the component-specific changelogs:
 
 Changes that affect the entire project structure:
 
+## [2026-01-15]
+
+### Release Summary
+Planning release for advanced analytics features. Added 5 database schema enhancements for API-Sports integration and created comprehensive GitHub issue templates for 8 advanced analytics features across 3 implementation phases.
+
+### Component Versions
+- **Dashboard Backend**: v0.2.1 (schema updated)
+- **Dashboard Frontend**: v0.3.1 (unchanged)
+
+### Database Schema Enhancements
+- **API-Sports Integration**: Added ID mapping fields to Team, Player, and Game models
+  - Team: `apiSportsTeamId` field with index
+  - Player: `apiSportsPlayerId` field with index
+  - Game: `apiSportsGameId`, `apiSportsLeagueId`, `season`, `seasonType` fields with indexes
+  - Migration: `add_api_sports_ids` completed successfully
+
+### Planning & Documentation
+- **Advanced Analytics Roadmap**: Created 3-phase implementation plan (77-82 days total)
+  - Phase 1 (20 days): CLV tracking, line movement, bookmaker disagreement detection
+  - Phase 2 (22 days): Sharp vs public money, market consensus, bookmaker analytics
+  - Phase 3 (40 days): Arbitrage detection, bet correlation analysis
+- **GitHub Issues**: Created 9 comprehensive issue templates with full technical specifications
+  - Each template includes database models, algorithms, API endpoints, UI components, acceptance criteria
+  - Epic tracking issue links all features with timeline and success metrics
+- **Documentation**: Added `docs/ANALYTICS-IMPLEMENTATION-SUMMARY.md` with complete planning overview
+
+### Business Impact
+- **Competitive Advantage**: Features not available on most sportsbooks
+- **Target Markets**: Casual bettors (education), serious bettors (analytics), professional bettors (arbitrage)
+- **Estimated ROI**: 117% in Year 1 with 200 premium subscribers
+- **User Engagement**: Projected +40% DAU, +25% session duration, +30% retention
+
 ## [2026-01-13]
 
 ### Release Summary

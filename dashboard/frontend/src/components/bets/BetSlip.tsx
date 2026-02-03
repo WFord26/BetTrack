@@ -184,30 +184,33 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
     }
   };
 
-  // Minimized state
+  // Minimized state - show pixel art bet slip icon
   if (isMinimized) {
     const totalLegs = legs.length + (futureLegs?.length || 0);
     return (
       <button
         onClick={() => setIsMinimized(false)}
-        className="fixed bottom-4 right-4 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white rounded-full shadow-2xl p-4 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-800 dark:hover:to-blue-900 transition-all z-50 flex items-center gap-2"
+        className="fixed bottom-4 right-4 shadow-2xl hover:scale-110 transition-all z-50 block"
         title={`Bet Slip (${totalLegs} ${totalLegs === 1 ? 'selection' : 'selections'})`}
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-        {totalLegs > 0 && (
-          <span className="bg-white text-blue-700 dark:text-blue-800 rounded-full px-2.5 py-0.5 text-sm font-bold">
-            {totalLegs}
-          </span>
-        )}
+        <div className="relative">
+          <img 
+            src="/betslip.png" 
+            alt="Bet Slip"
+            className="w-20 h-20 block"
+          />
+          {totalLegs > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800 shadow-lg">
+              {totalLegs}
+            </span>
+          )}
+        </div>
       </button>
     );
   }
 
-  // Empty state - don't render if minimized
+  // Empty state - show empty message
   if ((legs.length === 0 && (!futureLegs || futureLegs.length === 0))) {
-    if (isMinimized) return null;
     
     return (
       <div className="fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 text-center z-50 border-2 border-blue-600 dark:border-blue-500">

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import OddsCell, { EmptyOddsCell } from './OddsCell';
 import { formatTime, getSportDisplayName, getSportColorClass } from '../../utils/format';
 
@@ -156,17 +157,28 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
           </div>
         </div>
         {/* Game Location/Weather Info */}
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          <span>📍 {game.venue || `${game.homeTeamName} Home`}</span>
-          {game.weather && (
-            <span className="ml-3">🌤️ {game.weather}</span>
-          )}
-          {!game.weather && game.sportKey.includes('basketball') && (
-            <span className="ml-3">🏀 Indoor Arena</span>
-          )}
-          {!game.weather && game.sportKey.includes('hockey') && (
-            <span className="ml-3">🏒 Indoor Arena</span>
-          )}
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div>
+            <span>📍 {game.venue || `${game.homeTeamName} Home`}</span>
+            {game.weather && (
+              <span className="ml-3">🌤️ {game.weather}</span>
+            )}
+            {!game.weather && game.sportKey.includes('basketball') && (
+              <span className="ml-3">🏀 Indoor Arena</span>
+            )}
+            {!game.weather && game.sportKey.includes('hockey') && (
+              <span className="ml-3">🏒 Indoor Arena</span>
+            )}
+          </div>
+          <Link 
+            to={`/game/${game.id}`}
+            className="text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-1 font-medium"
+          >
+            View Stats
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
       </div>
 
@@ -192,7 +204,12 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
         <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700 items-center">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-gray-900 dark:text-white">{game.awayTeamName}</div>
+              <Link 
+                to={`/team/${game.id}-away`} 
+                className="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                {game.awayTeamName}
+              </Link>
               <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Away</div>
             </div>
             {isLive && game.awayScore !== null && game.awayScore !== undefined && (
@@ -265,7 +282,12 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
         <div className="grid grid-cols-[2fr_repeat(3,1fr)] gap-2 px-4 py-3 items-center">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-gray-900 dark:text-white">{game.homeTeamName}</div>
+              <Link 
+                to={`/team/${game.id}-home`} 
+                className="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                {game.homeTeamName}
+              </Link>
               <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Home</div>
             </div>
             {isLive && game.homeScore !== null && game.homeScore !== undefined && (
@@ -324,7 +346,12 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
       ) : (
         <div className="flex items-center justify-between px-4 py-3">
           <div>
-            <div className="font-medium text-gray-900 dark:text-white">{game.homeTeamName}</div>
+            <Link 
+              to={`/team/${game.id}-home`} 
+              className="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              {game.homeTeamName}
+            </Link>
             <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Home</div>
           </div>
           <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
