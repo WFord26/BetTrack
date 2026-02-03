@@ -30,7 +30,7 @@ export class NCAAFService {
         }
       });
 
-      return response.data?.response || [];
+      return (response as any).data?.response || [];
     } catch (error) {
       logger.error('Error fetching live NCAAF games:', error);
       return [];
@@ -60,7 +60,7 @@ export class NCAAFService {
         }
       });
 
-      const statsData = response.data?.response?.[0];
+      const statsData = (response as any).data?.response?.[0];
       if (!statsData) {
         logger.warn(`No stats data for game: ${externalGameId}`);
         return;
@@ -70,8 +70,15 @@ export class NCAAFService {
       const teams = statsData.teams || [];
       
       for (const teamData of teams) {
+        if (!game.homeTeam) continue;
+        
         const isHome = teamData.team?.id === game.homeTeam.externalId;
         const teamId = isHome ? game.homeTeamId : game.awayTeamId;
+        
+        if (!teamId) {
+          logger.warn(`Team ID not found for game ${game.id}`);
+          continue;
+        }
         
         // Extract quarter scores (4 quarters + potential OT)
         const periods = teamData.statistics?.periods || [];
@@ -114,17 +121,14 @@ export class NCAAFService {
             }
           },
           update: {
-            homeScore: isHome ? totalScore : undefined,
-            awayScore: !isHome ? totalScore : undefined,
             quarterScores,
-            stats
+            stats,
+            updatedAt: new Date()
           },
           create: {
             gameId: game.id,
             teamId,
             isHome,
-            homeScore: isHome ? totalScore : 0,
-            awayScore: !isHome ? totalScore : 0,
             quarterScores,
             stats
           }
@@ -176,20 +180,18 @@ export class NCAAFService {
           // Ensure player exists in database
           const player = await prisma.player.upsert({
             where: {
-              externalId_sport: {
-                externalId: playerData.player?.id?.toString(),
-                sport: 'americanfootball_ncaaf'
-              }
+              externalId: playerData.player?.id?.toString()
             },
             update: {
-              name: playerData.player?.name,
+              firstName: playerData.player?.name?.split(' ')[0] || '',
+              lastName: playerData.player?.name?.split(' ').slice(1).join(' ') || '',
               teamId: team.id
             },
             create: {
               externalId: playerData.player?.id?.toString(),
-              name: playerData.player?.name,
-              teamId: team.id,
-              sport: 'americanfootball_ncaaf'
+              firstName: playerData.player?.name?.split(' ')[0] || '',
+              lastName: playerData.player?.name?.split(' ').slice(1).join(' ') || '',
+              teamId: team.id
             }
           });
 
@@ -247,6 +249,7 @@ export class NCAAFService {
             create: {
               gameId: game.id,
               playerId: player.id,
+              teamId: player.teamId || game.homeTeamId || 0,
               stats
             }
           });

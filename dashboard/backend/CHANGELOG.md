@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **TypeScript Build Errors**: Resolved 42 compilation errors in API-Sports services (Issue #13)
+  - Fixed response type assertions from `unknown` to `any` in all services
+  - Removed `homeScore`/`awayScore` fields from GameStats operations (not in schema)
+  - Updated Player model usage to use `firstName`/`lastName` instead of `name` field
+  - Added `teamId` field to all PlayerGameStats create operations (required field)
+  - Added null safety checks for `game.homeTeam` and other optional relations
+  - Fixed NHL period score handling (undefined → null type coercion)
+  - Changed `game.sport` to `game.sportId` in Soccer service
+  - Removed invalid `externalId_sport` composite unique constraint from Player upserts
+  - Services affected: NCAAB, NCAAF, NHL, Soccer (all now compile successfully)
+
 ### Added
 - **Multi-Sport Stats Integration**: API-Sports support for 6 sports
   - NFL stats service with game stats, team stats, and live game detection

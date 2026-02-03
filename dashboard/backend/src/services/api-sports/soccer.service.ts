@@ -78,7 +78,7 @@ export class SoccerService {
         }
       });
 
-      const statsData = response.data?.response || [];
+      const statsData = (response as any).data?.response || [];
       if (statsData.length === 0) {
         logger.warn(`No stats data for game: ${externalGameId}`);
         return;
@@ -86,6 +86,8 @@ export class SoccerService {
 
       // Process each team's statistics
       for (const teamData of statsData) {
+        if (!game.homeTeam) continue;
+        
         const teamExternalId = teamData.team?.id?.toString();
         const isHome = teamExternalId === game.homeTeam.externalId;
         const teamId = isHome ? game.homeTeamId : game.awayTeamId;
@@ -140,17 +142,14 @@ export class SoccerService {
             }
           },
           update: {
-            homeScore: isHome ? homeScore : undefined,
-            awayScore: !isHome ? awayScore : undefined,
             quarterScores: [homeScore], // Soccer doesn't have quarters, just final score
-            stats: standardizedStats
+            stats: standardizedStats,
+            updatedAt: new Date()
           },
           create: {
             gameId: game.id,
             teamId,
             isHome,
-            homeScore: isHome ? homeScore : 0,
-            awayScore: !isHome ? awayScore : 0,
             quarterScores: [homeScore],
             stats: standardizedStats
           }
@@ -184,7 +183,7 @@ export class SoccerService {
         }
       });
 
-      const playersData = response.data?.response || [];
+      const playersData = (response as any).data?.response || [];
 
       for (const teamData of playersData) {
         const teamExternalId = teamData.team?.id?.toString();
@@ -200,22 +199,22 @@ export class SoccerService {
 
         for (const playerData of players) {
           // Ensure player exists in database
+          const playerName = playerData.player?.name || '';
           const player = await prisma.player.upsert({
             where: {
-              externalId_sport: {
-                externalId: playerData.player?.id?.toString(),
-                sport: game.sport // Use the game's sport key (e.g., 'soccer_epl')
-              }
+              externalId: playerData.player?.id?.toString()
             },
             update: {
-              name: playerData.player?.name,
+              firstName: playerName.split(' ')[0] || '',
+              lastName: playerName.split(' ').slice(1).join(' ') || '',
               teamId: team.id
             },
             create: {
               externalId: playerData.player?.id?.toString(),
-              name: playerData.player?.name,
+              firstName: playerName.split(' ')[0] || '',
+              lastName: playerName.split(' ').slice(1).join(' ') || '',
               teamId: team.id,
-              sport: game.sport
+              sportId: game.sportId
             }
           });
 
@@ -248,6 +247,12 @@ export class SoccerService {
           };
 
           // Upsert player game stats
+          const teamId = team.id;
+          if (!teamId) {
+            logger.warn(`Missing teamId for player ${player.id} in game ${game.id}`);
+            continue;
+          }
+          
           await prisma.playerGameStats.upsert({
             where: {
               gameId_playerId: {
@@ -259,6 +264,7 @@ export class SoccerService {
             create: {
               gameId: game.id,
               playerId: player.id,
+              teamId,
               stats
             }
           });
@@ -282,7 +288,7 @@ export class SoccerService {
         }
       });
 
-      return response.data?.response?.[0] || null;
+      return (response as any).data?.response?.[0] || null;
     } catch (error) {
       logger.error(`Error fetching fixture details for ${externalGameId}:`, error);
       return null;

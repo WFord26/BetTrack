@@ -97,9 +97,9 @@ export class NHLStatsService {
       const homeTeam = await this.findTeam(gameData.teams.home.name, 'icehockey_nhl');
       if (homeTeam) {
         const periodScores = [
-          parsePeriodScore(gameData.periods.first?.split('-')[0]),
-          parsePeriodScore(gameData.periods.second?.split('-')[0]),
-          parsePeriodScore(gameData.periods.third?.split('-')[0]),
+          parsePeriodScore(gameData.periods.first?.split('-')[0] || null),
+          parsePeriodScore(gameData.periods.second?.split('-')[0] || null),
+          parsePeriodScore(gameData.periods.third?.split('-')[0] || null),
         ];
 
         await prisma.gameStats.upsert({
@@ -132,9 +132,9 @@ export class NHLStatsService {
       const awayTeam = await this.findTeam(gameData.teams.away.name, 'icehockey_nhl');
       if (awayTeam) {
         const periodScores = [
-          parsePeriodScore(gameData.periods.first?.split('-')[1]),
-          parsePeriodScore(gameData.periods.second?.split('-')[1]),
-          parsePeriodScore(gameData.periods.third?.split('-')[1]),
+          parsePeriodScore(gameData.periods.first?.split('-')[1] || null),
+          parsePeriodScore(gameData.periods.second?.split('-')[1] || null),
+          parsePeriodScore(gameData.periods.third?.split('-')[1] || null),
         ];
 
         await prisma.gameStats.upsert({

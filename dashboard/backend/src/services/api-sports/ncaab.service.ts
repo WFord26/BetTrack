@@ -30,7 +30,7 @@ export class NCAABService {
         }
       });
 
-      return response.data?.response || [];
+      return (response as any).data?.response || [];
     } catch (error) {
       logger.error('Error fetching live NCAAB games:', error);
       return [];
@@ -60,7 +60,7 @@ export class NCAABService {
         }
       });
 
-      const statsData = response.data?.response?.[0];
+      const statsData = (response as any).data?.response?.[0];
       if (!statsData) {
         logger.warn(`No stats data for game: ${externalGameId}`);
         return;
@@ -70,8 +70,15 @@ export class NCAABService {
       const teams = statsData.teams || [];
       
       for (const teamData of teams) {
+        if (!game.homeTeam) continue; // Skip if homeTeam not loaded
+        
         const isHome = teamData.team?.id === game.homeTeam.externalId;
         const teamId = isHome ? game.homeTeamId : game.awayTeamId;
+        
+        if (!teamId) {
+          logger.warn(`Team ID not found for game ${game.id}`);
+          continue;
+        }
         
         // Extract quarter scores (NCAA Basketball has 2 halves + potential OT)
         const periods = teamData.statistics?.periods || [];
@@ -111,17 +118,14 @@ export class NCAABService {
             }
           },
           update: {
-            homeScore: isHome ? totalScore : undefined,
-            awayScore: !isHome ? totalScore : undefined,
             quarterScores,
-            stats
+            stats,
+            updatedAt: new Date()
           },
           create: {
             gameId: game.id,
             teamId,
             isHome,
-            homeScore: isHome ? totalScore : 0,
-            awayScore: !isHome ? totalScore : 0,
             quarterScores,
             stats
           }
@@ -155,7 +159,7 @@ export class NCAABService {
         }
       });
 
-      const playersData = response.data?.response || [];
+      const playersData = (response as any).data?.response || [];
 
       for (const teamData of playersData) {
         const teamExternalId = teamData.team?.id;
@@ -173,20 +177,18 @@ export class NCAABService {
           // Ensure player exists in database
           const player = await prisma.player.upsert({
             where: {
-              externalId_sport: {
-                externalId: playerData.player?.id?.toString(),
-                sport: 'basketball_ncaab'
-              }
+              externalId: playerData.player?.id?.toString()
             },
             update: {
-              name: playerData.player?.name,
+              firstName: playerData.player?.name?.split(' ')[0] || '',
+              lastName: playerData.player?.name?.split(' ').slice(1).join(' ') || '',
               teamId: team.id
             },
             create: {
               externalId: playerData.player?.id?.toString(),
-              name: playerData.player?.name,
-              teamId: team.id,
-              sport: 'basketball_ncaab'
+              firstName: playerData.player?.name?.split(' ')[0] || '',
+              lastName: playerData.player?.name?.split(' ').slice(1).join(' ') || '',
+              teamId: team.id
             }
           });
 
@@ -225,8 +227,7 @@ export class NCAABService {
             update: { stats },
             create: {
               gameId: game.id,
-              playerId: player.id,
-              stats
+              playerId: player.id,              teamId: player.teamId || game.homeTeamId || 0,              stats
             }
           });
         }
