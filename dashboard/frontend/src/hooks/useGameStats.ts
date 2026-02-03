@@ -15,6 +15,11 @@ interface GameTeamStats {
   quarterScores: number[] | null;
   stats: Record<string, any>;
   team: Team;
+  // Season average properties (optional, used when displaying historical data)
+  totalGames?: number;
+  homeGames?: number;
+  awayGames?: number;
+  avgStats?: Record<string, any>;
 }
 
 interface Player {
