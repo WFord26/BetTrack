@@ -16,6 +16,46 @@ For detailed change history, see the component-specific changelogs:
 
 Changes that affect the entire project structure:
 
+## [2026-02-03] v0.2.4
+
+### Release Summary
+**Partial Release** - MCP Server only. Backend builds blocked by TypeScript compilation errors in API-Sports services (see issue #13).
+
+### Component Versions
+- **MCP Server**: v0.2.1 (✅ Fully functional, released in MCPB package)
+- **Dashboard Backend**: v0.2.3 (❌ Build blocked by issue #13)
+- **Dashboard Frontend**: v0.3.3 (⚠️ Source available, can be built separately)
+
+### What's Released
+- ✅ MCP Server MCPB package (`sports-data-mcp-v0.2.1.mcpb`)
+- ✅ Source code with all fixes and enhancements
+
+### What's Blocked
+- ❌ Backend NPM package (42 TypeScript errors in API-Sports services)
+- ❌ Docker images (depend on backend build)
+
+### Fixes
+- API-Sports client import corrections (commit 9286021)
+  - Fixed RateLimiter import from 'limiter' package
+  - Updated NCAAB, NCAAF, Soccer services to use ApiSportsClient class
+  - Initialized API client instances with proper configuration
+
+### Merged from PR #11
+- Version bumps: backend v0.2.2→v0.2.3, frontend v0.3.2→v0.3.3
+- Fixed TypeScript compilation errors in GameStats interface
+- Added API-Sports integration fields to database schema
+
+### Known Issues
+- **Issue #13**: 42 TypeScript errors in API-Sports services (NCAAB, NCAAF, NHL, Soccer)
+  - Prisma schema mismatches (homeScore, externalId_sport, name fields)
+  - Null safety issues (game.homeTeam, teamId)
+  - Response type assertions needed
+- **Issue #12**: Date parsing errors in outcome-resolver service (2 test failures)
+
+### Next Steps
+- Fix issue #13 to enable backend builds
+- Release full dashboard in v0.2.5
+
 ## [2026-01-15]
 
 ### Release Summary
