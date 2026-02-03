@@ -21,9 +21,11 @@ Changes that affect the entire project structure:
 ### Release Summary
 **Partial Release** - MCP Server only. Backend builds blocked by TypeScript compilation errors in API-Sports services (see issue #13).
 
+**Update**: Issue #12 (date parsing errors) has been resolved! Backend tests now at 360/391 passing (92%).
+
 ### Component Versions
 - **MCP Server**: v0.2.1 (✅ Fully functional, released in MCPB package)
-- **Dashboard Backend**: v0.2.3 (❌ Build blocked by issue #13)
+- **Dashboard Backend**: v0.2.3 (❌ Build blocked by issue #13, but tests improved)
 - **Dashboard Frontend**: v0.3.3 (⚠️ Source available, can be built separately)
 
 ### What's Released
@@ -35,6 +37,14 @@ Changes that affect the entire project structure:
 - ❌ Docker images (depend on backend build)
 
 ### Fixes
+- **Date Parsing in Outcome Resolver** (commit 5d3ea11) - **CLOSES #12** ✅
+  - Added validation for missing/null commenceTime before date parsing
+  - Added check for invalid dates using isNaN(date.getTime())
+  - Returns null gracefully with appropriate logging instead of throwing errors
+  - Added commenceTime to all mock games in tests  
+  - Added two new test cases for missing and invalid commenceTime
+  - **Result**: All 23 outcome-resolver tests now passing (was 2 failing)
+  
 - API-Sports client import corrections (commit 9286021)
   - Fixed RateLimiter import from 'limiter' package
   - Updated NCAAB, NCAAF, Soccer services to use ApiSportsClient class
@@ -45,7 +55,11 @@ Changes that affect the entire project structure:
 - Fixed TypeScript compilation errors in GameStats interface
 - Added API-Sports integration fields to database schema
 
-### Known Issues
+### Test Status
+- **Backend Tests**: 360 passing, 31 skipped (92% pass rate, up from 356)
+- **Resolved**: Issue #12 - Date parsing errors in outcome-resolver ✅
+
+### Known Issues (Remaining)
 - **Issue #13**: 42 TypeScript errors in API-Sports services (NCAAB, NCAAF, NHL, Soccer)
   - Prisma schema mismatches (homeScore, externalId_sport, name fields)
   - Null safety issues (game.homeTeam, teamId)
