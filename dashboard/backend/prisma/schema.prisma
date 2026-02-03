@@ -27,6 +27,7 @@ model Team {
   id              Int               @id @default(autoincrement())
   sportId         Int               @map("sport_id")
   externalId      String?           @map("external_id") @db.VarChar(50)
+  apiSportsTeamId Int?              @map("api_sports_team_id")
   name            String            @db.VarChar(100)
   abbreviation    String?           @db.VarChar(10)
   logoUrl         String?           @map("logo_url") @db.VarChar(500)
@@ -39,25 +40,28 @@ model Team {
   players         Player[]
   playerGameStats PlayerGameStats[]
 
+  @@index([apiSportsTeamId])
   @@map("teams")
 }
 
 // Player reference table
 model Player {
-  id         Int               @id @default(autoincrement())
-  externalId String?           @map("external_id") @db.VarChar(50)
-  teamId     Int?              @map("team_id")
-  firstName  String            @map("first_name") @db.VarChar(50)
-  lastName   String            @map("last_name") @db.VarChar(50)
-  position   String?           @db.VarChar(20)
-  number     Int?
-  photoUrl   String?           @map("photo_url") @db.VarChar(500)
-  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  team       Team?             @relation(fields: [teamId], references: [id])
-  gameStats  PlayerGameStats[]
+  id              Int               @id @default(autoincrement())
+  externalId      String?           @map("external_id") @db.VarChar(50)
+  apiSportsPlayerId Int?            @map("api_sports_player_id")
+  teamId          Int?              @map("team_id")
+  firstName       String            @map("first_name") @db.VarChar(50)
+  lastName        String            @map("last_name") @db.VarChar(50)
+  position        String?           @db.VarChar(20)
+  number          Int?
+  photoUrl        String?           @map("photo_url") @db.VarChar(500)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  team            Team?             @relation(fields: [teamId], references: [id])
+  gameStats       PlayerGameStats[]
 
   @@index([teamId])
   @@index([externalId])
+  @@index([apiSportsPlayerId])
   @@map("players")
 }
 
@@ -123,32 +127,38 @@ model PlayerGameStats {
 model Game {
   id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   externalId    String            @unique @map("external_id") @db.VarChar(100)
-  sportId       Int               @map("sport_id")
-  homeTeamId    Int?              @map("home_team_id")
-  awayTeamId    Int?              @map("away_team_id")
-  homeTeamName  String            @map("home_team_name") @db.VarChar(100)
-  awayTeamName  String            @map("away_team_name") @db.VarChar(100)
-  commenceTime  DateTime          @map("commence_time") @db.Timestamptz(6)
-  venue         String?           @db.VarChar(200)
-  weather       String?           @db.VarChar(100)
-  status        String            @default("scheduled") @db.VarChar(20)
-  homeScore     Int?              @map("home_score")
-  awayScore     Int?              @map("away_score")
-  period        String?           @db.VarChar(20)
-  clock         String?           @db.VarChar(20)
-  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  sport         Sport             @relation(fields: [sportId], references: [id])
-  homeTeam      Team?             @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam      Team?             @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  currentOdds   CurrentOdds[]
-  oddsSnapshots OddsSnapshot[]
-  betLegs       BetLeg[]
-  gameStats     GameStats[]
-  playerStats   PlayerGameStats[]
+  sportId            Int               @map("sport_id")
+  homeTeamId         Int?              @map("home_team_id")
+  awayTeamId         Int?              @map("away_team_id")
+  homeTeamName       String            @map("home_team_name") @db.VarChar(100)
+  awayTeamName       String            @map("away_team_name") @db.VarChar(100)
+  commenceTime       DateTime          @map("commence_time") @db.Timestamptz(6)
+  apiSportsGameId    String?           @map("api_sports_game_id") @db.VarChar(50)
+  apiSportsLeagueId  Int?              @map("api_sports_league_id")
+  season             String?           @db.VarChar(20)
+  seasonType         String?           @map("season_type") @db.VarChar(20)
+  venue              String?           @db.VarChar(200)
+  weather            String?           @db.VarChar(100)
+  status             String            @default("scheduled") @db.VarChar(20)
+  homeScore          Int?              @map("home_score")
+  awayScore          Int?              @map("away_score")
+  period             String?           @db.VarChar(20)
+  clock              String?           @db.VarChar(20)
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sport              Sport             @relation(fields: [sportId], references: [id])
+  homeTeam           Team?             @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam           Team?             @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  currentOdds        CurrentOdds[]
+  oddsSnapshots      OddsSnapshot[]
+  betLegs            BetLeg[]
+  gameStats          GameStats[]
+  playerStats        PlayerGameStats[]
 
   @@index([commenceTime])
   @@index([status])
+  @@index([apiSportsGameId])
+  @@index([season])
   @@map("games")
 }
 

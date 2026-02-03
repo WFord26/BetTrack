@@ -145,6 +145,7 @@ logs/
 
 # Internal 
 docs/internal/
+docs/feature request/
 
 # Dashboard (Node.js/TypeScript/React)
 dashboard/node_modules/

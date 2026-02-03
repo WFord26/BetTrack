@@ -58,6 +58,35 @@ Whether you're using Claude Desktop to research bets with natural language or th
 - **Timezone-aware** game filtering and scheduling
 - **PostgreSQL database** with Prisma ORM
 
+## 🚀 Advanced Analytics Roadmap
+
+BetTrack is evolving into a professional-grade sports betting analytics platform with features not available on most sportsbooks. We're implementing 8 advanced analytics features across 3 phases to give users a significant competitive advantage.
+
+### 📊 Phase 1: Core Analytics (Foundation)
+**Status**: 🔄 Planning Complete - Ready for Implementation
+
+1. **CLV Tracking** - Track closing line value for every bet to measure skill
+2. **Bookmaker Disagreement** - Find value bets when bookmakers disagree significantly
+3. **Line Movement** - Visualize odds changes and detect sharp money movement
+
+### 🧠 Phase 2: Market Intelligence (Intermediate)
+**Status**: ⏳ Planned
+
+4. **Sharp vs Public Money** - Identify professional betting patterns
+5. **Market Consensus** - Calculate true market odds from all bookmakers
+6. **Bookmaker Analytics** - Profile each bookmaker's tendencies and value
+
+### 🎯 Phase 3: Advanced Features (Professional)
+**Status**: ⏳ Planned
+
+7. **Arbitrage Detection** - Find guaranteed profit opportunities across books
+8. **Bet Correlation Analysis** - Detect correlated parlays and avoid mistakes
+
+**Total Timeline**: 82 days (~3-4 months)  
+**Expected Impact**: +40% user engagement, +50% premium subscriptions, +3-5% user ROI improvement
+
+**📚 Learn More**: See [docs/ANALYTICS-IMPLEMENTATION-SUMMARY.md](docs/ANALYTICS-IMPLEMENTATION-SUMMARY.md) for complete planning details and [.github/ISSUE_TEMPLATE/](. github/ISSUE_TEMPLATE/) for feature specifications.
+
 ## Getting Started
 
 ### MCP Server Installation
