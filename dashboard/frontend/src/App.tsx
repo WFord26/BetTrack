@@ -163,9 +163,9 @@ function App() {
         <DarkModeProvider>
           <PreferencesProvider>
             <AuthProvider>
-              <div className="app">
+              <div className="app h-full flex flex-col">
                 <Header />
-              <main className="pb-12">
+              <main className="flex-1 overflow-hidden">
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/" element={<Home />} />

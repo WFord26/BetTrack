@@ -149,7 +149,7 @@ export default function EnhancedDashboard() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}

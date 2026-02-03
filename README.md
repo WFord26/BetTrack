@@ -21,6 +21,20 @@ BetTrack is a dual-platform sports betting analytics and tracking solution that 
 
 Whether you're using Claude Desktop to research bets with natural language or the web dashboard to track your betting portfolio, BetTrack provides the data and tools you need.
 
+## Screenshots
+
+### Dashboard Home Page
+![BetTrack Home Page](docs/assets/home-page.png)
+*Landing page with feature overview and quick start guide*
+
+### Dashboard V2 - Dark Mode
+![Dashboard V2 Dark Mode](docs/assets/dashboard-dark.png)
+*Enhanced dashboard with live odds, game cards, and bet slip in dark mode*
+
+### Dashboard V2 - Light Mode
+![Dashboard V2 Light Mode](docs/assets/dashboard-light.png)
+*Clean light mode interface with filtering sidebar and responsive layout*
+
 ## Key Features
 
 ### MCP Server
