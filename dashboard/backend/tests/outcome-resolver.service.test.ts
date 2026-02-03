@@ -93,6 +93,7 @@ describe('OutcomeResolverService', () => {
           sport: { key: 'basketball_nba' },
           awayTeamName: 'Boston Celtics',
           homeTeamName: 'Los Angeles Lakers',
+          commenceTime: new Date('2024-01-15T19:00:00Z'),
           status: 'scheduled'
         }
       ];
@@ -139,6 +140,7 @@ describe('OutcomeResolverService', () => {
           sport: { key: 'basketball_nba' },
           awayTeamName: 'Boston Celtics',
           homeTeamName: 'Los Angeles Lakers',
+          commenceTime: new Date('2024-01-15T19:00:00Z'),
           status: 'scheduled'
         }
       ];
@@ -161,6 +163,7 @@ describe('OutcomeResolverService', () => {
           sport: { key: 'basketball_nba' },
           awayTeamName: 'Boston Celtics',
           homeTeamName: 'Los Angeles Lakers',
+          commenceTime: new Date('2024-01-15T19:00:00Z'),
           status: 'scheduled'
         }
       ];
@@ -194,7 +197,8 @@ describe('OutcomeResolverService', () => {
         sportKey: 'basketball_nba',
         sport: { key: 'basketball_nba' },
         awayTeamName: 'Boston Celtics',
-        homeTeamName: 'Los Angeles Lakers'
+        homeTeamName: 'Los Angeles Lakers',
+        commenceTime: new Date('2024-01-15T19:00:00Z')
       };
 
       const mockEspnResponse = {
@@ -235,7 +239,8 @@ describe('OutcomeResolverService', () => {
         sportKey: 'basketball_nba',
         sport: { key: 'basketball_nba' },
         awayTeamName: 'Nonexistent Team',
-        homeTeamName: 'Another Fake Team'
+        homeTeamName: 'Another Fake Team',
+        commenceTime: new Date('2024-01-15T19:00:00Z')
       };
 
       const mockEspnResponse = {
@@ -256,7 +261,8 @@ describe('OutcomeResolverService', () => {
         sportKey: 'basketball_nba',
         sport: { key: 'basketball_nba' },
         awayTeamName: 'Boston Celtics',
-        homeTeamName: 'Los Angeles Lakers'
+        homeTeamName: 'Los Angeles Lakers',
+        commenceTime: new Date('2024-01-15T19:00:00Z')
       };
 
       const mockEspnResponse = {
@@ -283,7 +289,8 @@ describe('OutcomeResolverService', () => {
         sportKey: 'basketball_nba',
         sport: { key: 'basketball_nba' },
         awayTeamName: 'Boston Celtics',
-        homeTeamName: 'Los Angeles Lakers'
+        homeTeamName: 'Los Angeles Lakers',
+        commenceTime: new Date('2024-01-15T19:00:00Z')
       };
 
       mockAxios.onGet(/scoreboard/).timeout();
@@ -299,7 +306,8 @@ describe('OutcomeResolverService', () => {
         sportKey: 'americanfootball_nfl',
         sport: { key: 'americanfootball_nfl' },
         awayTeamName: 'Buffalo Bills',
-        homeTeamName: 'Kansas City Chiefs'
+        homeTeamName: 'Kansas City Chiefs',
+        commenceTime: new Date('2024-01-15T19:00:00Z')
       };
 
       const mockEspnResponse = {
@@ -331,6 +339,36 @@ describe('OutcomeResolverService', () => {
       expect(result).not.toBeNull();
       expect(result?.homeScore).toBe(28);
       expect(result?.awayScore).toBe(24);
+    });
+
+    it('should handle missing commenceTime gracefully', async () => {
+      const mockGame = {
+        id: 'game-1',
+        sportKey: 'basketball_nba',
+        sport: { key: 'basketball_nba' },
+        awayTeamName: 'Boston Celtics',
+        homeTeamName: 'Los Angeles Lakers',
+        commenceTime: null // Missing date
+      };
+
+      const result = await service.checkGameResult(mockGame);
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle invalid commenceTime gracefully', async () => {
+      const mockGame = {
+        id: 'game-1',
+        sportKey: 'basketball_nba',
+        sport: { key: 'basketball_nba' },
+        awayTeamName: 'Boston Celtics',
+        homeTeamName: 'Los Angeles Lakers',
+        commenceTime: 'invalid-date' // Invalid date
+      };
+
+      const result = await service.checkGameResult(mockGame);
+
+      expect(result).toBeNull();
     });
   });
 

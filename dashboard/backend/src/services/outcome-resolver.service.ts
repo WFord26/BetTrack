@@ -135,8 +135,21 @@ export class OutcomeResolverService {
     }
 
     try {
+      // Validate commenceTime exists
+      if (!game.commenceTime) {
+        logger.warn(`Game ${game.id} has no commenceTime, cannot check result`);
+        return null;
+      }
+
       // Format game date for ESPN API (YYYYMMDD)
       const gameDate = new Date(game.commenceTime);
+      
+      // Check if date is valid
+      if (isNaN(gameDate.getTime())) {
+        logger.error(`Invalid commenceTime for game ${game.id}: ${game.commenceTime}`);
+        return null;
+      }
+      
       const dateStr = gameDate.toISOString().split('T')[0].replace(/-/g, '');
       
       // Fetch scoreboard for the game's date
