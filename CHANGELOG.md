@@ -16,7 +16,7 @@ For detailed change history, see the component-specific changelogs:
 
 Changes that affect the entire project structure:
 
-## [2026-02-03] v0.2.4
+## [2026-02-03] 
 
 ### Release Summary
 **Partial Release** - MCP Server only. Backend builds blocked by TypeScript compilation errors in API-Sports services (see issue #13).
