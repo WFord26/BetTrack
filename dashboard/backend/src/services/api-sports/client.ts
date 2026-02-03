@@ -1,8 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import * as limiter from 'limiter';
+import { RateLimiter } from 'limiter';
 import { logger } from '../../config/logger';
-
-const { RateLimiter } = limiter;
 
 interface ApiSportsConfig {
   apiKey: string;

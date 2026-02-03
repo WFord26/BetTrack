@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-import { apiSportsClient } from './client';
+import { ApiSportsClient } from './client';
 import { logger } from '../../config/logger';
+
+// Initialize API-Sports client for american football
+const apiSportsClient = new ApiSportsClient({
+  apiKey: process.env.API_SPORTS_KEY || '',
+  sport: 'american-football'
+});
 
 const prisma = new PrismaClient();
 

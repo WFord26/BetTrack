@@ -1,6 +1,13 @@
 import { PrismaClient } from '@prisma/client';
-import { apiSportsClient } from './client';
+import { ApiSportsClient } from './client';
 import { logger } from '../../config/logger';
+
+// Initialize API-Sports client for soccer (note: API-Sports doesn't have soccer, using football)
+// This will need API key for soccer league
+const apiSportsClient = new ApiSportsClient({
+  apiKey: process.env.API_SPORTS_KEY || '',
+  sport: 'american-football' // Note: need to update client for soccer support
+});
 
 const prisma = new PrismaClient();
 
