@@ -43,6 +43,7 @@ interface PlayerGameStats {
 interface GameStats {
   teamStats: GameTeamStats[];
   playerStats: PlayerGameStats[];
+  seasonAverages?: GameTeamStats[];
 }
 
 interface UseGameStatsReturn {
