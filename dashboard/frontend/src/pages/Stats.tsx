@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import StatsOverview from '../components/stats/StatsOverview';
 import PnLChart from '../components/stats/PnLChart';
+import CLVSummaryCard from '../components/stats/CLVSummaryCard';
 import { BetStats } from '../types/game.types';
 import api from '../services/api';
 import { formatCurrency, formatPercentage, getSportDisplayName } from '../utils/format';
@@ -185,6 +186,11 @@ export default function Stats() {
         {/* P&L Chart */}
         <div className="mb-8">
           <PnLChart data={pnlData} />
+        </div>
+
+        {/* CLV Summary Card */}
+        <div className="mb-8">
+          <CLVSummaryCard />
         </div>
 
         {/* Breakdown Tables */}
