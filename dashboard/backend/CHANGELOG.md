@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **CLV (Closing Line Value) Tracking**: Complete backend implementation for Phase 1 analytics (Issue #3)
+  - Database schema changes: Added `closingOdds`, `clv`, and `clvCategory` fields to BetLeg model
+  - New UserCLVStats model for aggregated analytics by sport/betType/period
+  - CLV calculation service with American odds to implied probability conversion
+  - 6 REST API endpoints: summary, by-sport, by-bookmaker, trends, report, calculate, update-stats
+  - Scheduled job to capture closing lines every 5 minutes before games start
+  - CLV formula: `((Closing Implied Prob - Opening Implied Prob) / Opening Implied Prob) * 100`
+  - Categories: positive (CLV ≥ 2%), neutral (-2% < CLV < 2%), negative (CLV ≤ -2%)
+
 ### Fixed
 - **TypeScript Build Errors**: Resolved all 50 compilation errors in API-Sports services (Issue #13)
   - Fixed response type assertions from `unknown` to `any` in all services
