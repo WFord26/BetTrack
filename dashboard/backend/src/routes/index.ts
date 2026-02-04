@@ -7,6 +7,7 @@ import adminRoutes from './admin.routes';
 import apiKeysRoutes from './api-keys.routes';
 import aiBetsRoutes from './ai-bets.routes';
 import statsRoutes from './stats.routes';
+import analyticsCLVRoutes from './analytics-clv.routes';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/admin', adminRoutes);
 router.use('/keys', apiKeysRoutes);
 router.use('/ai/bets', aiBetsRoutes);
 router.use('/stats', statsRoutes);
+router.use('/analytics/clv', analyticsCLVRoutes);
 
 export default router;

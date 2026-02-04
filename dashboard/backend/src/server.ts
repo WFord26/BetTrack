@@ -5,6 +5,7 @@ import { prisma } from './config/database';
 import { startOddsSyncJob } from './jobs/sync-odds.job';
 import { startSettleBetsJob } from './jobs/settle-bets.job';
 import { startStatsSyncJob } from './jobs/stats-sync.job';
+import { startClosingLineCaptureJob } from './jobs/capture-closing-lines.job';
 
 const PORT = parseInt(env.PORT, 10);
 
@@ -20,6 +21,7 @@ const server = app.listen(PORT, () => {
     startOddsSyncJob();
     startSettleBetsJob();
     startStatsSyncJob();
+    startClosingLineCaptureJob();
     logger.info('✅ Scheduled jobs started');
   } catch (error) {
     logger.error('Failed to start scheduled jobs:', error);

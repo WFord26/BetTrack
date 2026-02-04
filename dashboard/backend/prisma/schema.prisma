@@ -282,10 +282,11 @@ model User {
   isAdmin     Boolean   @default(false) @map("is_admin")
   isActive    Boolean   @default(true) @map("is_active")
   lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(6)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   bets        Bet[]
   apiKeys     ApiKey[]
+  clvStats    UserCLVStats[]
 
   @@unique([provider, providerId])
   @@index([email])
@@ -333,6 +334,9 @@ model BetLeg {
   userAdjustedLine   Decimal? @map("user_adjusted_line") @db.Decimal(5, 1)
   userAdjustedOdds   Int?     @map("user_adjusted_odds")
   teaserAdjustedLine Decimal? @map("teaser_adjusted_line") @db.Decimal(5, 1)
+  closingOdds        Int?     @map("closing_odds") // Odds captured at game start (5 min before)
+  clv                Decimal? @db.Decimal(5, 2) // Closing Line Value percentage
+  clvCategory        String?  @map("clv_category") @db.VarChar(20) // positive/negative/neutral
   status             String   @default("pending") @db.VarChar(20)
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -396,6 +400,28 @@ model ApiKeyUsage {
   @@index([apiKeyId])
   @@index([createdAt])
   @@map("api_key_usage")
+}
+
+// User CLV (Closing Line Value) Statistics
+model UserCLVStats {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  sportKey         String   @map("sport_key") @db.VarChar(50)
+  betType          String   @map("bet_type") @db.VarChar(20) // straight/parlay/teaser
+  period           String   @db.VarChar(20) // week/month/season/all-time
+  totalBets        Int      @map("total_bets")
+  averageCLV       Decimal  @map("average_clv") @db.Decimal(5, 2)
+  positiveCLVCount Int      @map("positive_clv_count")
+  negativeCLVCount Int      @map("negative_clv_count")
+  clvWinRate       Decimal  @map("clv_win_rate") @db.Decimal(5, 2)
+  expectedROI      Decimal  @map("expected_roi") @db.Decimal(5, 2)
+  actualROI        Decimal  @map("actual_roi") @db.Decimal(5, 2)
+  calculatedAt     DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sportKey, betType, period])
+  @@index([userId])
+  @@map("user_clv_stats")
 }
 
 // Site configuration for branding
