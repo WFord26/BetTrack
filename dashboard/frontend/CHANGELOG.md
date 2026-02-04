@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CLV (Closing Line Value) Analytics**: Complete frontend implementation for Phase 1 analytics (Issue #3)
+  - New Redux slice (`clvSlice.ts`) for CLV state management with async thunks
+  - CLV service layer (`clv.service.ts`) for API communication with 7 endpoints
+  - CLV type definitions (`clv.types.ts`) for TypeScript type safety
+  - `CLVSummaryCard` component: Dashboard widget with CLV distribution, win rates, ROI metrics
+  - `CLVAnalytics` page: Comprehensive analytics with line charts (trends), bar charts (by sport/bookmaker), top/worst bets tables
+  - Recharts integration for interactive data visualizations
+  - Period filtering: week, month, season, all-time
+  - Sport and bet type filtering
+  - CSV export functionality for CLV reports
+  - Color-coded CLV categories: positive (green), neutral (yellow), negative (red)
+  - Educational tooltips explaining CLV importance and calculation
 - **Landing Page Enhancements**: Improved visual design and user experience
   - Pixel art assets: animations (coin, star, tumbleweed) and decorations (badge, cards, chips, horseshoe, wanted poster)
   - Cowboy dollar mascot logo (cowboy-dollar.svg) as main hero image

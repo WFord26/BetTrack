@@ -13,6 +13,7 @@ import BetSlip from './components/bets/BetSlip';
 import BetHistory from './pages/BetHistory';
 import Futures from './pages/Futures';
 import Stats from './pages/Stats';
+import CLVAnalytics from './pages/CLVAnalytics';
 import GameDetail from './pages/GameDetail';
 import TeamDetail from './pages/TeamDetail';
 import EnhancedDashboard from './pages/EnhancedDashboard';
@@ -174,6 +175,7 @@ function App() {
                   <Route path="/history" element={<ProtectedRoute><BetHistory /></ProtectedRoute>} />
                   <Route path="/futures" element={<ProtectedRoute><Futures /></ProtectedRoute>} />
                   <Route path="/stats" element={<ProtectedRoute><Stats /></ProtectedRoute>} />
+                  <Route path="/analytics/clv" element={<ProtectedRoute><CLVAnalytics /></ProtectedRoute>} />
                   <Route path="/game/:gameId" element={<ProtectedRoute><GameDetail /></ProtectedRoute>} />
                   <Route path="/team/:teamId" element={<ProtectedRoute><TeamDetail /></ProtectedRoute>} />
                   <Route path="/settings/preferences" element={<ProtectedRoute><Preferences /></ProtectedRoute>} />
