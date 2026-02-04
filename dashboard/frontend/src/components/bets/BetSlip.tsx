@@ -36,7 +36,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
 
   const [betName, setBetName] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true); // Start minimized
   const [stakeInput, setStakeInput] = useState('');
   const [editingFutureId, setEditingFutureId] = useState<string | null>(null);
   const [editFutureOdds, setEditFutureOdds] = useState('');
@@ -184,9 +184,29 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
     }
   };
 
-  // Minimized state - show pixel art bet slip icon
+  const totalLegs = legs.length + (futureLegs?.length || 0);
+
+  // If no legs, only show minimized icon (no empty state panel)
+  if (totalLegs === 0) {
+    return (
+      <button
+        onClick={() => setIsMinimized(false)}
+        className="fixed bottom-4 right-4 shadow-2xl hover:scale-110 transition-all z-50 block"
+        title="Bet Slip (empty)"
+      >
+        <div className="relative">
+          <img 
+            src="/betslip.png" 
+            alt="Bet Slip"
+            className="w-20 h-20 block"
+          />
+        </div>
+      </button>
+    );
+  }
+
+  // Minimized state with legs - show pixel art bet slip icon with badge
   if (isMinimized) {
-    const totalLegs = legs.length + (futureLegs?.length || 0);
     return (
       <button
         onClick={() => setIsMinimized(false)}
@@ -199,38 +219,11 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
             alt="Bet Slip"
             className="w-20 h-20 block"
           />
-          {totalLegs > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800 shadow-lg">
-              {totalLegs}
-            </span>
-          )}
+          <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800 shadow-lg">
+            {totalLegs}
+          </span>
         </div>
       </button>
-    );
-  }
-
-  // Empty state - show empty message
-  if ((legs.length === 0 && (!futureLegs || futureLegs.length === 0))) {
-    
-    return (
-      <div className="fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 text-center z-50 border-2 border-blue-600 dark:border-blue-500">
-        <button
-          onClick={() => setIsMinimized(true)}
-          className="absolute top-3 right-3 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-          title="Minimize"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-          </svg>
-        </button>
-        <div className="text-4xl mb-3">🎟️</div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Bet Slip Empty
-        </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Click on any odds to add them to your bet slip
-        </p>
-      </div>
     );
   }
 
