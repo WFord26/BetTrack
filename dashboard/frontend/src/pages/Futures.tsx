@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useDarkMode } from '../contexts/DarkModeContext';
 import { formatOdds } from '../utils/format';
 import { addFutureLeg } from '../store/betSlipSlice';
 
@@ -27,6 +28,7 @@ interface Future {
 
 export default function Futures() {
   const { useDecimalOdds } = usePreferences();
+  const { isDarkMode } = useDarkMode();
   const dispatch = useDispatch();
   const [futures, setFutures] = useState<Future[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,17 +104,62 @@ export default function Futures() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 relative"
+         style={{ imageRendering: 'pixelated' }}>
+      {/* 8-bit Pixel Grid Background */}
+      <div 
+        className="absolute inset-0 opacity-5 pointer-events-none"
+        style={{
+          backgroundImage: `repeating-linear-gradient(
+            0deg,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
+            transparent 2px,
+            transparent 4px,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
+          ),
+          repeating-linear-gradient(
+            90deg,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
+            transparent 2px,
+            transparent 4px,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
+          )`,
+          backgroundSize: '4px 4px',
+          imageRendering: 'pixelated'
+        }}
+      />
+      
+      {/* CRT Scanlines Effect */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-3"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
+          backgroundSize: '100% 4px'
+        }}
+      />
+      
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              🏆 Futures Betting
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white"
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                  textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
+                  letterSpacing: '0.05em'
+                }}>
+              🏆 FUTURES BETTING
             </h1>
             <button
               onClick={handleSync}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors flex items-center gap-2 border-2 border-red-700"
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
+                boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
+                letterSpacing: '0.05em',
+                fontWeight: 'bold'
+              }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -130,11 +177,17 @@ export default function Futures() {
               <button
                 key={sport}
                 onClick={() => setSelectedSport(sport)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-4 py-2 rounded font-medium transition-colors border-2 ${
                   selectedSport === sport
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-red-600 text-white border-red-700'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                  textShadow: selectedSport === sport ? '2px 2px 0px rgba(0,0,0,0.5)' : 'none',
+                  boxShadow: selectedSport === sport ? '4px 4px 0px rgba(0, 0, 0, 0.3)' : 'none',
+                  letterSpacing: '0.05em'
+                }}
               >
                 {sport === 'all' ? 'All Sports' : sport.split('_').pop()?.toUpperCase()}
               </button>
@@ -165,7 +218,11 @@ export default function Futures() {
         {/* Futures List */}
         <div className="space-y-6">
           {futures.map((future) => (
-            <div key={future.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <div key={future.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border-4 border-red-600 dark:border-red-700"
+                 style={{
+                   boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
+                   imageRendering: 'pixelated'
+                 }}>
               {/* Future Header */}
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
                 <h2 className="text-xl font-bold text-white">{future.title}</h2>

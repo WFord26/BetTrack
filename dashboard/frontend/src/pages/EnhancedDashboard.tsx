@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import GameFilters from '../components/filters/GameFilters';
 import EnhancedGameCard from '../components/odds/EnhancedGameCard';
 import BetSlip from '../components/bets/BetSlip';
+import { useDarkMode } from '../contexts/DarkModeContext';
 import api from '../services/api';
 
 interface Game {
@@ -19,6 +20,7 @@ interface Game {
 }
 
 export default function EnhancedDashboard() {
+  const { isDarkMode } = useDarkMode();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,7 +151,38 @@ export default function EnhancedDashboard() {
   }
 
   return (
-    <div className="flex h-full bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900 relative" style={{ imageRendering: 'pixelated' }}>
+      {/* 8-bit Pixel Grid Background */}
+      <div 
+        className="absolute inset-0 opacity-5 pointer-events-none"
+        style={{
+          backgroundImage: `repeating-linear-gradient(
+            0deg,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
+            transparent 2px,
+            transparent 4px,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
+          ),
+          repeating-linear-gradient(
+            90deg,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
+            transparent 2px,
+            transparent 4px,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
+          )`,
+          backgroundSize: '4px 4px',
+          imageRendering: 'pixelated'
+        }}
+      />
+      
+      {/* CRT Scanlines Effect */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-3"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
+          backgroundSize: '100% 4px'
+        }}
+      />
       {/* Mobile Menu Button */}
       <button
         onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
@@ -175,11 +208,15 @@ export default function EnhancedDashboard() {
 
       {/* Fixed Left Sidebar */}
       <aside className={`
-        w-80 h-screen overflow-y-auto bg-white dark:bg-gray-900 border-r-4 border-gray-200 dark:border-gray-800
+        w-80 h-screen overflow-y-auto bg-white dark:bg-gray-900 border-r-4 border-red-600 dark:border-red-700
         fixed lg:relative z-40 lg:z-auto
         transition-transform duration-300 ease-in-out
         ${mobileFiltersOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      `}
+      style={{
+        boxShadow: '4px 0 0 rgba(220, 38, 38, 0.3)',
+        imageRendering: 'pixelated'
+      }}>
         <div className="p-4 pt-20 lg:pt-8">
           <GameFilters
             selectedSports={selectedSports}
@@ -203,7 +240,12 @@ export default function EnhancedDashboard() {
         <div className="container mx-auto px-4 py-8 lg:py-8 pt-20 lg:pt-8">
       {/* Games Count */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white"
+            style={{
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+              textShadow: '2px 2px 0px rgba(0,0,0,0.3)',
+              letterSpacing: '0.05em'
+            }}>
           {filteredGames.length} {filteredGames.length === 1 ? 'Game' : 'Games'} Found
         </h2>
         {filteredGames.length !== games.length && (
@@ -215,9 +257,18 @@ export default function EnhancedDashboard() {
 
       {/* Games Grid */}
       {filteredGames.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-12 text-center border-2 border-gray-200 dark:border-gray-700">
-          <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-gray-900 dark:text-white text-xl font-bold mb-2">No Games Found</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-12 text-center border-4 border-red-600 dark:border-red-700"
+             style={{
+               boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
+               imageRendering: 'pixelated'
+             }}>
+          <div className="text-6xl mb-4" style={{ filter: 'drop-shadow(4px 4px 0px rgba(0,0,0,0.3))' }}>🔍</div>
+          <h3 className="text-gray-900 dark:text-white text-xl font-bold mb-2"
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
+                letterSpacing: '0.05em'
+              }}>No Games Found</h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Try adjusting your filters or selecting a different date
           </p>
@@ -226,7 +277,14 @@ export default function EnhancedDashboard() {
               setSelectedSports([]);
               setSelectedStatus('all');
             }}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors border-2 border-red-700"
+            style={{
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+              textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
+              boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
+              letterSpacing: '0.05em',
+              fontWeight: 'bold'
+            }}
           >
             Clear Filters
           </button>

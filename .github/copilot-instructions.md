@@ -32,11 +32,16 @@ BetTrack/
   - **Services**: odds-sync (background), bet-service, outcome-resolver (background)
   - **Scheduled Jobs**: node-cron for automatic odds sync and outcome resolution
   - **API Features**: Background job execution, rate limit tracking, timezone handling
+  - **Testing**: Jest 29+ with ts-jest, supertest for API testing
+  - **Package**: @wford26/bettrack-backend (scoped npm package)
 - **Frontend** (`dashboard/frontend/`): React + Vite + Redux Toolkit + Tailwind CSS
+  - **Testing**: Vitest with React Testing Library, jsdom environment
+  - **Build Tool**: Vite 6+ for fast HMR and optimized production builds
+  - **Package**: @wford26/bettrack-frontend (scoped npm package)
 - **Purpose**: Web UI for bet tracking, odds history, line movement charts
-- **Database**: PostgreSQL with Prisma ORM
-- **State Management**: Redux Toolkit with slices (betSlip)
-- **Testing**: Jest + Prisma integration tests
+- **Database**: PostgreSQL 16-alpine with Prisma ORM 5.22.0
+- **State Management**: Redux Toolkit with persistent storage
+- **Docker**: Multi-service setup with postgres, backend, frontend, nginx
 
 ### Key Configuration
 - **Single config source**: `.env` file (supports `.env.example` template)
@@ -194,6 +199,31 @@ cd ../../mcp/scripts/build
 # Outputs: dashboard/dist/backend/ and dashboard/dist/frontend/
 ```
 
+**Docker Development Workflow**:
+```bash
+# Start full stack (postgres, backend, frontend)
+cd dashboard
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# Restart specific service after code changes
+docker-compose restart backend
+docker-compose restart frontend
+
+# Stop all services
+docker-compose down
+
+# Production deployment with nginx
+docker-compose -f docker-compose.prod.yml up -d
+
+# Health checks
+curl http://localhost:3001/api/health  # Backend health
+curl http://localhost:3001/api/admin/stats  # Database stats
+```
+
 **Admin API Endpoints** (`/api/admin`):
 - `POST /init-sports` - Initialize 7 sports (NFL, NBA, NCAAB, NHL, MLB, EPL, UEFA)
 - `POST /sync-odds` - Manual odds sync (runs in background, optional `sportKey` param)
@@ -227,6 +257,56 @@ cd mcp
 pytest tests/ -v
 pytest tests/ --cov=sports_api --cov-report=html
 ```
+
+#### Dashboard Testing
+**Backend** (Jest + TypeScript):
+```bash
+cd dashboard/backend
+
+# Run tests (all)
+npm test
+
+# Watch mode (re-runs on file changes)
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+
+# CI mode (no watch, parallel execution)
+npm run test:ci
+```
+
+**Test Structure**:
+- `tests/integration/`: API route integration tests with Prisma
+- `tests/unit/`: Service and utility function tests
+- Uses `@jest/globals`, `jest-mock-extended`, `supertest`
+- Test database: Separate PostgreSQL instance or in-memory
+
+**Frontend** (Vitest + React Testing Library):
+```bash
+cd dashboard/frontend
+
+# Run tests
+npm test
+
+# Watch mode
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+
+# CI mode
+npm run test:ci
+
+# UI mode (interactive test runner)
+npm run test:ui
+```
+
+**Test Structure**:
+- Component tests with React Testing Library
+- Redux store tests for state management
+- Environment: jsdom for DOM simulation
+- Coverage: @vitest/coverage-v8
 
 ### Tool Registration (MCP)
 All MCP tools are decorated methods in main server file (`mcp/sports_mcp_server.py`):
@@ -358,7 +438,25 @@ High-level description of what changed in this release across all components.
 **Update workflow**:
 1. During development: Update component changelogs (`mcp/`, `dashboard/backend/`, `dashboard/frontend/`)
 2. On release: Update root `CHANGELOG.md` with high-level summary and component versions
-3. Release command: `.\build.ps1 -FullRelease -VersionBump patch -PushDocker`
+3. Release command: `.\build.ps1 -FullRelease -VersionBump patch` (or with `-PushDocker` for Docker images)
+
+**FullRelease Workflow**:
+The `-FullRelease` flag automates the complete release process:
+1. Version bumping for all components (MCP, Dashboard, Backend, Frontend)
+2. Building MCP MCPB package
+3. Building Dashboard (backend + frontend to dist/)
+4. Creating deployment ZIPs (dashboard-deployment-vX.X.X.zip)
+5. Optional: Building and pushing Docker images with `-PushDocker`
+6. Creating GitHub release with all artifacts
+7. Git tagging and pushing to origin
+
+```powershell
+# Full release with all artifacts (no Docker push)
+.\build.ps1 -FullRelease -VersionBump patch
+
+# Full release with Docker images pushed to GitHub Container Registry
+.\build.ps1 -FullRelease -VersionBump minor -PushDocker
+```
 
 ### API & Database Documentation Management
 
@@ -602,6 +700,10 @@ model OddSnapshot {
 
 11. **Build before push**: Always run build scripts before pushing. TypeScript errors and bundling issues must be caught locally, not in CI/CD. Check `dist/` folders to verify successful builds.
 
+12. **Docker volume mounts**: In development, backend/frontend source is mounted read-only. Changes require container restart (`docker-compose restart <service>`).
+
+13. **Prisma migrations**: Always run `npm run prisma:generate` after schema changes to update TypeScript types. Use `npm run prisma:migrate` for database migrations.
+
 ## Quick Reference Commands
 ```bash
 # Start MCP server (development)
@@ -651,6 +753,34 @@ python -c "import sports_mcp_server; print(len([attr for attr in dir(sports_mcp_
 - `.env.example`: Config template (user copies to `.env`)
 - `*.mcpb`: Built package files (ZIP archives)
 - `.mcpbignore`: Build exclusion rules (like `.gitignore`)
+
+## Key Directory Structure
+```
+mcp/
+  sports_api/              # Core API handlers and formatters
+  releases/                # Built MCPB packages (git-ignored)
+  assets/                  # Icons and images
+  
+dashboard/
+  backend/
+    src/
+      controllers/         # Express route controllers
+      services/            # Business logic (odds-sync, bet-service)
+      jobs/                # node-cron scheduled jobs
+      routes/              # API route definitions
+      middleware/          # Auth, error handling, validation
+      utils/               # Shared utilities
+    prisma/                # Database schema and migrations
+    tests/                 # Jest test files
+  frontend/
+    src/
+      components/          # React components
+      redux/               # Redux slices and store
+      pages/               # Route pages
+      utils/               # Frontend utilities
+    dist/                  # Production build output (git-ignored)
+  dist/                    # Compiled backend/frontend (git-ignored)
+```
 
 ## Documentation Structure
 - `docs/AVAILABLE-TOOLS.md`: Complete tool reference with all 30+ tools and 70+ betting markets

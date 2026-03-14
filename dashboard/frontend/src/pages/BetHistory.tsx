@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import BetCard from '../components/bets/BetCard';
 import { Bet } from '../types/game.types';
+import { useDarkMode } from '../contexts/DarkModeContext';
 import api from '../services/api';
 
 export default function BetHistory() {
+  const { isDarkMode } = useDarkMode();
   const [bets, setBets] = useState<Bet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,29 +93,92 @@ export default function BetHistory() {
   const hasActiveFilters = statusFilter !== 'all' || sportFilter !== 'all' || startDate || endDate;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8 transition-colors">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8 transition-colors relative"
+         style={{ imageRendering: 'pixelated' }}>
+      {/* 8-bit Pixel Grid Background */}
+      <div 
+        className="absolute inset-0 opacity-5 pointer-events-none"
+        style={{
+          backgroundImage: `repeating-linear-gradient(
+            0deg,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
+            transparent 2px,
+            transparent 4px,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
+          ),
+          repeating-linear-gradient(
+            90deg,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
+            transparent 2px,
+            transparent 4px,
+            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
+          )`,
+          backgroundSize: '4px 4px',
+          imageRendering: 'pixelated'
+        }}
+      />
+      
+      {/* CRT Scanlines Effect */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-3"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
+          backgroundSize: '100% 4px'
+        }}
+      />
+      
+      <div className="max-w-6xl mx-auto relative z-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Bet History</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white"
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
+                letterSpacing: '0.05em'
+              }}>📜 BET HISTORY</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400"
+             style={{
+               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+               letterSpacing: '0.02em'
+             }}>
             View and filter your betting history
           </p>
         </div>
 
         {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 relative"
+             style={{
+               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+               border: `4px solid ${isDarkMode ? '#e5e7eb' : '#cbd5e1'}`,
+               boxShadow: isDarkMode ? '0 0 0 2px rgba(229,231,235,0.12) inset, 0 8px 16px rgba(0,0,0,0.4)' : '0 0 0 2px rgba(203,213,225,0.3) inset, 0 8px 16px rgba(0,0,0,0.1)',
+               imageRendering: 'pixelated'
+             }}>
+          {/* Pixel grid overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: isDarkMode 
+                ? 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)'
+                : 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)',
+              backgroundSize: '6px 6px',
+              pointerEvents: 'none',
+            }}
+          />
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Status Filter */}
             <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="status-filter" className="block text-[10px] font-bold tracking-wider uppercase opacity-60 mb-2">
                 Status
               </label>
               <select
                 id="status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+                }}
               >
                 <option value="all">All</option>
                 <option value="pending">Pending</option>
@@ -126,14 +191,17 @@ export default function BetHistory() {
 
             {/* Sport Filter */}
             <div>
-              <label htmlFor="sport-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="sport-filter" className="block text-[10px] font-bold tracking-wider uppercase opacity-60 mb-2">
                 Sport
               </label>
               <select
                 id="sport-filter"
                 value={sportFilter}
                 onChange={(e) => setSportFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+                }}
               >
                 <option value="all">All Sports</option>
                 <option value="basketball_nba">NBA</option>
@@ -147,7 +215,7 @@ export default function BetHistory() {
 
             {/* Start Date */}
             <div>
-              <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="start-date" className="block text-[10px] font-bold tracking-wider uppercase opacity-60 mb-2">
                 Start Date
               </label>
               <input
@@ -155,13 +223,16 @@ export default function BetHistory() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+                }}
               />
             </div>
 
             {/* End Date */}
             <div>
-              <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="end-date" className="block text-[10px] font-bold tracking-wider uppercase opacity-60 mb-2">
                 End Date
               </label>
               <input
@@ -169,7 +240,10 @@ export default function BetHistory() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+                }}
               />
             </div>
           </div>
@@ -219,7 +293,7 @@ export default function BetHistory() {
         {/* Bet List */}
         {!loading && !error && bets.length > 0 && (
           <>
-            <div className="grid gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-6" style={{ gridAutoRows: '430px' }}>
               {bets.map((bet) => (
                 <BetCard key={bet.id} bet={bet} />
               ))}

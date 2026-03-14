@@ -29,11 +29,11 @@ Whether you're using Claude Desktop to research bets with natural language or th
 
 ### Dashboard V2 - Dark Mode
 ![Dashboard V2 Dark Mode](docs/assets/dashboard-dark.png)
-*Enhanced dashboard with live odds, game cards, and bet slip in dark mode*
+*Retro 8-bit styled dashboard with pixel-perfect game cards, inspired by classic 80s/90s sports games like Retro Bowl*
 
 ### Dashboard V2 - Light Mode
 ![Dashboard V2 Light Mode](docs/assets/dashboard-light.png)
-*Clean light mode interface with filtering sidebar and responsive layout*
+*Nostalgic arcade aesthetic with chunky borders, monospace fonts, and vintage scoreboard layouts*
 
 ## Key Features
 
@@ -49,12 +49,14 @@ Whether you're using Claude Desktop to research bets with natural language or th
 
 ### Dashboard
 
+- **Retro 8-bit interface** inspired by classic 80s/90s sports games (Retro Bowl, Tecmo Bowl)
+- **Pixel-perfect game cards** with nostalgic scoreboard styling and chunky borders
 - **Futures betting** with 11 outright sports (Super Bowl, NBA Championship, etc.)
 - **Bet tracking** with parlays, teasers, and futures support
 - **Odds history** and line movement visualization
 - **Automated odds sync** with background jobs
 - **Outcome resolution** for automatic bet settlement
-- **Dark mode** with purple accent theme
+- **Dark/Light mode** with retro color schemes (cyan/orange scores, red LIVE indicators)
 - **Timezone-aware** game filtering and scheduling
 - **PostgreSQL database** with Prisma ORM
 
@@ -123,7 +125,8 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 
 ### Dashboard Components
 
-- **Frontend:** React 18, Vite, Redux Toolkit, Tailwind CSS
+- **Frontend:** React 18, Vite, Redux Toolkit, Tailwind CSS with custom 8-bit pixel styling
+- **Design:** Retro 8-bit aesthetic with monospace fonts, pixel grid overlays, and arcade-inspired UI
 - **Backend:** Node.js 20, Express, TypeScript, Prisma ORM
 - **Database:** PostgreSQL 16
 - **Deployment:** Docker, Nginx, Let's Encrypt SSL
