@@ -59,27 +59,100 @@ COPY --chown=nodejs:nodejs <<'EOF' /app/docker-entrypoint.sh
 #!/bin/sh
 set -e
 
-# Load secrets from Docker secrets (if mounted at /run/secrets/)
-if [ -d "/run/secrets" ]; then
+strip_wrapping_quotes() {
+  value="$1"
+
+  case "$value" in
+    \"*\")
+      value=${value#\"}
+      value=${value%\"}
+      ;;
+    \'*\')
+      value=${value#\'}
+      value=${value%\'}
+      ;;
+  esac
+
+  printf '%s' "$value"
+}
+
+load_env_file() {
+  env_file_path="$1"
+
+  if [ ! -f "$env_file_path" ]; then
+    return
+  fi
+
+  echo "Loading environment from $env_file_path"
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|\#*)
+        continue
+        ;;
+    esac
+
+    key=${line%%=*}
+    value=${line#*=}
+
+    if [ -z "$key" ] || [ "$key" = "$line" ]; then
+      continue
+    fi
+
+    current_value=$(printenv "$key" 2>/dev/null || true)
+
+    if [ -n "$current_value" ]; then
+      continue
+    fi
+
+    value=$(strip_wrapping_quotes "$value")
+    export "$key=$value"
+  done < "$env_file_path"
+}
+
+load_docker_secrets() {
+  if [ ! -d "/run/secrets" ]; then
+    return
+  fi
+
   for secret_file in /run/secrets/*; do
     if [ -f "$secret_file" ]; then
       secret_name=$(basename "$secret_file")
       secret_value=$(cat "$secret_file")
-      
-      # Convert secret filename to uppercase env var
       env_name=$(echo "$secret_name" | tr '[:lower:]' '[:upper:]')
+
       export "$env_name=$secret_value"
-      
       echo "Loaded secret: $env_name"
     fi
   done
-fi
+}
 
-# Load .env file if present (Docker secrets take precedence)
-if [ -f "/app/.env" ]; then
-  echo "Loading environment from .env file"
-  export $(grep -v '^#' /app/.env | xargs)
-fi
+build_database_url() {
+  if [ -n "$DATABASE_URL" ] && ! printf '%s' "$DATABASE_URL" | grep -q '\${'; then
+    return
+  fi
+
+  db_scheme="${DATABASE_TYPE:-postgresql}"
+  db_host="${DATABASE_HOST:-}"
+  db_port="${DATABASE_PORT:-5432}"
+  db_name="${DATABASE_NAME:-}"
+  db_user="${DATABASE_USER:-${DB_USER:-}}"
+  db_password="${DATABASE_PASSWORD:-${DB_PASSWORD:-}}"
+
+  if [ -z "$db_host" ] || [ -z "$db_name" ] || [ -z "$db_user" ] || [ -z "$db_password" ]; then
+    return
+  fi
+
+  encoded_db_user=$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$db_user")
+  encoded_db_password=$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$db_password")
+
+  export DATABASE_URL="${db_scheme}://${encoded_db_user}:${encoded_db_password}@${db_host}:${db_port}/${db_name}"
+  echo "Constructed DATABASE_URL from component environment variables"
+}
+
+load_env_file "/app/.env"
+load_docker_secrets
+build_database_url
 
 # Run Prisma migrations if AUTO_MIGRATE is set
 if [ "$AUTO_MIGRATE" = "true" ]; then

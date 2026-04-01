@@ -35,10 +35,10 @@ That's it! No additional configuration needed.
      - **Single tenant**: Only your organization
      - **Multitenant**: Any Azure AD organization
      - **Personal Microsoft accounts**: Anyone with Microsoft account
-   - **Redirect URI**: 
+   - **Redirect URI**:
      - Platform: **Web**
      - URL: `http://localhost:3001/api/auth/microsoft/callback` (for local)
-     - URL: `https://yourdomain.com/api/auth/microsoft/callback` (for production)
+     - URL: `https://api.yourdomain.com/api/auth/microsoft/callback` (for production)
 
 4. Click **Register**
 
@@ -66,7 +66,7 @@ That's it! No additional configuration needed.
 ```bash
 # In backend/.env
 AUTH_MODE=oauth2
-BASE_URL=http://localhost:3001  # Change for production
+BASE_URL=http://localhost:3001  # Use https://api.yourdomain.com in production
 SESSION_SECRET=generate-a-long-random-string-here
 
 MICROSOFT_CLIENT_ID=your-application-client-id
@@ -96,7 +96,7 @@ MICROSOFT_TENANT_ID=your-tenant-id  # Or 'common' for multi-tenant
 4. Name: Sports Betting Dashboard
 5. **Authorized redirect URIs**:
    - Add: `http://localhost:3001/api/auth/google/callback` (local)
-   - Add: `https://yourdomain.com/api/auth/google/callback` (production)
+   - Add: `https://api.yourdomain.com/api/auth/google/callback` (production)
 6. Click **Create**
 7. Copy **Client ID** and **Client secret**
 
@@ -105,7 +105,7 @@ MICROSOFT_TENANT_ID=your-tenant-id  # Or 'common' for multi-tenant
 ```bash
 # In backend/.env
 AUTH_MODE=oauth2
-BASE_URL=http://localhost:3001  # Change for production
+BASE_URL=http://localhost:3001  # Use https://api.yourdomain.com in production
 SESSION_SECRET=generate-a-long-random-string-here
 
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
@@ -147,7 +147,7 @@ npx prisma generate
 ```bash
 AUTH_MODE=none
 npm run dev
-# Access http://localhost:3001 - no login required
+# Access http://localhost:5173 - no login required
 ```
 
 ### Test OAuth2 Mode
@@ -155,7 +155,7 @@ npm run dev
 AUTH_MODE=oauth2
 # Set your OAuth credentials
 npm run dev
-# Access http://localhost:3001 - redirects to login
+# Access http://localhost:5173 - redirects to login
 # Click "Login with Microsoft" or "Login with Google"
 ```
 
@@ -247,6 +247,6 @@ You can switch between standalone and OAuth2 modes at any time:
 ## Support
 
 For issues or questions:
-- Check backend logs: `docker-compose logs backend`
+- Check backend logs: `docker compose logs backend`
 - Verify `.env` configuration
 - Test OAuth providers separately using their test tools

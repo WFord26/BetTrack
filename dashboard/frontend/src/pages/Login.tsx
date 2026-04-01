@@ -3,7 +3,7 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const { user, authEnabled, providers, loading } = useAuth();
+  const { user, authEnabled, providers, loading, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -37,11 +37,6 @@ export default function Login() {
       duplicate_email: 'An account with this email already exists with a different provider.'
     };
     return messages[error] || 'Authentication failed. Please try again.';
-  };
-
-  const handleLogin = (provider: 'microsoft' | 'google') => {
-    // This will redirect to the backend OAuth flow
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/auth/${provider}`;
   };
 
   if (loading) {
@@ -90,7 +85,7 @@ export default function Login() {
           <div className="space-y-3">
             {providers.microsoft && (
               <button
-                onClick={() => handleLogin('microsoft')}
+                onClick={() => login('microsoft')}
                 className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 23 23" fill="none">
@@ -105,7 +100,7 @@ export default function Login() {
 
             {providers.google && (
               <button
-                onClick={() => handleLogin('google')}
+                onClick={() => login('google')}
                 className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
@@ -141,7 +136,12 @@ export default function Login() {
         {/* Footer Info */}
         <div className="text-center text-sm text-gray-600 dark:text-gray-400">
           <p>Need help? Check the{' '}
-            <a href="/docs/auth" className="text-blue-600 dark:text-blue-400 hover:underline">
+            <a
+              href="https://github.com/WFord26/BetTrack/blob/main/dashboard/docs/AUTH_SETUP.md"
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
               authentication setup guide
             </a>
           </p>

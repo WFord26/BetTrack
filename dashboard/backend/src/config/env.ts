@@ -3,6 +3,35 @@ import { z } from 'zod';
 
 dotenv.config();
 
+function buildDatabaseUrl(rawEnv: NodeJS.ProcessEnv): string | undefined {
+  const explicitDatabaseUrl = rawEnv.DATABASE_URL;
+
+  if (explicitDatabaseUrl && !explicitDatabaseUrl.includes('${')) {
+    return explicitDatabaseUrl;
+  }
+
+  const databaseType = rawEnv.DATABASE_TYPE || 'postgresql';
+  const databaseHost = rawEnv.DATABASE_HOST;
+  const databasePort = rawEnv.DATABASE_PORT || '5432';
+  const databaseName = rawEnv.DATABASE_NAME;
+  const databaseUser = rawEnv.DATABASE_USER || rawEnv.DB_USER;
+  const databasePassword = rawEnv.DATABASE_PASSWORD || rawEnv.DB_PASSWORD;
+
+  if (!databaseHost || !databaseName || !databaseUser || !databasePassword) {
+    return undefined;
+  }
+
+  const encodedUser = encodeURIComponent(databaseUser);
+  const encodedPassword = encodeURIComponent(databasePassword);
+
+  return `${databaseType}://${encodedUser}:${encodedPassword}@${databaseHost}:${databasePort}/${databaseName}`;
+}
+
+const normalizedEnv = {
+  ...process.env,
+  DATABASE_URL: buildDatabaseUrl(process.env),
+};
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3001'),
@@ -13,6 +42,7 @@ const envSchema = z.object({
   ODDS_SYNC_INTERVAL: z.string().default('10'),
   OUTCOME_CHECK_INTERVAL: z.string().default('5'),
   LOG_LEVEL: z.string().default('info'),
+  CORS_ORIGIN: z.string().optional(),
   
   // API-Sports configuration
   API_SPORTS_KEY: z.string().optional(),
@@ -40,7 +70,7 @@ export type EnvConfig = z.infer<typeof envSchema>;
 let config: EnvConfig;
 
 try {
-  config = envSchema.parse(process.env);
+  config = envSchema.parse(normalizedEnv);
 } catch (error) {
   if (error instanceof z.ZodError) {
     console.error('❌ Invalid environment variables:');

@@ -134,9 +134,14 @@ The `DOMAIN` variable is automatically used throughout the stack:
 DOMAIN=yourdomain.com
 ```
 
-**Frontend** (auto-configured via docker-compose):
+**Frontend** (runtime behavior):
 ```env
-VITE_API_URL=https://api.${DOMAIN}
+# The published frontend image auto-detects:
+#   https://api.${DOMAIN}/api
+# when served from https://${DOMAIN}
+#
+# If you build the frontend bundle yourself, you can override it with:
+VITE_API_URL=https://api.${DOMAIN}/api
 ```
 
 **MCP Server** (set in your MCP environment):

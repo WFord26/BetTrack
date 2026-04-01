@@ -1,8 +1,6 @@
 # Production Docker Compose with Secrets Support
 # Use this for production deployments with proper secret management
 
-version: '3.8'
-
 services:
   nginx:
     image: nginx:alpine
@@ -68,16 +66,21 @@ services:
       NODE_ENV: production
       PORT: 3001
       LOG_LEVEL: info
+      CORS_ORIGIN: https://${DOMAIN:-yourdomain.com}
+      BASE_URL: https://api.${DOMAIN:-yourdomain.com}
+      DATABASE_TYPE: postgresql
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: sports_betting_dashboard
       ODDS_SYNC_INTERVAL: 1440
       OUTCOME_CHECK_INTERVAL: 5
       AUTO_MIGRATE: "true"
-      # Database URL constructed from secrets
-      DATABASE_URL: postgresql://$${DB_USER}:$${DB_PASSWORD}@postgres:5432/sports_betting_dashboard
     secrets:
       - db_user
       - db_password
       - odds_api_key
       - session_secret
+      - jwt_secret
     # Internal port only, accessed via nginx
     expose:
       - "3001"
@@ -97,10 +100,6 @@ services:
     image: ghcr.io/${GITHUB_OWNER:-wford26}/bettrack-frontend:${VERSION:-latest}
     container_name: sports-dashboard-frontend-prod
     restart: always
-    environment:
-      # Backend API URL for production (via nginx)
-      # Uses DOMAIN variable from .env file
-      VITE_API_URL: https://api.${DOMAIN:-yourdomain.com}
     # Internal port only, accessed via nginx
     expose:
       - "80"
@@ -132,3 +131,5 @@ secrets:
     file: ./secrets/odds_api_key.txt
   session_secret:
     file: ./secrets/session_secret.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt

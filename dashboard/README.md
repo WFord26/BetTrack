@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend\public\BetTrackDashboard.png" alt="BetTrack Logo" width="600"/>
+  <img src="frontend/public/BetTrackDashboard.png" alt="BetTrack Logo" width="600"/>
   
 # BetTrack - Sports Betting Dashboard
 
@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-blue.svg)](https://www.postgresql.org/)
 
 </div>
 
@@ -67,11 +67,15 @@
 ## 📋 Prerequisites
 
 - Node.js 20+ and npm
-- PostgreSQL 15+
+- PostgreSQL 16+
 - The Odds API key (free tier available at https://the-odds-api.com)
 
-# Configure your database URL in backend/.env
-# Configure your API keys in backend/.env
+## 🚀 Getting Started
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+# Configure your database URL and API keys in backend/.env
 ```
 
 ### Development
@@ -113,6 +117,7 @@ The production Docker images support secure secret management using Docker secre
 mkdir -p secrets
 echo -n "your_odds_api_key" > secrets/odds_api_key.txt
 echo -n "$(openssl rand -hex 32)" > secrets/session_secret.txt
+echo -n "$(openssl rand -hex 32)" > secrets/jwt_secret.txt
 echo -n "sports_user" > secrets/db_user.txt
 echo -n "secure_password" > secrets/db_password.txt
 
@@ -120,13 +125,14 @@ echo -n "secure_password" > secrets/db_password.txt
 chmod 600 secrets/*.txt
 
 # 3. Deploy with Docker Compose
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 The backend automatically:
 - Loads secrets from `/run/secrets/*` (Docker secrets mount)
-- Falls back to `.env` file if present
-- Supports environment variables
+- Preserves container environment values unless a secret overrides them
+- Falls back to `.env` values only when a variable is still unset
+- Builds `DATABASE_URL` from `DATABASE_HOST` / `DATABASE_PORT` / `DATABASE_NAME` plus credentials
 - Runs database migrations if `AUTO_MIGRATE=true`
 
 **Secret Priority**: Docker secrets > Environment variables > .env file
@@ -139,8 +145,9 @@ For development or simple deployments:
 export DATABASE_URL="postgresql://user:pass@localhost/db"
 export ODDS_API_KEY="your_api_key"
 export SESSION_SECRET="$(openssl rand -hex 32)"
+export JWT_SECRET="$(openssl rand -hex 32)"
 
-docker-compose up
+docker compose up
 ```
 
 ### External Secret Stores
@@ -175,4 +182,4 @@ See [NPM-PUBLISHING.md](NPM-PUBLISHING.md) for complete publishing and installat
 
 ## Documentation
 
-See the [technical specification](../docs/internal/future-build.md) for full architecture details.
+See [DEPLOYMENT.md](DEPLOYMENT.md), [TESTING.md](TESTING.md), and [docs/](docs/) for the current dashboard-specific documentation.

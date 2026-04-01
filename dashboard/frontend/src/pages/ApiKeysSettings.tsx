@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../services/api';
 
 interface ApiKey {
   id: string;
@@ -28,8 +28,6 @@ export default function ApiKeysSettings() {
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-
   useEffect(() => {
     fetchApiKeys();
   }, []);
@@ -37,7 +35,7 @@ export default function ApiKeysSettings() {
   const fetchApiKeys = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/keys`);
+      const response = await apiClient.get('/keys');
       setApiKeys(response.data.data.keys);
       setError(null);
     } catch (err: any) {
@@ -56,10 +54,7 @@ export default function ApiKeysSettings() {
     try {
       setCreating(true);
       setError(null);
-      const response = await axios.post(
-        `${API_BASE_URL}/api/keys`,
-        { name: newKeyName.trim() }
-      );
+      const response = await apiClient.post('/keys', { name: newKeyName.trim() });
 
       setNewKeyValue(response.data.data.key);
       setNewKeyName('');
@@ -77,7 +72,7 @@ export default function ApiKeysSettings() {
     }
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/keys/${id}`);
+      await apiClient.delete(`/keys/${id}`);
       fetchApiKeys(); // Refresh list
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to revoke API key');

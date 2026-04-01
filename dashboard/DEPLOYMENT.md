@@ -75,8 +75,10 @@ For production deployments, use Docker with secure secret management:
 ```bash
 # 1. Setup secrets directory
 mkdir -p secrets
+echo "DOMAIN=yourdomain.com" > .env
 echo -n "your_odds_api_key" > secrets/odds_api_key.txt
 echo -n "$(openssl rand -hex 32)" > secrets/session_secret.txt
+echo -n "$(openssl rand -hex 32)" > secrets/jwt_secret.txt
 echo -n "sports_user" > secrets/db_user.txt
 echo -n "secure_password" > secrets/db_password.txt
 
@@ -84,11 +86,12 @@ echo -n "secure_password" > secrets/db_password.txt
 chmod 600 secrets/*.txt
 
 # 3. Deploy with production compose
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # 4. Verify deployment
-docker-compose -f docker-compose.prod.yml ps
-curl http://localhost:3001/health
+docker compose -f docker-compose.prod.yml ps
+curl -I https://yourdomain.com
+curl https://api.yourdomain.com/health
 ```
 
 ### Secret Management Options
@@ -102,17 +105,23 @@ The backend Docker image automatically loads secrets from `/run/secrets/`:
 services:
   backend:
     secrets:
+      - db_user
+      - db_password
       - odds_api_key
       - session_secret
-      - db_password
+      - jwt_secret
 
 secrets:
+  db_user:
+    file: ./secrets/db_user.txt
+  db_password:
+    file: ./secrets/db_password.txt
   odds_api_key:
     file: ./secrets/odds_api_key.txt
   session_secret:
     file: ./secrets/session_secret.txt
-  db_password:
-    file: ./secrets/db_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
 ```
 
 **Benefits**:
@@ -128,7 +137,9 @@ For development or simple deployments:
 ```bash
 export DATABASE_URL="postgresql://user:pass@localhost/db"
 export ODDS_API_KEY="your_api_key"
-docker-compose up
+export SESSION_SECRET="$(openssl rand -hex 32)"
+export JWT_SECRET="$(openssl rand -hex 32)"
+docker compose up
 ```
 
 #### Option 3: External Secret Stores
@@ -188,16 +199,25 @@ When the same configuration exists in multiple places:
 ### How Backend Loads Secrets
 
 The production Dockerfile includes an entrypoint script that:
-1. Reads all files from `/run/secrets/`
-2. Converts filenames to uppercase environment variables
-3. Falls back to `.env` file if secrets not found
-4. Runs Prisma migrations if `AUTO_MIGRATE=true`
+1. Loads `.env` values only for variables that are still unset
+2. Reads all files from `/run/secrets/`
+3. Converts filenames to uppercase environment variables
+4. Builds `DATABASE_URL` from component settings when needed
+5. Runs Prisma migrations if `AUTO_MIGRATE=true`
 
 Example secret loading:
 ```
 /run/secrets/odds_api_key → ODDS_API_KEY environment variable
 /run/secrets/db_password → DB_PASSWORD environment variable
+/run/secrets/jwt_secret → JWT_SECRET environment variable
 ```
+
+The standard production stack also sets:
+- `BASE_URL=https://api.${DOMAIN}`
+- `CORS_ORIGIN=https://${DOMAIN}`
+- `DATABASE_HOST=postgres`
+- `DATABASE_PORT=5432`
+- `DATABASE_NAME=sports_betting_dashboard`
 
 See [secrets/README.md](secrets/README.md) for complete documentation.
 
@@ -226,15 +246,20 @@ npm run prisma:studio
 
 **Environment Variables** (.env.production):
 ```env
-DATABASE_URL="postgresql://user:password@prod-host:5432/sports_betting_prod"
+DATABASE_HOST="prod-host"
+DATABASE_PORT="5432"
+DATABASE_NAME="sports_betting_prod"
+DATABASE_USER="sports_user"
+DATABASE_PASSWORD="secure_password"
 ODDS_API_KEY="production-key"
-ODDS_API_BASE_URL="https://api.the-odds-api.com/v4"
-ESPN_API_BASE_URL="https://site.api.espn.com/apis/site/v2"
-ODDS_SYNC_CRON="*/10 * * * *"
-BET_SETTLEMENT_CRON="*/5 * * * *"
+SESSION_SECRET="<64-char-random-string>"
+JWT_SECRET="<64-char-random-string>"
+CORS_ORIGIN="https://yourdomain.com"
+BASE_URL="https://api.yourdomain.com"
+ODDS_SYNC_INTERVAL="10"
+OUTCOME_CHECK_INTERVAL="5"
 PORT=3001
 NODE_ENV=production
-JWT_SECRET="<64-char-random-string>"
 ```
 
 **Build and Start**:
@@ -273,7 +298,7 @@ module.exports = {
 
 **Environment Variables** (.env.production):
 ```env
-VITE_API_BASE_URL=https://api.yourdomain.com/api
+VITE_API_URL=https://api.yourdomain.com/api
 ```
 
 **Build**:

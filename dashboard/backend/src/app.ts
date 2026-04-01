@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { env } from './config/env';
 import compression from 'compression';
 import { errorMiddleware } from './middleware/error.middleware';
 import { logger } from './config/logger';
@@ -11,7 +12,7 @@ const app = express();
 // Security & Performance Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: env.CORS_ORIGIN || '*',
   credentials: true
 }));
 app.use(compression());

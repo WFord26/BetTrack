@@ -10,7 +10,8 @@ This directory contains secrets for production Docker deployments.
    ├── db_user.txt
    ├── db_password.txt
    ├── odds_api_key.txt
-   └── session_secret.txt
+   ├── session_secret.txt
+   └── jwt_secret.txt
    ```
 
 2. Add your secrets (one value per file, no newlines):
@@ -19,6 +20,7 @@ This directory contains secrets for production Docker deployments.
    echo -n "your_secure_password_here" > secrets/db_password.txt
    echo -n "your_odds_api_key_here" > secrets/odds_api_key.txt
    echo -n "$(openssl rand -hex 32)" > secrets/session_secret.txt
+   echo -n "$(openssl rand -hex 32)" > secrets/jwt_secret.txt
    ```
 
 3. Secure the secrets directory:
@@ -28,8 +30,14 @@ This directory contains secrets for production Docker deployments.
 
 4. Start the stack:
    ```bash
-   docker-compose -f docker-compose.prod.yml up -d
+   docker compose -f docker-compose.prod.yml up -d
    ```
+
+The production backend entrypoint will:
+- Load Docker secrets from `/run/secrets/*`
+- Keep existing environment variables unless a secret overrides them
+- Build `DATABASE_URL` from `DATABASE_HOST` / `DATABASE_PORT` / `DATABASE_NAME` plus secret-loaded `DB_USER` and `DB_PASSWORD`
+- Fall back to `.env` values only when a variable is still unset
 
 ## Security Notes
 
@@ -67,8 +75,9 @@ export DB_USER="sports_user"
 export DB_PASSWORD="secure_password"
 export ODDS_API_KEY="your_api_key"
 export SESSION_SECRET="$(openssl rand -hex 32)"
+export JWT_SECRET="$(openssl rand -hex 32)"
 
-docker-compose up
+docker compose up
 ```
 
 The backend Docker image will automatically load both secrets and environment variables.

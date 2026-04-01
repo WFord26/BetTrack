@@ -60,7 +60,7 @@ Whether you're using Claude Desktop to research bets with natural language or th
 - **Timezone-aware** game filtering and scheduling
 - **PostgreSQL database** with Prisma ORM
 
-**📚 Learn More**: See [docs/ANALYTICS-IMPLEMENTATION-SUMMARY.md](docs/ANALYTICS-IMPLEMENTATION-SUMMARY.md) for complete planning details and [.github/ISSUE_TEMPLATE/](. github/ISSUE_TEMPLATE/) for feature specifications.
+**📚 Learn More**: See [docs/ANALYTICS-IMPLEMENTATION-SUMMARY.md](docs/ANALYTICS-IMPLEMENTATION-SUMMARY.md) for complete planning details and [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/) for feature specifications.
 
 ## Getting Started
 
@@ -70,7 +70,7 @@ For Claude Desktop integration with sports data tools:
 
 👉 **[Complete MCP Server Setup Guide](mcp/README.md)**
 
-Quick install: Download the latest `.mcpb` package from [Releases](https://github.com/yourusername/BetTrack/releases) and install via Claude Desktop settings.
+Quick install: Download the latest `.mcpb` package from [Releases](https://github.com/WFord26/BetTrack/releases) and install via Claude Desktop settings.
 
 ### Dashboard Installation
 
@@ -134,8 +134,8 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/yourusername/BetTrack/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/BetTrack/discussions)
+- **Issues:** [GitHub Issues](https://github.com/WFord26/BetTrack/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/WFord26/BetTrack/discussions)
 - **Documentation:** Project Wiki (coming soon)
 
 ---
@@ -144,6 +144,6 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 
 **Built with ❤️ for Claude Desktop and the sports betting community**
 
-[MCP Server Setup](mcp/README.md) · [Dashboard Guide](dashboard/README.md) · [Documentation](docs/) · [Releases](https://github.com/yourusername/BetTrack/releases)
+[MCP Server Setup](mcp/README.md) · [Dashboard Guide](dashboard/README.md) · [Documentation](docs/) · [Releases](https://github.com/WFord26/BetTrack/releases)
 
 </div>

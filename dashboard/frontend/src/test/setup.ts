@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 // Mock environment variables
-vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:3001');
+vi.stubEnv('VITE_API_URL', 'http://localhost:3001/api');
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
