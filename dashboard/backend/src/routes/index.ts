@@ -8,10 +8,12 @@ import apiKeysRoutes from './api-keys.routes';
 import aiBetsRoutes from './ai-bets.routes';
 import statsRoutes from './stats.routes';
 import analyticsCLVRoutes from './analytics-clv.routes';
+import authRoutes from './auth.routes';
 
 const router = Router();
 
 // Mount all routes
+router.use('/auth', authRoutes);
 router.use('/games', gamesRoutes);
 router.use('/bets', betsRoutes);
 router.use('/futures', futuresRoutes);

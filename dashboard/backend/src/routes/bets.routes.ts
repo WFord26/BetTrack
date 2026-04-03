@@ -4,6 +4,11 @@ import { betService } from '../services/bet.service';
 import { validateBody, validateParams, validateQuery } from '../middleware/validation.middleware';
 import { logger } from '../config/logger';
 import {
+  AuthenticatedRequest,
+  getScopedUserId,
+  requireSessionAuth
+} from '../middleware/session.auth';
+import {
   VALID_BET_TYPES,
   VALID_BET_STATUSES,
   VALID_SELECTION_TYPES,
@@ -11,6 +16,8 @@ import {
 } from '../types/bet.types';
 
 const router = Router();
+
+router.use(requireSessionAuth);
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -95,14 +102,16 @@ const uuidParamSchema = z.object({
 router.get(
   '/stats',
   validateQuery(getStatsQuerySchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const filters: any = {};
+      const userId = getScopedUserId(req);
 
       if (req.query.sportKey) filters.sportKey = req.query.sportKey;
       if (req.query.betType) filters.betType = req.query.betType;
       if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
       if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
+      if (userId) filters.userId = userId;
 
       const stats = await betService.getStats(filters);
 
@@ -123,9 +132,10 @@ router.get(
 router.get(
   '/',
   validateQuery(getBetsQuerySchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const filters: any = {};
+      const userId = getScopedUserId(req);
 
       // Handle status (can be comma-separated)
       if (req.query.status) {
@@ -141,6 +151,7 @@ router.get(
       if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
       if (req.query.limit) filters.limit = Number(req.query.limit);
       if (req.query.offset) filters.offset = Number(req.query.offset);
+      if (userId) filters.userId = userId;
 
       const result = await betService.getBets(filters);
 
@@ -163,9 +174,9 @@ router.get(
 router.get(
   '/:id',
   validateParams(uuidParamSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const bet = await betService.getBetById(req.params.id);
+      const bet = await betService.getBetById(req.params.id, getScopedUserId(req));
 
       if (!bet) {
         return res.status(404).json({
@@ -191,9 +202,9 @@ router.get(
 router.post(
   '/',
   validateBody(createBetSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const bet = await betService.createBet(req.body);
+      const bet = await betService.createBet(req.body, getScopedUserId(req));
 
       res.status(201).json({
         status: 'success',
@@ -214,9 +225,9 @@ router.patch(
   '/:id',
   validateParams(uuidParamSchema),
   validateBody(updateBetSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const bet = await betService.updateBet(req.params.id, req.body);
+      const bet = await betService.updateBet(req.params.id, req.body, getScopedUserId(req));
 
       res.json({
         status: 'success',
@@ -236,10 +247,10 @@ router.patch(
 router.delete(
   '/:id',
   validateParams(uuidParamSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const force = req.query.force === 'true';
-      await betService.cancelBet(req.params.id, force);
+      await betService.cancelBet(req.params.id, force, getScopedUserId(req));
 
       res.json({
         status: 'success',
@@ -260,10 +271,15 @@ router.post(
   '/:id/settle',
   validateParams(uuidParamSchema),
   validateBody(settleBetSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { status, actualPayout } = req.body;
-      const bet = await betService.settleBet(req.params.id, status, actualPayout);
+      const bet = await betService.settleBet(
+        req.params.id,
+        status,
+        actualPayout,
+        getScopedUserId(req)
+      );
 
       res.json({
         status: 'success',

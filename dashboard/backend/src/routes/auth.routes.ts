@@ -1,79 +1,153 @@
+import crypto from 'crypto';
 import express, { Request, Response } from 'express';
-import passport from '../config/passport';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import {
+  createAuthenticatedSession,
+  destroyAuthSession,
+  ensureAuthSession,
+} from '../middleware/auth-session.middleware';
 import { isAuthEnabled } from '../middleware/session.auth';
+import { OAuthError, oauthService } from '../services/oauth.service';
+import type { AuthProvider } from '../types/auth.types';
 
 const router = express.Router();
 
-// Auth status endpoint
+function sanitizeRedirectPath(value: unknown): string {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) {
+    return '/';
+  }
+
+  return value;
+}
+
+function getProviderError(provider: AuthProvider): string {
+  return provider === 'google' ? 'google_auth_failed' : 'microsoft_auth_failed';
+}
+
+function redirectToFrontend(res: Response, path: string) {
+  res.redirect(oauthService.buildFrontendRedirect(path));
+}
+
+function ensureOAuthProvider(req: Request, res: Response, provider: AuthProvider): boolean {
+  if (!isAuthEnabled()) {
+    res.status(404).json({
+      error: 'Authentication is not enabled',
+    });
+    return false;
+  }
+
+  if (!oauthService.isProviderConfigured(provider)) {
+    res.status(404).json({
+      error: `${provider} authentication is not configured`,
+    });
+    return false;
+  }
+
+  return true;
+}
+
+async function beginOAuth(req: Request, res: Response, provider: AuthProvider) {
+  if (!ensureOAuthProvider(req, res, provider)) {
+    return;
+  }
+
+  const session = ensureAuthSession(req, res);
+  const redirectPath = sanitizeRedirectPath(req.query.redirectTo);
+  const state = crypto.randomBytes(24).toString('hex');
+
+  session.oauthState = state;
+  session.oauthProvider = provider;
+  session.redirectPath = redirectPath;
+
+  const authorizationUrl = oauthService.buildAuthorizationUrl(provider, state);
+  res.redirect(authorizationUrl);
+}
+
+async function handleOAuthCallback(req: Request, res: Response, provider: AuthProvider) {
+  const providerError = getProviderError(provider);
+
+  if (!ensureOAuthProvider(req, res, provider)) {
+    return;
+  }
+
+  const session = req.authSession;
+  const code = typeof req.query.code === 'string' ? req.query.code : null;
+  const state = typeof req.query.state === 'string' ? req.query.state : null;
+
+  if (typeof req.query.error === 'string') {
+    redirectToFrontend(res, `/login?error=${providerError}`);
+    return;
+  }
+
+  if (
+    !session ||
+    !code ||
+    !state ||
+    session.oauthState !== state ||
+    session.oauthProvider !== provider
+  ) {
+    destroyAuthSession(req, res);
+    redirectToFrontend(res, `/login?error=${providerError}`);
+    return;
+  }
+
+  try {
+    const user = await oauthService.authenticate(provider, code);
+    const redirectPath = sanitizeRedirectPath(session.redirectPath);
+
+    createAuthenticatedSession(req, res, user, redirectPath);
+    logger.info(`User logged in via ${provider}: ${user.email}`);
+
+    redirectToFrontend(res, redirectPath);
+  } catch (error) {
+    const redirectError = error instanceof OAuthError
+      ? error.redirectError
+      : providerError;
+
+    logger.error(`OAuth callback failed for ${provider}:`, error);
+    destroyAuthSession(req, res);
+    redirectToFrontend(res, `/login?error=${redirectError}`);
+  }
+}
+
 router.get('/status', (req: Request, res: Response) => {
   res.json({
     authEnabled: isAuthEnabled(),
     authMode: env.AUTH_MODE,
     user: req.user || null,
-    providers: {
-      microsoft: !!env.MICROSOFT_CLIENT_ID,
-      google: !!env.GOOGLE_CLIENT_ID
-    }
+    providers: oauthService.getAvailableProviders(),
   });
 });
 
-// Microsoft/Azure AD OAuth2 routes
-if (env.AUTH_MODE === 'oauth2' && env.MICROSOFT_CLIENT_ID) {
-  router.get('/microsoft', passport.authenticate('azure_ad_oauth2', {
-    scope: ['openid', 'profile', 'email']
-  }));
+router.get('/google', async (req: Request, res: Response) => {
+  await beginOAuth(req, res, 'google');
+});
 
-  router.get('/microsoft/callback',
-    passport.authenticate('azure_ad_oauth2', { failureRedirect: '/login?error=microsoft_auth_failed' }),
-    (req: Request, res: Response) => {
-      logger.info(`User logged in via Microsoft: ${(req.user as any)?.email}`);
-      res.redirect('/');
-    }
-  );
-}
+router.get('/google/callback', async (req: Request, res: Response) => {
+  await handleOAuthCallback(req, res, 'google');
+});
 
-// Google OAuth2 routes
-if (env.AUTH_MODE === 'oauth2' && env.GOOGLE_CLIENT_ID) {
-  router.get('/google', passport.authenticate('google', {
-    scope: ['openid', 'profile', 'email']
-  }));
+router.get('/microsoft', async (req: Request, res: Response) => {
+  await beginOAuth(req, res, 'microsoft');
+});
 
-  router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: '/login?error=google_auth_failed' }),
-    (req: Request, res: Response) => {
-      logger.info(`User logged in via Google: ${(req.user as any)?.email}`);
-      res.redirect('/');
-    }
-  );
-}
+router.get('/microsoft/callback', async (req: Request, res: Response) => {
+  await handleOAuthCallback(req, res, 'microsoft');
+});
 
-// Logout route
 router.post('/logout', (req: Request, res: Response) => {
   if (!isAuthEnabled()) {
     return res.json({ success: true, message: 'Auth not enabled' });
   }
 
-  const userEmail = (req.user as any)?.email;
-  
-  req.logout((err) => {
-    if (err) {
-      logger.error('Logout error:', err);
-      return res.status(500).json({ error: 'Logout failed' });
-    }
-    
-    req.session.destroy((err) => {
-      if (err) {
-        logger.error('Session destruction error:', err);
-      }
-      logger.info(`User logged out: ${userEmail}`);
-      res.json({ success: true });
-    });
-  });
+  const userEmail = req.user?.email;
+  destroyAuthSession(req, res);
+  logger.info(`User logged out: ${userEmail || 'unknown user'}`);
+
+  return res.json({ success: true });
 });
 
-// Current user endpoint
 router.get('/me', (req: Request, res: Response) => {
   if (!isAuthEnabled()) {
     return res.json({ user: null, authEnabled: false });
@@ -83,9 +157,9 @@ router.get('/me', (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  res.json({
+  return res.json({
     user: req.user,
-    authEnabled: true
+    authEnabled: true,
   });
 });
 

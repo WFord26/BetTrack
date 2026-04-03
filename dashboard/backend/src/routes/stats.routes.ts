@@ -1,9 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../config/logger';
+import { requireSessionAuth } from '../middleware/session.auth';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+router.use(requireSessionAuth);
 
 // GET /api/stats/game/:gameId
 // Enhanced with historical team averages

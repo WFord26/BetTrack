@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
+import { requireSessionAuth } from '../middleware/session.auth';
 
 const router = Router();
+
+router.use(requireSessionAuth);
 
 /**
  * GET /api/futures

@@ -5,14 +5,26 @@ import { env } from './config/env';
 import compression from 'compression';
 import { errorMiddleware } from './middleware/error.middleware';
 import { logger } from './config/logger';
+import { attachAuthSession } from './middleware/auth-session.middleware';
 import routes from './routes';
 
 const app = express();
+const allowedOrigins = (env.CORS_ORIGIN || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
 
 // Security & Performance Middleware
 app.use(helmet());
 app.use(cors({
-  origin: env.CORS_ORIGIN || '*',
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Origin not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(compression());
@@ -20,6 +32,7 @@ app.use(compression());
 // Body Parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(attachAuthSession);
 
 // Request Logging
 app.use((req: Request, res: Response, next) => {

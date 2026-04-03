@@ -2,18 +2,23 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { generateApiKey, hashApiKey, getKeyPrefix } from '../utils/api-key-generator';
+import {
+  AuthenticatedRequest,
+  getScopedUserId,
+  requireSessionAuth
+} from '../middleware/session.auth';
 
 const router = Router();
+
+router.use(requireSessionAuth);
 
 /**
  * GET /api/keys
  * List all API keys for current user (or all in standalone mode)
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // In standalone mode (no auth), show all keys
-    // In auth mode, filter by userId from session
-    const userId = (req as any).session?.user?.id || null;
+    const userId = getScopedUserId(req);
     
     const apiKeys = await prisma.apiKey.findMany({
       where: userId ? { userId } : {},
@@ -50,7 +55,7 @@ router.get('/', async (req: Request, res: Response) => {
  * POST /api/keys
  * Create a new API key
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { name, permissions, expiresAt } = req.body;
 
@@ -62,8 +67,7 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    // Get userId from session if in auth mode
-    const userId = (req as any).session?.user?.id || null;
+    const userId = getScopedUserId(req) || null;
 
     // Generate API key
     const plainKey = generateApiKey();
@@ -139,13 +143,12 @@ router.post('/', async (req: Request, res: Response) => {
  * PUT /api/keys/:id
  * Update an API key's name or permissions
  */
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { name, permissions } = req.body;
 
-    // Get userId from session if in auth mode
-    const userId = (req as any).session?.user?.id || null;
+    const userId = getScopedUserId(req) || null;
 
     // Find existing key
     const existingKey = await prisma.apiKey.findUnique({
@@ -215,12 +218,11 @@ router.put('/:id', async (req: Request, res: Response) => {
  * DELETE /api/keys/:id
  * Revoke (soft delete) an API key
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Get userId from session if in auth mode
-    const userId = (req as any).session?.user?.id || null;
+    const userId = getScopedUserId(req) || null;
 
     // Find existing key
     const existingKey = await prisma.apiKey.findUnique({

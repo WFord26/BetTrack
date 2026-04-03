@@ -1,7 +1,6 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { logger } from '../config/logger';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
 
 /**
  * CLV (Closing Line Value) Service
@@ -129,9 +128,16 @@ export class CLVService {
    * Calculate CLV for all bet legs in a bet
    */
   async calculateCLVForBet(betId: string): Promise<void> {
+    await this.calculateCLVForBetForUser(betId);
+  }
+
+  async calculateCLVForBetForUser(betId: string, userId?: string): Promise<void> {
     try {
-      const bet = await prisma.bet.findUnique({
-        where: { id: betId },
+      const bet = await prisma.bet.findFirst({
+        where: {
+          id: betId,
+          ...(userId ? { userId } : {}),
+        },
         include: { legs: true }
       });
 
@@ -157,7 +163,7 @@ export class CLVService {
    * Generate CLV report for a user
    */
   async generateCLVReport(
-    userId: string,
+    userId?: string,
     filters?: {
       sportKey?: string;
       betType?: string;
@@ -198,18 +204,33 @@ export class CLVService {
   }> {
     try {
       // Build where clause
+      const betWhere: any = {
+        ...(userId ? { userId } : {}),
+        ...(filters?.betType && { betType: filters.betType }),
+        clv: { not: null }
+      };
+
+      if (filters?.startDate || filters?.endDate) {
+        betWhere.placedAt = {};
+        if (filters?.startDate) {
+          betWhere.placedAt.gte = filters.startDate;
+        }
+        if (filters?.endDate) {
+          betWhere.placedAt.lte = filters.endDate;
+        }
+      }
+
       const where: any = {
-        bet: {
-          userId,
-          ...(filters?.betType && { betType: filters.betType }),
-          ...(filters?.startDate && { createdAt: { gte: filters.startDate } }),
-          ...(filters?.endDate && { createdAt: { lte: filters.endDate } })
-        },
+        bet: betWhere,
         clv: { not: null }
       };
 
       if (filters?.sportKey) {
-        where.game = { sportKey: filters.sportKey };
+        where.game = {
+          sport: {
+            key: filters.sportKey
+          }
+        };
       }
 
       // Get all bet legs with CLV data
@@ -298,7 +319,7 @@ export class CLVService {
         worstBets
       };
     } catch (error) {
-      logger.error(`Error generating CLV report for user ${userId}:`, error);
+      logger.error(`Error generating CLV report for user ${userId || 'all-users'}:`, error);
       throw error;
     }
   }
@@ -307,8 +328,13 @@ export class CLVService {
    * Update aggregated CLV stats for a user
    * Should be called after bets are settled
    */
-  async updateCLVStats(userId: string): Promise<void> {
+  async updateCLVStats(userId?: string): Promise<void> {
     try {
+      if (!userId) {
+        logger.info('Skipping CLV stats update because no scoped user was provided');
+        return;
+      }
+
       // Get all bet legs with CLV data
       const betLegs = await prisma.betLeg.findMany({
         where: {

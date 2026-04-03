@@ -5,6 +5,7 @@ import { oddsSyncService } from '../services/odds-sync.service';
 import { futuresSyncService } from '../services/futures-sync.service';
 import { outcomeResolverService } from '../services/outcome-resolver.service';
 import { getOddsSyncStatus } from '../jobs/sync-odds.job';
+import { requireAdminAccess } from '../middleware/session.auth';
 
 const router = Router();
 
@@ -18,6 +19,14 @@ const SPORTS = [
   { key: 'soccer_epl', name: 'EPL', groupName: 'Soccer', isActive: false },
   { key: 'soccer_uefa_champs_league', name: 'UEFA Champions League', groupName: 'Soccer', isActive: false },
 ];
+
+router.use((req, res, next) => {
+  if (req.method === 'GET' && req.path === '/site-config') {
+    return next();
+  }
+
+  return requireAdminAccess(req, res, next);
+});
 
 /**
  * POST /api/admin/init-sports

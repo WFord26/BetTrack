@@ -35,7 +35,7 @@ export class BetService {
   /**
    * Create a new bet
    */
-  async createBet(data: CreateBetInput): Promise<BetResponse> {
+  async createBet(data: CreateBetInput, userId?: string): Promise<BetResponse> {
     logger.info(`Creating ${data.betType} bet: ${data.name}`);
     
     // Debug logging for boost
@@ -73,6 +73,7 @@ export class BetService {
       // Create bet record
       const bet = await tx.bet.create({
         data: {
+          userId: userId || null,
           name: data.name,
           betType: data.betType,
           stake: new Decimal(data.stake),
@@ -191,6 +192,10 @@ export class BetService {
     // Build where clause
     const where: any = {};
 
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
+
     if (filters.status) {
       where.status = Array.isArray(filters.status)
         ? { in: filters.status }
@@ -259,9 +264,12 @@ export class BetService {
   /**
    * Get bet by ID
    */
-  async getBetById(id: string): Promise<BetResponse | null> {
-    const bet = await prisma.bet.findUnique({
-      where: { id },
+  async getBetById(id: string, userId?: string): Promise<BetResponse | null> {
+    const bet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
       include: {
         legs: {
           include: {
@@ -299,10 +307,13 @@ export class BetService {
   /**
    * Update a bet
    */
-  async updateBet(id: string, data: UpdateBetInput): Promise<BetResponse> {
+  async updateBet(id: string, data: UpdateBetInput, userId?: string): Promise<BetResponse> {
     // Get existing bet
-    const existingBet = await prisma.bet.findUnique({
-      where: { id },
+    const existingBet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
       include: {
         legs: {
           include: {
@@ -360,16 +371,19 @@ export class BetService {
 
     logger.info(`Updated bet ${id}`);
 
-    return this.getBetById(id) as Promise<BetResponse>;
+    return this.getBetById(id, userId) as Promise<BetResponse>;
   }
 
   /**
    * Cancel a bet
    */
-  async cancelBet(id: string, force: boolean = false): Promise<void> {
+  async cancelBet(id: string, force: boolean = false, userId?: string): Promise<void> {
     // Get bet with legs
-    const bet = await prisma.bet.findUnique({
-      where: { id },
+    const bet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
       include: {
         legs: {
           include: {
@@ -403,7 +417,7 @@ export class BetService {
 
     // Delete bet (legs will cascade)
     await prisma.bet.delete({
-      where: { id }
+      where: { id: bet.id }
     });
 
     logger.info(`${force ? 'Force deleted' : 'Cancelled'} bet ${id}`);
@@ -415,10 +429,14 @@ export class BetService {
   async settleBet(
     id: string,
     status: 'won' | 'lost' | 'push',
-    actualPayout?: number
+    actualPayout?: number,
+    userId?: string
   ): Promise<BetResponse> {
-    const bet = await prisma.bet.findUnique({
-      where: { id },
+    const bet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
       select: { status: true, stake: true, potentialPayout: true }
     });
 
@@ -454,7 +472,7 @@ export class BetService {
 
     logger.info(`Settled bet ${id}: ${status}`);
 
-    return this.getBetById(id) as Promise<BetResponse>;
+    return this.getBetById(id, userId) as Promise<BetResponse>;
   }
 
   /**
@@ -463,6 +481,10 @@ export class BetService {
   async getStats(filters: StatsFilters = {}): Promise<BetStats> {
     // Build where clause
     const where: any = {};
+
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
 
     if (filters.betType) {
       where.betType = filters.betType;

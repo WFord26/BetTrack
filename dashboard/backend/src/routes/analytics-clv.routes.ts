@@ -1,26 +1,23 @@
 import { Router, Request, Response } from 'express';
 import { clvService } from '../services/clv.service';
 import { logger } from '../config/logger';
+import {
+  AuthenticatedRequest,
+  getScopedUserId,
+  requireSessionAuth
+} from '../middleware/session.auth';
 
 const router = Router();
 
-// Type declaration for user property (will be added by auth middleware in future)
-interface RequestWithUser extends Request {
-  user?: {
-    id: string;
-  };
-}
+router.use(requireSessionAuth);
 
 /**
  * GET /api/analytics/clv/summary
  * Get user's overall CLV summary statistics
  */
-router.get('/summary', async (req: Request, res: Response) => {
+router.get('/summary', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // In standalone mode, use default user ID
-    const userId = (req as RequestWithUser).user?.id || 'default-user-id';
-
-    const report = await clvService.generateCLVReport(userId);
+    const report = await clvService.generateCLVReport(getScopedUserId(req));
 
     res.json({
       success: true,
@@ -39,11 +36,9 @@ router.get('/summary', async (req: Request, res: Response) => {
  * GET /api/analytics/clv/by-sport
  * Get CLV breakdown by sport
  */
-router.get('/by-sport', async (req: Request, res: Response) => {
+router.get('/by-sport', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = (req as RequestWithUser).user?.id || 'default-user-id';
-
-    const report = await clvService.generateCLVReport(userId);
+    const report = await clvService.generateCLVReport(getScopedUserId(req));
 
     res.json({
       success: true,
@@ -62,11 +57,9 @@ router.get('/by-sport', async (req: Request, res: Response) => {
  * GET /api/analytics/clv/by-bookmaker
  * Get CLV breakdown by bookmaker
  */
-router.get('/by-bookmaker', async (req: Request, res: Response) => {
+router.get('/by-bookmaker', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = (req as RequestWithUser).user?.id || 'default-user-id';
-
-    const report = await clvService.generateCLVReport(userId);
+    const report = await clvService.generateCLVReport(getScopedUserId(req));
 
     res.json({
       success: true,
@@ -85,9 +78,8 @@ router.get('/by-bookmaker', async (req: Request, res: Response) => {
  * GET /api/analytics/clv/trends
  * Get CLV trends over time with filtering
  */
-router.get('/trends', async (req: Request, res: Response) => {
+router.get('/trends', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = (req as RequestWithUser).user?.id || 'default-user-id';
     const { sportKey, betType, startDate, endDate } = req.query;
 
     const filters: any = {};
@@ -96,7 +88,7 @@ router.get('/trends', async (req: Request, res: Response) => {
     if (startDate) filters.startDate = new Date(startDate as string);
     if (endDate) filters.endDate = new Date(endDate as string);
 
-    const report = await clvService.generateCLVReport(userId, filters);
+    const report = await clvService.generateCLVReport(getScopedUserId(req), filters);
 
     res.json({
       success: true,
@@ -121,9 +113,8 @@ router.get('/trends', async (req: Request, res: Response) => {
  * GET /api/analytics/clv/report
  * Get full CLV report with all details
  */
-router.get('/report', async (req: Request, res: Response) => {
+router.get('/report', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = (req as RequestWithUser).user?.id || 'default-user-id';
     const { sportKey, betType, startDate, endDate } = req.query;
 
     const filters: any = {};
@@ -132,7 +123,7 @@ router.get('/report', async (req: Request, res: Response) => {
     if (startDate) filters.startDate = new Date(startDate as string);
     if (endDate) filters.endDate = new Date(endDate as string);
 
-    const report = await clvService.generateCLVReport(userId, filters);
+    const report = await clvService.generateCLVReport(getScopedUserId(req), filters);
 
     res.json({
       success: true,
@@ -151,11 +142,11 @@ router.get('/report', async (req: Request, res: Response) => {
  * POST /api/analytics/clv/calculate/:betId
  * Calculate CLV for a specific bet
  */
-router.post('/calculate/:betId', async (req: Request, res: Response) => {
+router.post('/calculate/:betId', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { betId } = req.params;
 
-    await clvService.calculateCLVForBet(betId);
+    await clvService.calculateCLVForBetForUser(betId, getScopedUserId(req));
 
     res.json({
       success: true,
@@ -174,11 +165,9 @@ router.post('/calculate/:betId', async (req: Request, res: Response) => {
  * POST /api/analytics/clv/update-stats
  * Update aggregated CLV stats for current user
  */
-router.post('/update-stats', async (req: Request, res: Response) => {
+router.post('/update-stats', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = (req as RequestWithUser).user?.id || 'default-user-id';
-
-    await clvService.updateCLVStats(userId);
+    await clvService.updateCLVStats(getScopedUserId(req));
 
     res.json({
       success: true,

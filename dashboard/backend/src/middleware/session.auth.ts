@@ -1,14 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import type { AuthenticatedUser } from '../types/auth.types';
 
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    name?: string;
-    provider: string;
-  };
+  user?: AuthenticatedUser;
 }
 
 /**
@@ -23,7 +19,7 @@ export function requireSessionAuth(req: AuthenticatedRequest, res: Response, nex
   }
 
   // OAuth2 mode - check authentication
-  if (req.isAuthenticated && req.isAuthenticated()) {
+  if (req.user) {
     return next();
   }
 
@@ -56,6 +52,32 @@ export function getUserId(req: AuthenticatedRequest): string | null {
   }
   
   return req.user?.id || null;
+}
+
+export function getScopedUserId(req: AuthenticatedRequest): string | undefined {
+  if (env.AUTH_MODE === 'none') {
+    return undefined;
+  }
+
+  return req.user?.id;
+}
+
+export function requireAdminAccess(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (env.AUTH_MODE === 'none') {
+    return next();
+  }
+
+  if (!req.user) {
+    logger.warn(`Unauthorized admin access attempt to ${req.path}`);
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  if (!req.user.isAdmin) {
+    logger.warn(`Forbidden admin access attempt by ${req.user.email} to ${req.path}`);
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  return next();
 }
 
 /**
