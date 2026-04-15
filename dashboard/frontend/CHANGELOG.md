@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.8] - 2026-04-14
+
 ### Fixed
 - **CLV test suite TypeScript errors**: Resolved 27 TypeScript compilation errors in `clvSlice.test.ts`
   and `test/test-utils.tsx` by adding proper `RootState`/`AppDispatch` type imports, type assertions

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.5] - 2026-04-14
+
 ### Fixed
 - **Bump script changelog order**: Corrected `bump-version.mjs` replacement so `[Unreleased]` section
   stays at the top with a `---` separator and versioned release is inserted below it
