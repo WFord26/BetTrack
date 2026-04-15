@@ -22,6 +22,7 @@ import {
 } from '../utils/odds-calculator';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Prisma } from '@prisma/client';
+import type { Sport } from '../types/betting.types';
 
 // ---------------------------------------------------------------------------
 // Prisma payload types for strongly-typed format helpers
@@ -914,7 +915,7 @@ export class BetService {
       const teaserOdds = getTeaserOdds(
         data.legs.length,
         data.teaserPoints,
-        firstLegSport
+        firstLegSport as Sport
       );
 
       if (!teaserOdds) {
