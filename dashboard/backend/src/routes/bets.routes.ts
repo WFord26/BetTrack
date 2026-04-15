@@ -12,7 +12,9 @@ import {
   VALID_BET_TYPES,
   VALID_BET_STATUSES,
   VALID_SELECTION_TYPES,
-  VALID_SELECTIONS
+  VALID_SELECTIONS,
+  BetFilters,
+  StatsFilters
 } from '../types/bet.types';
 
 const router = Router();
@@ -104,11 +106,11 @@ router.get(
   validateQuery(getStatsQuerySchema),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const filters: any = {};
+      const filters: StatsFilters = {};
       const userId = getScopedUserId(req);
 
-      if (req.query.sportKey) filters.sportKey = req.query.sportKey;
-      if (req.query.betType) filters.betType = req.query.betType;
+      if (req.query.sportKey) filters.sportKey = req.query.sportKey as string;
+      if (req.query.betType) filters.betType = req.query.betType as StatsFilters['betType'];
       if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
       if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
       if (userId) filters.userId = userId;
@@ -134,19 +136,19 @@ router.get(
   validateQuery(getBetsQuerySchema),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const filters: any = {};
+      const filters: BetFilters = {};
       const userId = getScopedUserId(req);
 
       // Handle status (can be comma-separated)
       if (req.query.status) {
         const statusStr = req.query.status as string;
         filters.status = statusStr.includes(',')
-          ? statusStr.split(',')
-          : statusStr;
+          ? (statusStr.split(',') as BetFilters['status'])
+          : (statusStr as BetFilters['status']);
       }
 
-      if (req.query.betType) filters.betType = req.query.betType;
-      if (req.query.sportKey) filters.sportKey = req.query.sportKey;
+      if (req.query.betType) filters.betType = req.query.betType as BetFilters['betType'];
+      if (req.query.sportKey) filters.sportKey = req.query.sportKey as string;
       if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
       if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
       if (req.query.limit) filters.limit = Number(req.query.limit);
