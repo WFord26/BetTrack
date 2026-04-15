@@ -7,7 +7,7 @@ import {
   AuthenticatedRequest,
   getScopedUserId,
   requireSessionAuth
-} from '../middleware/session.auth';
+} from '../middleware/auth-session.middleware';
 import {
   VALID_BET_TYPES,
   VALID_BET_STATUSES,

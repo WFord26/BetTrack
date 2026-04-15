@@ -6,8 +6,8 @@ import {
   createAuthenticatedSession,
   destroyAuthSession,
   ensureAuthSession,
+  isAuthEnabled,
 } from '../middleware/auth-session.middleware';
-import { isAuthEnabled } from '../middleware/session.auth';
 import { OAuthError, oauthService } from '../services/oauth.service';
 import type { AuthProvider } from '../types/auth.types';
 

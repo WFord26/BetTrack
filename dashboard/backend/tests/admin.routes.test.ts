@@ -76,6 +76,13 @@ jest.mock('../src/jobs/sync-odds.job', () => ({
   getOddsSyncStatus: jest.fn()
 }));
 
+jest.mock('../src/middleware/auth-session.middleware', () => ({
+  requireAdminAccess: jest.fn((_req: any, _res: any, next: any) => next()),
+  requireSessionAuth: jest.fn((_req: any, _res: any, next: any) => next()),
+  isAuthEnabled: jest.fn(() => false),
+  attachAuthSession: jest.fn((_req: any, _res: any, next: any) => next()),
+}));
+
 describe('Admin Routes', () => {
   let app: express.Application;
 

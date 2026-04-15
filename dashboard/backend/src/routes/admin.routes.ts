@@ -5,7 +5,7 @@ import { oddsSyncService } from '../services/odds-sync.service';
 import { futuresSyncService } from '../services/futures-sync.service';
 import { outcomeResolverService } from '../services/outcome-resolver.service';
 import { getOddsSyncStatus } from '../jobs/sync-odds.job';
-import { requireAdminAccess } from '../middleware/session.auth';
+import { requireAdminAccess } from '../middleware/auth-session.middleware';
 
 const router = Router();
 

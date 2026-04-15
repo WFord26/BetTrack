@@ -50,15 +50,20 @@ jest.mock('../src/config/logger', () => ({
   }
 }));
 
-jest.mock('../src/middleware/session.auth', () => ({
-  isAuthEnabled: jest.fn(() => true)
+jest.mock('../src/middleware/auth-session.middleware', () => ({
+  isAuthEnabled: jest.fn(() => true),
+  attachAuthSession: jest.fn((_req: any, _res: any, next: any) => next()),
+  ensureAuthSession: jest.fn(async (_req: any, _res: any) => ({ id: 'mock-session-id', expiresAt: Date.now() + 86400000 })),
+  createAuthenticatedSession: jest.fn(async () => {}),
+  destroyAuthSession: jest.fn(async () => {}),
+  saveAuthSession: jest.fn(async () => {}),
 }));
 
 // Import after mocks
 import authRoutes from '../src/routes/auth.routes';
 import { env } from '../src/config/env';
 import { logger } from '../src/config/logger';
-import { isAuthEnabled } from '../src/middleware/session.auth';
+import { isAuthEnabled } from '../src/middleware/auth-session.middleware';
 
 describe('Auth Routes', () => {
   let app: express.Application;
