@@ -244,7 +244,7 @@ router.patch(
 
 /**
  * DELETE /api/bets/:id
- * Delete bet (supports ?force=true to delete any bet)
+ * Delete bet (supports ?force=true to delete any bet, requires admin)
  */
 router.delete(
   '/:id',
@@ -252,6 +252,17 @@ router.delete(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const force = req.query.force === 'true';
+
+      // Force delete requires admin access
+      if (force && !req.user?.isAdmin) {
+        const userEmail = req.user?.email || 'unknown';
+        logger.warn(`Unauthorized force delete attempt by ${userEmail} for bet ${req.params.id}`);
+        return res.status(403).json({
+          status: 'error',
+          message: 'Admin access required to force delete bets'
+        });
+      }
+
       await betService.cancelBet(req.params.id, force, getScopedUserId(req));
 
       res.json({

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Site config PUT lacks Zod validation** (admin.routes.ts): Added URL validation using Zod schema with `.url()` validator
+  for logoUrl and domainUrl fields to prevent XSS attacks via malicious URLs
+- **Force delete bypass authorization** (bets.routes.ts): Added admin authorization check for force delete query parameter
+  - Force deletes now return 403 Forbidden if non-admin user attempts the operation
+  - Regular users can still cancel their own pending bets without games started
+  - Only admins can use ?force=true to bypass settlement/game-started validation
+
 ---
 
 ## [0.2.10] - 2026-04-14
