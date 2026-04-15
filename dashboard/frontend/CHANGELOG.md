@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Separate backend (v0.2.2) and frontend (v0.3.2) version display
   - API requests counter now only visible in development environment
   - Responsible gaming link to National Council on Problem Gambling
+
+### Fixed
+- **CLV Test Suite Type Safety**: Fixed 27 TypeScript errors in `clvSlice.test.ts` and `test-utils.tsx`
+  - Properly typed Redux store access with correct state and dispatch types
+  - Fixed async thunk dispatch type casting for `fetchCLVSummary`, `fetchCLVBySport`, `fetchCLVByBookmaker`, `fetchCLVTrends`, `fetchCLVReport`
+  - Improved `preloadedState` handling in test utilities with proper type assertions
+  - Updated test store creation to use correct Redux Toolkit configuration patterns
   - GitHub repository link
   - Disclaimer section with 1-800-GAMBLER helpline
   - Monospace font matching 8-bit theme

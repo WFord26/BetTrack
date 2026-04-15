@@ -475,6 +475,37 @@ function updateDependencySpecifier(currentSpecifier, newVersion) {
   return currentSpecifier;
 }
 
+function getTodayDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function updateChangelog(changelogPath, newVersion) {
+  if (!existsSync(changelogPath)) {
+    return false;
+  }
+
+  let content = readFileSync(changelogPath, "utf8");
+
+  // Look for the [Unreleased] section
+  const unreleasedPattern = /^## \[Unreleased\]\n/m;
+  if (!unreleasedPattern.test(content)) {
+    return false;
+  }
+
+  const today = getTodayDate();
+  const versionHeader = `## [${newVersion}] - ${today}`;
+
+  // Replace [Unreleased] with the versioned header
+  content = content.replace(unreleasedPattern, `${versionHeader}\n\n## [Unreleased]\n\n`);
+
+  writeFileSync(changelogPath, content, "utf8");
+  return true;
+}
+
 function updateLocalDependencies(packages, bumpedByKey) {
   for (const pkg of packages) {
     let changed = false;
@@ -578,6 +609,7 @@ async function main() {
     }
   }
 
+  let changelogUpdates = new Map();
   if (bumpedByKey.size > 0) {
     console.log(`\n🔗 Updating internal dependencies...`);
     updateLocalDependencies(packages, bumpedByKey);
@@ -587,8 +619,14 @@ async function main() {
       if (pkg) {
         pkg.manifest.version = newVersion;
         writeJson(pkg.manifestPathAbs, pkg.manifest);
+
+        // Try to update CHANGELOG.md
+        const changelogPath = path.join(path.dirname(pkg.manifestPathAbs), "CHANGELOG.md");
+        const updated = updateChangelog(changelogPath, newVersion);
+        changelogUpdates.set(key, updated);
       }
     }
+
   }
 
   const newSnapshot = { schemaVersion: HASH_STATE_VERSION, packages: currentSnapshot };
@@ -602,12 +640,37 @@ async function main() {
         const pkg = packages.find((p) => p.key === key);
         console.log(`   ${pkg?.manifestPath}: ${pkg?.manifest.version}`);
       }
+      console.log("\nWould update CHANGELOG.md files:");
+      const today = getTodayDate();
+      for (const [key, newVersion] of bumpedByKey) {
+        if (changelogUpdates.get(key)) {
+          console.log(
+            `   ${key}/CHANGELOG.md: [Unreleased] → [${newVersion}] - ${today}`
+          );
+        } else {
+          console.log(`   ${key}/CHANGELOG.md: (not found, skipped)`);
+        }
+      }
     }
   } else {
     writeJson(HASH_STATE_PATH, newSnapshot);
     console.log("\n✅ Updated .bump-hashes.json");
     if (bumpedByKey.size > 0) {
       console.log("✅ Updated package.json versions");
+      const updated = Array.from(changelogUpdates.entries()).filter(([, v]) => v);
+      if (updated.length > 0) {
+        console.log("✅ Updated CHANGELOG.md files:");
+        for (const [key] of updated) {
+          console.log(`   ${key}/CHANGELOG.md`);
+        }
+      }
+      const skipped = Array.from(changelogUpdates.entries()).filter(([, v]) => !v);
+      if (skipped.length > 0) {
+        console.log("⏭️  Skipped CHANGELOG.md files (not found):");
+        for (const [key] of skipped) {
+          console.log(`   ${key}/CHANGELOG.md`);
+        }
+      }
     }
   }
 

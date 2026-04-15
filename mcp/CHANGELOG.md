@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`LEAGUE_SPORT_MAP` constant**: Centralised dictionary mapping league codes to
   (ESPN sport type, display name) tuples, shared across scoreboard tools to prevent
   duplicated hard-coded strings.
+- **Version Bump System**: Automated semantic versioning for monorepo components (dev branch)
+  - File hashing system (`scripts/bump-version.mjs`) to detect changes in MCP, backend, and frontend
+  - Automatic semantic version bumping on code changes with `npm run bump`
+  - Preserves `package.json` and `package-lock.json` from hash tracking to avoid infinite bumps
+  - Support for forced bumps: `npm run bump:patch|minor|major`
+  - Stores file snapshots in `.bump-hashes.json` for change detection
+  - Documentation: `scripts/BUMP-SYSTEM.md` and `scripts/BUMP-QUICK-START.md`
 
 ### Changed
 - `get_formatted_scoreboard` docstring updated to recommend `get_scoreboard(league)` for

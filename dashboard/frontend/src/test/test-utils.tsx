@@ -22,17 +22,19 @@ interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
 export function renderWithProviders(
   ui: ReactElement,
   {
-    preloadedState = {},
-    store = configureStore({
-      reducer: {
-        betSlip: betSlipReducer,
-        clv: clvReducer,
-      },
-      preloadedState,
-    }),
+    preloadedState,
+    store: customStore,
     ...renderOptions
   }: ExtendedRenderOptions = {}
 ) {
+  const store = customStore || configureStore({
+    reducer: {
+      betSlip: betSlipReducer,
+      clv: clvReducer,
+    },
+    ...(preloadedState && { preloadedState: preloadedState as any }),
+  });
+
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <Provider store={store}>
@@ -55,7 +57,7 @@ export function createMockStore(preloadedState?: Partial<RootState>) {
       betSlip: betSlipReducer,
       clv: clvReducer,
     },
-    preloadedState,
+    ...(preloadedState && { preloadedState: preloadedState as any }),
   });
 }
 

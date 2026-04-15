@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scheduled job to capture closing lines every 5 minutes before games start
   - CLV formula: `((Closing Implied Prob - Opening Implied Prob) / Opening Implied Prob) * 100`
   - Categories: positive (CLV ≥ 2%), neutral (-2% < CLV < 2%), negative (CLV ≤ -2%)
+- **Version Bump System**: Automated semantic versioning for monorepo components (dev branch)
+  - File hashing system (`scripts/bump-version.mjs`) to detect changes in MCP, backend, and frontend
+  - Automatic semantic version bumping on code changes with `npm run bump`
+  - Preserves `package.json` and `package-lock.json` from hash tracking to avoid infinite bumps
+  - Support for forced bumps: `npm run bump:patch|minor|major`
+  - Stores file snapshots in `.bump-hashes.json` for change detection
+  - Documentation: `scripts/BUMP-SYSTEM.md` and `scripts/BUMP-QUICK-START.md`
+
+### Fixed
+- **Critical Correctness Bugs in Odds and Settlement Logic** (Issue #15)
+  - **Home/Away Detection** in `odds-sync.service.ts`: Changed from unreliable array index check (`market.outcomes.indexOf(outcome) === 0`) to team name matching. Prevents home/away odds from being swapped when Odds API doesn't guarantee outcome ordering.
+  - **Teaser Sport Resolution** in `bet.service.ts`: Changed from hardcoded `'nfl'` to dynamic resolution from first leg's game record. Fixes NBA teasers incorrectly using NFL odds tables, which resulted in incorrect payouts.
+  - **legsSettled Counter** in `outcome-resolver.service.ts`: Removed unused const that always returned 0. Now correctly returns `legs.length` for accurate settlement reporting.
 
 ### Security
 - **Hardened Authentication and Session Management** (Issue #14)
