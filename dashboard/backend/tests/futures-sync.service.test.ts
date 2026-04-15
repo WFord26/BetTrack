@@ -21,6 +21,9 @@ jest.mock('../src/config/database', () => ({
     currentFutureOdds: {
       upsert: jest.fn()
     },
+    futureOutcome: {
+      upsert: jest.fn()
+    },
     futureOdd: {
       createMany: jest.fn()
     },

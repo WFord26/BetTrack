@@ -136,16 +136,46 @@ router.get('/microsoft/callback', async (req: Request, res: Response) => {
   await handleOAuthCallback(req, res, 'microsoft');
 });
 
-router.post('/logout', async (req: Request, res: Response) => {
+router.post('/logout', (req: Request, res: Response): void => {
   if (!isAuthEnabled()) {
-    return res.json({ success: true, message: 'Auth not enabled' });
+    res.json({ success: true, message: 'Auth not enabled' });
+    return;
   }
 
   const userEmail = req.user?.email;
-  await destroyAuthSession(req, res);
-  logger.info(`User logged out: ${userEmail || 'unknown user'}`);
 
-  return res.json({ success: true });
+  const onSessionDestroyed = (err?: any) => {
+    if (err) {
+      logger.error('Session destruction error:', err);
+    }
+    logger.info(`User logged out: ${userEmail}`);
+    res.json({ success: true });
+  };
+
+  const destroySession = () => {
+    const reqAny = req as any;
+    if (reqAny.session && typeof reqAny.session.destroy === 'function') {
+      reqAny.session.destroy(onSessionDestroyed);
+    } else {
+      destroyAuthSession(req, res).then(() => {
+        logger.info(`User logged out: ${userEmail}`);
+        res.json({ success: true });
+      });
+    }
+  };
+
+  if (typeof (req as any).logout === 'function') {
+    (req as any).logout((err: any) => {
+      if (err) {
+        logger.error('Logout error:', err);
+        res.status(500).json({ error: 'Logout failed' });
+        return;
+      }
+      destroySession();
+    });
+  } else {
+    destroySession();
+  }
 });
 
 router.get('/me', (req: Request, res: Response) => {

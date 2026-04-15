@@ -37,9 +37,45 @@ jest.mock('../src/config/env', () => ({
   env: {
     AUTH_MODE: 'oauth2',
     MICROSOFT_CLIENT_ID: 'test-microsoft-client-id',
-    GOOGLE_CLIENT_ID: 'test-google-client-id'
+    MICROSOFT_CLIENT_SECRET: 'test-microsoft-secret',
+    MICROSOFT_TENANT_ID: 'test-tenant-id',
+    GOOGLE_CLIENT_ID: 'test-google-client-id',
+    GOOGLE_CLIENT_SECRET: 'test-google-secret',
+    BASE_URL: 'http://localhost:3001',
+    CORS_ORIGIN: 'http://localhost:5173',
   }
 }));
+
+jest.mock('../src/services/oauth.service', () => {
+  class OAuthError extends Error {
+    redirectError: string;
+    constructor(redirectError: string, message: string) {
+      super(message);
+      this.name = 'OAuthError';
+      this.redirectError = redirectError;
+    }
+  }
+  return {
+    oauthService: {
+      isProviderConfigured: jest.fn(() => true),
+      getAvailableProviders: jest.fn(() => ({ microsoft: true, google: true })),
+      buildAuthorizationUrl: jest.fn((provider: string, state: string) =>
+        `http://localhost/api/auth/${provider}/callback?state=${state}`
+      ),
+      buildFrontendRedirect: jest.fn((path: string) => path),
+      authenticate: jest.fn().mockResolvedValue({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+        avatarUrl: null,
+        provider: 'microsoft',
+        isAdmin: false,
+        isActive: true,
+      }),
+    },
+    OAuthError,
+  };
+});
 
 jest.mock('../src/config/logger', () => ({
   logger: {
@@ -61,7 +97,6 @@ jest.mock('../src/middleware/auth-session.middleware', () => ({
 
 // Import after mocks
 import authRoutes from '../src/routes/auth.routes';
-import { env } from '../src/config/env';
 import { logger } from '../src/config/logger';
 import { isAuthEnabled } from '../src/middleware/auth-session.middleware';
 
@@ -162,11 +197,8 @@ describe('Auth Routes', () => {
     });
 
     it('should show providers as false when client IDs missing', async () => {
-      // Temporarily modify env
-      const originalMicrosoftId = env.MICROSOFT_CLIENT_ID;
-      const originalGoogleId = env.GOOGLE_CLIENT_ID;
-      (env as any).MICROSOFT_CLIENT_ID = '';
-      (env as any).GOOGLE_CLIENT_ID = '';
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+      oauthService.getAvailableProviders.mockReturnValueOnce({ microsoft: false, google: false });
 
       const response = await request(app).get('/auth/status');
 
@@ -174,10 +206,6 @@ describe('Auth Routes', () => {
         microsoft: false,
         google: false
       });
-
-      // Restore env
-      (env as any).MICROSOFT_CLIENT_ID = originalMicrosoftId;
-      (env as any).GOOGLE_CLIENT_ID = originalGoogleId;
     });
   });
 
@@ -192,24 +220,53 @@ describe('Auth Routes', () => {
 
   describe('GET /auth/microsoft/callback', () => {
     it('should handle successful Microsoft authentication', async () => {
-      const response = await request(app).get('/auth/microsoft/callback');
+      // Create app with req.authSession pre-populated to match the state
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'test-state-123',
+          oauthProvider: 'microsoft',
+          redirectPath: '/'
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      const response = await request(callbackApp)
+        .get('/auth/microsoft/callback?code=test-auth-code&state=test-state-123');
 
       expect(response.status).toBe(302);
       expect(response.header.location).toBe('/');
       expect(mockLoggerInfo).toHaveBeenCalledWith(
-        expect.stringContaining('User logged in via Microsoft: test@example.com')
+        expect.stringContaining('User logged in via microsoft: test@example.com')
       );
     });
 
     it('should redirect to login with error on auth failure', async () => {
-      // Skip this test - mocking passport failure is complex with the current setup
-      // The actual failure redirect logic is handled by Passport, not our code
-      expect(true).toBe(true);
+      const response = await request(app)
+        .get('/auth/microsoft/callback?error=access_denied');
+
+      expect(response.status).toBe(302);
+      expect(response.header.location).toContain('microsoft_auth_failed');
     });
   });
 
   describe('GET /auth/google', () => {
     it('should initiate Google OAuth flow', async () => {
+      // Mock authenticate for google
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+      oauthService.authenticate.mockResolvedValueOnce({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+        avatarUrl: null,
+        provider: 'google',
+        isAdmin: false,
+        isActive: true,
+      });
+
       const response = await request(app).get('/auth/google');
 
       expect(response.status).toBe(302); // Redirect
@@ -219,19 +276,47 @@ describe('Auth Routes', () => {
 
   describe('GET /auth/google/callback', () => {
     it('should handle successful Google authentication', async () => {
-      const response = await request(app).get('/auth/google/callback');
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+      oauthService.authenticate.mockResolvedValueOnce({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+        avatarUrl: null,
+        provider: 'google',
+        isAdmin: false,
+        isActive: true,
+      });
+
+      // Create app with req.authSession pre-populated
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'test-state-456',
+          oauthProvider: 'google',
+          redirectPath: '/'
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      const response = await request(callbackApp)
+        .get('/auth/google/callback?code=test-auth-code&state=test-state-456');
 
       expect(response.status).toBe(302);
       expect(response.header.location).toBe('/');
       expect(mockLoggerInfo).toHaveBeenCalledWith(
-        expect.stringContaining('User logged in via Google: test@example.com')
+        expect.stringContaining('User logged in via google: test@example.com')
       );
     });
 
     it('should redirect to login with error on auth failure', async () => {
-      // Skip this test - mocking passport failure is complex with the current setup
-      // The actual failure redirect logic is handled by Passport, not our code
-      expect(true).toBe(true);
+      const response = await request(app)
+        .get('/auth/google/callback?error=access_denied');
+
+      expect(response.status).toBe(302);
+      expect(response.header.location).toContain('google_auth_failed');
     });
   });
 
@@ -426,15 +511,16 @@ describe('Auth Routes', () => {
           req.user = undefined;
           callback();
         };
-        // No req.session - this causes an error in the code
+        // No req.session - falls back to destroyAuthSession
         next();
       });
       app.use('/auth', authRoutes);
 
       const response = await request(app).post('/auth/logout');
 
-      // Without session.destroy, the code tries to call it and fails
-      expect(response.status).toBe(500);
+      // Falls back to destroyAuthSession when req.session is unavailable
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ success: true });
     });
 
     it('should handle undefined user in logout', async () => {
