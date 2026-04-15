@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Home/away detection by array index** (odds-sync.service.ts): Changed from array position matching to team name
+  matching to correctly identify home/away teams regardless of Odds API outcome order
+- **Teaser sport hardcoded to NFL** (bet.service.ts): Made `calculateBetOdds()` async to resolve teaser sport
+  from first leg's game record instead of hardcoding to 'nfl', fixing incorrect payouts for NBA/other sport teasers
+- **legsSettled counter always returns 0** (outcome-resolver.service.ts): Fixed settlement to return proper leg count
+  instead of unused `const legsSettled = 0` declaration
+
 ---
 
 ## [0.2.8] - 2026-04-14
