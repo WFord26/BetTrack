@@ -52,7 +52,7 @@ async function beginOAuth(req: Request, res: Response, provider: AuthProvider) {
     return;
   }
 
-  const session = ensureAuthSession(req, res);
+  const session = await ensureAuthSession(req, res);
   const redirectPath = sanitizeRedirectPath(req.query.redirectTo);
   const state = crypto.randomBytes(24).toString('hex');
 
@@ -87,7 +87,7 @@ async function handleOAuthCallback(req: Request, res: Response, provider: AuthPr
     session.oauthState !== state ||
     session.oauthProvider !== provider
   ) {
-    destroyAuthSession(req, res);
+    await destroyAuthSession(req, res);
     redirectToFrontend(res, `/login?error=${providerError}`);
     return;
   }
@@ -96,7 +96,7 @@ async function handleOAuthCallback(req: Request, res: Response, provider: AuthPr
     const user = await oauthService.authenticate(provider, code);
     const redirectPath = sanitizeRedirectPath(session.redirectPath);
 
-    createAuthenticatedSession(req, res, user, redirectPath);
+    await createAuthenticatedSession(req, res, user, redirectPath);
     logger.info(`User logged in via ${provider}: ${user.email}`);
 
     redirectToFrontend(res, redirectPath);
@@ -106,7 +106,7 @@ async function handleOAuthCallback(req: Request, res: Response, provider: AuthPr
       : providerError;
 
     logger.error(`OAuth callback failed for ${provider}:`, error);
-    destroyAuthSession(req, res);
+    await destroyAuthSession(req, res);
     redirectToFrontend(res, `/login?error=${redirectError}`);
   }
 }
@@ -136,13 +136,13 @@ router.get('/microsoft/callback', async (req: Request, res: Response) => {
   await handleOAuthCallback(req, res, 'microsoft');
 });
 
-router.post('/logout', (req: Request, res: Response) => {
+router.post('/logout', async (req: Request, res: Response) => {
   if (!isAuthEnabled()) {
     return res.json({ success: true, message: 'Auth not enabled' });
   }
 
   const userEmail = req.user?.email;
-  destroyAuthSession(req, res);
+  await destroyAuthSession(req, res);
   logger.info(`User logged out: ${userEmail || 'unknown user'}`);
 
   return res.json({ success: true });
