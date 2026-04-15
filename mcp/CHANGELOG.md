@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Unified `get_scoreboard(league, date)` tool**: Single entry-point scoreboard tool that
+  automatically resolves the ESPN sport type from the league code via a shared
+  `LEAGUE_SPORT_MAP` lookup dictionary. Eliminates the need to pass both `sport` and
+  `league` for the common use-case. Supported leagues: `nfl`, `nba`, `mlb`, `nhl`,
+  `wnba`, `college-football`, `mens-college-basketball`, `womens-college-basketball`.
+- **`LEAGUE_SPORT_MAP` constant**: Centralised dictionary mapping league codes to
+  (ESPN sport type, display name) tuples, shared across scoreboard tools to prevent
+  duplicated hard-coded strings.
+
+### Changed
+- `get_formatted_scoreboard` docstring updated to recommend `get_scoreboard(league)` for
+  simpler usage.
+
 ---
 
 ## [0.2.0] - 2026-01-12

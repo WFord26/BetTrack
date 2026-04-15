@@ -146,6 +146,25 @@ Natural language search for odds by team name or matchup.
 
 ### ESPN API Tools
 
+#### `get_scoreboard(league, date=None)` ⭐ Recommended
+Get formatted scoreboard for any supported league — automatically resolves the ESPN sport type.
+
+**Supported leagues:** `nfl`, `nba`, `mlb`, `nhl`, `wnba`, `college-football`, `mens-college-basketball`, `womens-college-basketball`
+
+**Parameters:**
+- `league` (str): League code (e.g., "nfl", "nba", "mlb", "nhl")
+- `date` (str): Optional date in YYYYMMDD format (default: today)
+
+**Response:**
+```json
+{
+  "success": true,
+  "league": "NBA",
+  "formatted_output": "| Away Team | Score | Home Team | Score | Status |\n...",
+  "game_count": 8
+}
+```
+
 #### `get_espn_scoreboard(sport, league, date=None, limit=10)`
 Get raw ESPN scoreboard data (JSON).
 
@@ -175,6 +194,8 @@ Get raw ESPN scoreboard data (JSON).
 
 #### `get_formatted_scoreboard(sport, league, date=None, limit=10)`
 Get formatted Markdown scoreboard table.
+
+Prefer `get_scoreboard(league)` for simpler usage — it resolves the sport type automatically.
 
 **Returns:** Markdown table with:
 - Team names, scores
