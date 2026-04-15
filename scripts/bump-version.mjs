@@ -499,8 +499,8 @@ function updateChangelog(changelogPath, newVersion) {
   const today = getTodayDate();
   const versionHeader = `## [${newVersion}] - ${today}`;
 
-  // Replace [Unreleased] with the versioned header, then add an empty unreleased section with separator
-  content = content.replace(unreleasedPattern, `${versionHeader}\n\n## [Unreleased]\n\n---\n\n`);
+  // Keep [Unreleased] at top as empty section, insert versioned header after separator
+  content = content.replace(unreleasedPattern, `## [Unreleased]\n\n---\n\n${versionHeader}\n`);
 
   writeFileSync(changelogPath, content, "utf8");
   return true;

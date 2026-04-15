@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Duplicate code in auth-session.middleware.ts**: Removed 246 lines of broken duplicate functions
+  that referenced an undefined `sessions` map instead of the proper `sessionStore` (Redis/in-memory)
+- **Missing `await` in auth.routes.ts**: Added `await` to `ensureAuthSession()`, `createAuthenticatedSession()`,
+  and `destroyAuthSession()` calls to ensure Redis session operations complete correctly
+- Made logout route handler async to properly await session destruction
+
 ---
 
 ## [0.2.7] - 2026-04-14
