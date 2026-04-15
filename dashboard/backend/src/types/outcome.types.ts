@@ -30,20 +30,24 @@ export interface EspnCompetitor {
   homeAway: 'home' | 'away';
 }
 
+export interface EspnCompetitionStatus {
+  type: {
+    id: string;
+    name: string;
+    state: string;
+    completed: boolean;
+  };
+  period?: number;
+  displayClock?: string;
+}
+
 export interface EspnEvent {
   id: string;
   name: string;
   shortName: string;
   competitions: Array<{
     id: string;
-    status: {
-      type: {
-        id: string;
-        name: string;
-        state: string;
-        completed: boolean;
-      };
-    };
+    status: EspnCompetitionStatus;
     competitors: EspnCompetitor[];
   }>;
 }
