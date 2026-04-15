@@ -31,6 +31,8 @@ import { Decimal } from '@prisma/client/runtime/library';
 export class OutcomeResolverService {
   private espnClient: AxiosInstance;
   private readonly espnBaseUrl = 'https://site.api.espn.com/apis/site/v2/sports';
+  /** Maximum age of a game (in hours) to consider for outcome resolution */
+  private static readonly OUTCOME_LOOKBACK_HOURS = 12;
 
   constructor() {
     this.espnClient = axios.create({
@@ -60,7 +62,7 @@ export class OutcomeResolverService {
     try {
       // Find games that should be finished
       const now = new Date();
-      const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+      const twelveHoursAgo = new Date(now.getTime() - OutcomeResolverService.OUTCOME_LOOKBACK_HOURS * 60 * 60 * 1000);
 
       const games = await prisma.game.findMany({
         where: {
