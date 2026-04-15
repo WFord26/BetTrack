@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Force deletes now return 403 Forbidden if non-admin user attempts the operation
   - Regular users can still cancel their own pending bets without games started
   - Only admins can use ?force=true to bypass settlement/game-started validation
+- **Admin routes tests missing authentication** (admin.routes.test.ts): Added mock for requireAdminAccess middleware
+  to properly authenticate test requests to protected admin endpoints
+- **Bookmaker null checks in API sync services** (odds-sync.service.ts, futures-sync.service.ts):
+  Added guards against undefined bookmakers that caused "Cannot read properties of undefined" errors
+  - Futures sync now handles missing bookmakers array gracefully
+  - Odds sync now handles missing bookmakers array gracefully
+  - Error messages safely access bookmaker.key with optional chaining
 
 ---
 
