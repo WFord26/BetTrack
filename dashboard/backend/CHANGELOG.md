@@ -18,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to properly authenticate test requests to protected admin endpoints
 - **Bookmaker null checks in API sync services** (odds-sync.service.ts, futures-sync.service.ts):
   Added guards against undefined bookmakers that caused "Cannot read properties of undefined" errors
-  - Futures sync now handles missing bookmakers array gracefully
-  - Odds sync now handles missing bookmakers array gracefully
+  - Futures sync now handles missing bookmakers array
+  - Odds sync now handles missing bookmakers array
   - Error messages safely access bookmaker.key with optional chaining
 
 ---
