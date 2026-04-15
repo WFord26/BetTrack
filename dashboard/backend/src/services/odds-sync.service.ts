@@ -178,7 +178,7 @@ export class OddsSyncService {
           // Process bookmakers
           for (const bookmaker of event.bookmakers) {
             try {
-              const oddsCount = await this.upsertOdds(game.id, bookmaker);
+              const oddsCount = await this.upsertOdds(game.id, bookmaker, event.home_team, event.away_team);
               result.oddsProcessed += oddsCount.current;
               result.snapshotsCreated += oddsCount.snapshots;
             } catch (error) {
@@ -276,7 +276,9 @@ export class OddsSyncService {
    */
   private async upsertOdds(
     gameId: string,
-    bookmaker: OddsApiBookmaker
+    bookmaker: OddsApiBookmaker,
+    homeTeamName: string,
+    awayTeamName: string
   ): Promise<{ current: number; snapshots: number }> {
     let currentCount = 0;
     let snapshotCount = 0;
@@ -284,7 +286,7 @@ export class OddsSyncService {
     // Process each market type
     for (const market of bookmaker.markets) {
       try {
-        const parsedOdds = this.parseMarketOdds(market);
+        const parsedOdds = this.parseMarketOdds(market, homeTeamName, awayTeamName);
         
         if (!parsedOdds) {
           continue;
@@ -336,15 +338,20 @@ export class OddsSyncService {
   /**
    * Parse market odds based on market type
    */
-  private parseMarketOdds(market: OddsApiMarket): ParsedMarketOdds | null {
+  private parseMarketOdds(market: OddsApiMarket, homeTeamName: string, awayTeamName: string): ParsedMarketOdds | null {
     const odds: ParsedMarketOdds = {};
 
     if (market.key === 'h2h') {
       // Moneyline odds
       for (const outcome of market.outcomes) {
-        if (outcome.name.toLowerCase().includes('home') || market.outcomes.indexOf(outcome) === 0) {
+        // Match by team name to avoid relying on array order
+        const outcomeName = outcome.name.toLowerCase();
+        const isHome = outcomeName.includes(homeTeamName.toLowerCase()) || outcomeName.includes('home');
+        const isAway = outcomeName.includes(awayTeamName.toLowerCase()) || outcomeName.includes('away');
+        
+        if (isHome) {
           odds.homePrice = outcome.price;
-        } else {
+        } else if (isAway) {
           odds.awayPrice = outcome.price;
         }
       }
@@ -352,10 +359,15 @@ export class OddsSyncService {
       // Spread odds
       for (const outcome of market.outcomes) {
         if (outcome.point !== undefined) {
-          if (outcome.name.toLowerCase().includes('home') || market.outcomes.indexOf(outcome) === 0) {
+          // Match by team name to avoid relying on array order
+          const outcomeName = outcome.name.toLowerCase();
+          const isHome = outcomeName.includes(homeTeamName.toLowerCase()) || outcomeName.includes('home');
+          const isAway = outcomeName.includes(awayTeamName.toLowerCase()) || outcomeName.includes('away');
+          
+          if (isHome) {
             odds.homeSpread = outcome.point;
             odds.homeSpreadPrice = outcome.price;
-          } else {
+          } else if (isAway) {
             odds.awaySpread = outcome.point;
             odds.awaySpreadPrice = outcome.price;
           }

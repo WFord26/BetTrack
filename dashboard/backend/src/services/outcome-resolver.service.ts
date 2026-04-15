@@ -273,9 +273,6 @@ export class OutcomeResolverService {
     gameId: string,
     result: GameResult
   ): Promise<{ legsSettled: number; betsSettled: number }> {
-    const legsSettled = 0;
-    const betsSettled = 0;
-
     // Find all pending legs for this game
     const legs = await prisma.betLeg.findMany({
       where: {
