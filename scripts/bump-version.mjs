@@ -599,7 +599,8 @@ async function main() {
   if (bumpType) {
     console.log(`\n🚀 Bumping with type: ${bumpType}`);
     for (const pkg of packages) {
-      if (!changedKeys.has(pkg.key) && !args.force) {
+      // Only bump packages that actually changed
+      if (!changedKeys.has(pkg.key)) {
         continue;
       }
 
