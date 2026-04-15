@@ -16,9 +16,17 @@ const router = Router();
 // ============================================================================
 
 const siteConfigSchema = z.object({
-  siteName: z.string().max(100).optional(),
-  logoUrl: z.string().url('Logo URL must be a valid URL').max(500).optional().nullable(),
-  domainUrl: z.string().url('Domain URL must be a valid URL').max(255).optional().nullable()
+  siteName: z.string().max(100, 'Site name must be 100 characters or less').optional(),
+  logoUrl: z.union([
+    z.string().url('Logo URL must be a valid URL').max(500, 'Logo URL must be 500 characters or less'),
+    z.literal(''),
+    z.null()
+  ]).optional(),
+  domainUrl: z.union([
+    z.string().url('Domain URL must be a valid URL').max(255, 'Domain URL must be 255 characters or less'),
+    z.literal(''),
+    z.null()
+  ]).optional()
 });
 
 // Sports data for initialization
