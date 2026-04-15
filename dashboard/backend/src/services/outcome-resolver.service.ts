@@ -60,7 +60,7 @@ export class OutcomeResolverService {
     try {
       // Find games that should be finished
       const now = new Date();
-      const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+      const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
 
       const games = await prisma.game.findMany({
         where: {
@@ -69,7 +69,7 @@ export class OutcomeResolverService {
           },
           commenceTime: {
             lt: now,
-            gt: sixHoursAgo // Don't check games older than 6 hours
+            gt: twelveHoursAgo // Don't check games older than 12 hours
           }
         },
         include: {
@@ -194,10 +194,9 @@ export class OutcomeResolverService {
       const homeScore = parseInt(homeCompetitor.score, 10);
       const awayScore = parseInt(awayCompetitor.score, 10);
 
-      // Extract period and clock information (with type safety)
-      // Both period and clock are on competition.status, not competition.status.type
-      const period = (competition.status as any).period ? `${(competition.status as any).period}` : null;
-      const clock = (competition.status as any).displayClock || null;
+      // Extract period and clock information from competition status
+      const period = competition.status.period != null ? `${competition.status.period}` : null;
+      const clock = competition.status.displayClock ?? null;
 
       // Check if completed
       if (!status.completed) {
