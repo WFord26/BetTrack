@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Wiki documentation instructions** (`.github/instructions/wiki-docs.instructions.md`): Auto-attaching rules for `docs/wiki/**` enforcing `.md`-extension links, anchor syntax, and page structure
+- **New wiki page prompt** (`.github/prompts/new-wiki-page.prompt.md`): Slash command to scaffold wiki pages with correct conventions
+
 ### Changed
 - **CI/CD Pipeline**: Enhanced GitHub Actions test.yml to include 'dev' branch in pull_request and push triggers
   - Tests now run automatically on PRs to dev branch

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.11] - 2026-04-14
+
 ### Added
 - **Data retention policies and cleanup jobs** (Issue #19):
   - New `cleanup-old-records.job.ts`: Scheduled job to clean up old data records daily at 2 AM UTC

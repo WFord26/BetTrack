@@ -16,6 +16,14 @@ For detailed change history, see the component-specific changelogs:
 
 Changes that affect the entire project structure:
 
+## [Unreleased]
+
+### Added
+- **Wiki documentation instructions** (`.github/instructions/wiki-docs.instructions.md`): Auto-attaches when editing `docs/wiki/**` files, enforcing `.md`-extension cross-page links, correct anchor syntax, image CDN URLs, and consistent page structure
+- **New wiki page prompt** (`.github/prompts/new-wiki-page.prompt.md`): Scaffolds a new wiki page with correct structure, TOC, and linking conventions via `/new-wiki-page` slash command
+
+---
+
 ## [2026-02-03] 
 
 ### Release Summary
