@@ -2,13 +2,13 @@ name: Test & Validate
 
 on:
   pull_request:
-    branches: [main, beta, develop]
+    branches: [main, dev, beta, develop]
     paths:
       - 'dashboard/**'
       - 'mcp/**'
       - '.github/workflows/test.yml'
   push:
-    branches: [main, beta]
+    branches: [main, dev, beta]
     paths:
       - 'dashboard/**'
       - 'mcp/**'
