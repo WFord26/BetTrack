@@ -16,6 +16,7 @@ jest.mock('../src/config/database', () => ({
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      groupBy: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
       delete: jest.fn()
@@ -32,6 +33,7 @@ jest.mock('../src/config/database', () => ({
       findUnique: jest.fn(),
       findMany: jest.fn()
     },
+    $queryRawUnsafe: jest.fn(),
     $transaction: jest.fn((callback) => {
       // Mock transaction by calling the callback with mocked prisma
       return callback({
@@ -272,27 +274,33 @@ describe('Bet Service Unit Tests', () => {
 
   describe('Bet Statistics', () => {
     it('should calculate stats from database', async () => {
-      mockPrisma.bet.findMany.mockResolvedValue([
-        {
-          stake: new Decimal(100),
-          actualPayout: new Decimal(190),
-          status: 'won',
-          legs: [{ game: { sport: { key: 'basketball_nba' } } }]
-        },
-        {
-          stake: new Decimal(50),
-          actualPayout: new Decimal(0),
-          status: 'lost',
-          legs: [{ game: { sport: { key: 'basketball_nba' } } }]
-        }
-      ] as any);
+      // Mock groupBy for status aggregation
+      (mockPrisma.bet.groupBy as jest.Mock)
+        .mockResolvedValueOnce([
+          { status: 'won', _count: 1, _sum: { stake: new Decimal(100), actualPayout: new Decimal(190) } },
+          { status: 'lost', _count: 1, _sum: { stake: new Decimal(50), actualPayout: new Decimal(0) } }
+        ])
+        // Mock groupBy for betType+status aggregation
+        .mockResolvedValueOnce([
+          { betType: 'single', status: 'won', _count: 1, _sum: { stake: new Decimal(100), actualPayout: new Decimal(190) } },
+          { betType: 'single', status: 'lost', _count: 1, _sum: { stake: new Decimal(50), actualPayout: new Decimal(0) } }
+        ]);
 
-      mockPrisma.bet.count.mockResolvedValue(2);
+      // Mock raw query for sport breakdown
+      (mockPrisma.$queryRawUnsafe as jest.Mock).mockResolvedValue([
+        { sport_key: 'basketball_nba', count: BigInt(2), won: BigInt(1), net_profit: 40 }
+      ]);
 
       const stats = await service.getStats({});
 
       expect(stats.totalBets).toBe(2);
-      expect(stats).toBeDefined();
+      expect(stats.wonBets).toBe(1);
+      expect(stats.lostBets).toBe(1);
+      expect(stats.totalStaked).toBe(150);
+      expect(stats.totalPayout).toBe(190);
+      expect(stats.netProfit).toBe(40);
+      expect(stats.bySport['basketball_nba']).toEqual({ count: 2, won: 1, netProfit: 40 });
+      expect(stats.byBetType['single']).toEqual({ count: 2, won: 1, netProfit: 40 });
     });
   });
 
