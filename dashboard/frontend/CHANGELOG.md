@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **CLV test suite TypeScript errors**: Resolved 27 TypeScript compilation errors in `clvSlice.test.ts`
+  and `test/test-utils.tsx` by adding proper `RootState`/`AppDispatch` type imports, type assertions
+  for Redux store state access, and correct dispatch typing for async thunks
+
 ---
 
 ## [0.3.7] - 2026-04-14
