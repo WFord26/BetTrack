@@ -14,6 +14,7 @@ jest.mock('../src/config/database', () => ({
     bet: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
@@ -181,23 +182,24 @@ describe('Bet Service Unit Tests', () => {
         betType: 'single' as const,
         stake: new Decimal(100),
         status: 'pending' as const,
-        legs: []
+        legs: [],
+        futureLegs: []
       };
 
-      mockPrisma.bet.findUnique.mockResolvedValue(mockBet as any);
+      mockPrisma.bet.findFirst.mockResolvedValue(mockBet as any);
       mockPrisma.betLeg.findMany.mockResolvedValue([]);
 
       const result = await service.getBetById('bet-5');
 
       expect(result).toBeDefined();
       expect(result?.id).toBe('bet-5');
-      expect(mockPrisma.bet.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'bet-5' } })
+      expect(mockPrisma.bet.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: 'bet-5' }) })
       );
     });
 
     it('should return null for non-existent bet', async () => {
-      mockPrisma.bet.findUnique.mockResolvedValue(null);
+      mockPrisma.bet.findFirst.mockResolvedValue(null);
 
       const result = await service.getBetById('nonexistent');
 
@@ -306,12 +308,13 @@ describe('Bet Service Unit Tests', () => {
 
       const mockUpdatedBet = {
         ...mockExistingBet,
-        notes: 'Updated notes'
+        notes: 'Updated notes',
+        futureLegs: []
       };
 
-      mockPrisma.bet.findUnique.mockResolvedValueOnce(mockExistingBet as any);
+      mockPrisma.bet.findFirst.mockResolvedValueOnce(mockExistingBet as any);
       mockPrisma.bet.update.mockResolvedValue(mockUpdatedBet as any);
-      mockPrisma.bet.findUnique.mockResolvedValueOnce(mockUpdatedBet as any);
+      mockPrisma.bet.findFirst.mockResolvedValueOnce(mockUpdatedBet as any);
 
       const result = await service.updateBet('bet-8', { notes: 'Updated notes' });
 
@@ -330,7 +333,7 @@ describe('Bet Service Unit Tests', () => {
         }]
       };
 
-      mockPrisma.bet.findUnique.mockResolvedValueOnce(mockExistingBet as any);
+      mockPrisma.bet.findFirst.mockResolvedValueOnce(mockExistingBet as any);
       mockPrisma.bet.delete.mockResolvedValue(mockExistingBet as any);
 
       await expect(service.cancelBet('bet-9')).resolves.not.toThrow();
