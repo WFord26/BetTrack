@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.10] - 2026-04-14
+
+### Changed
+- **CI/CD Pipeline**: Enhanced GitHub Actions test.yml to include 'dev' branch in pull_request and push triggers
+  - Tests now run automatically on PRs to dev branch
+  - Tests now run automatically on pushes to dev branch
+  - Maintains existing triggers for main, beta, and develop branches
+
+---
+
 ## [0.2.9] - 2026-04-14
 
 ### Fixed

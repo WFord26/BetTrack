@@ -27,7 +27,7 @@
     },
     "dashboard/backend": {
       "name": "@wford26/bettrack-backend",
-      "hash": "a47a56ed3f479589a8d6f82bad0ced01b61af580d2fc22cfccc847034a059e7e",
+      "hash": "cb90892c9ff59e72f49e65c69e8020f619f2f422cab637a979318e37082221a2",
       "files": {
         "dashboard/backend/.dockerignore": "3e9dfe9f05211b9b2cb2775e9861b5f4e2fa614a0773a6c71283404498391d8e",
         "dashboard/backend/.env.example": "a3363926097e9b65d8e5b6880f1a739ffe8af46949e59cab96e4c10ecdab4433",
@@ -115,6 +115,7 @@
         "dashboard/backend/tests/api-keys.routes.test.ts": "53a997b3c84fd4477a8843340b71dea9b0ce104d0c27adbe5063c9ab3ed2d215",
         "dashboard/backend/tests/auth.routes.test.ts": "2d6a66dcd534d6a369a7286488be05ee13cd07ec643605fc66f8e165ec1d34b6",
         "dashboard/backend/tests/bet.service.test.ts": "b04d6820ed4115831cce4fb794af2c0a58bdff58f135d6b6f5aca6fa626a07eb",
+        "dashboard/backend/tests/e2e/bet-lifecycle.e2e.test.ts": "e25708a3b4904b78b642459d611102230baf60389d0206464957bd460cd272a2",
         "dashboard/backend/tests/espn-weather.service.test.ts": "e8bcc5f6fe8018bdd0a821e55ac3a1706d4fdd1639019cbc7cc6c3bc99d8b9a1",
         "dashboard/backend/tests/futures-sync.service.test.ts": "973290e4ee44bb2fd7bb8ce565a4b233f290e49b341e8cb7233e034abd5a22fd",
         "dashboard/backend/tests/futures.routes.test.ts": "566c523b25bef7369cb7368299a712e43948aab4af84237646a3e3ffd35dcff0",
