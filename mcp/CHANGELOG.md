@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.4] - 2026-04-14
+
 ### Added
 - **Unified `get_scoreboard(league, date)` tool**: Single entry-point scoreboard tool that
   automatically resolves the ESPN sport type from the league code via a shared

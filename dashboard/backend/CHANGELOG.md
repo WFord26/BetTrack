@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.7] - 2026-04-14
+
 ### Added
 - **CLV (Closing Line Value) Tracking**: Complete backend implementation for Phase 1 analytics (Issue #3)
   - Database schema changes: Added `closingOdds`, `clv`, and `clvCategory` fields to BetLeg model

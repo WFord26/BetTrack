@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.7] - 2026-04-14
+
 ### Added
 - **CLV (Closing Line Value) Analytics**: Complete frontend implementation for Phase 1 analytics (Issue #3)
   - New Redux slice (`clvSlice.ts`) for CLV state management with async thunks
