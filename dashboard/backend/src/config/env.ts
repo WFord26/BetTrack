@@ -37,8 +37,8 @@ const envSchema = z.object({
   PORT: z.string().default('3001'),
   DATABASE_URL: z.string(),
   ODDS_API_KEY: z.string(),
-  JWT_SECRET: z.string().default('change-me-in-production'),
-  SESSION_SECRET: z.string().default('change-me-in-production-session'),
+  JWT_SECRET: z.string().optional(),
+  SESSION_SECRET: z.string().optional(),
   ODDS_SYNC_INTERVAL: z.string().default('10'),
   OUTCOME_CHECK_INTERVAL: z.string().default('5'),
   LOG_LEVEL: z.string().default('info'),
@@ -67,10 +67,46 @@ const envSchema = z.object({
 
 export type EnvConfig = z.infer<typeof envSchema>;
 
+/**
+ * Validates and sanitizes environment configuration
+ * In production, ensures critical secrets are set
+ * In development, allows defaults with warnings
+ */
+function validateAndSanitizeConfig(rawConfig: z.infer<typeof envSchema>): EnvConfig {
+  const nodeEnv = rawConfig.NODE_ENV;
+  
+  // Validate secrets based on environment
+  if (nodeEnv === 'production') {
+    if (!rawConfig.JWT_SECRET) {
+      console.error('❌ CRITICAL: JWT_SECRET is required in production');
+      console.error('   Set JWT_SECRET environment variable to a strong random string (32+ characters)');
+      process.exit(1);
+    }
+    if (!rawConfig.SESSION_SECRET) {
+      console.error('❌ CRITICAL: SESSION_SECRET is required in production');
+      console.error('   Set SESSION_SECRET environment variable to a strong random string (32+ characters)');
+      process.exit(1);
+    }
+  } else if (nodeEnv === 'development') {
+    // In development, use secure defaults with warnings
+    if (!rawConfig.JWT_SECRET) {
+      console.warn('⚠️  JWT_SECRET not set, using development default (NOT PRODUCTION SAFE)');
+      rawConfig.JWT_SECRET = 'dev-secret-' + Math.random().toString(36).slice(2, 18);
+    }
+    if (!rawConfig.SESSION_SECRET) {
+      console.warn('⚠️  SESSION_SECRET not set, using development default (NOT PRODUCTION SAFE)');
+      rawConfig.SESSION_SECRET = 'dev-session-' + Math.random().toString(36).slice(2, 18);
+    }
+  }
+  
+  return rawConfig as EnvConfig;
+}
+
 let config: EnvConfig;
 
 try {
-  config = envSchema.parse(normalizedEnv);
+  const parsedEnv = envSchema.parse(normalizedEnv);
+  config = validateAndSanitizeConfig(parsedEnv);
 } catch (error) {
   if (error instanceof z.ZodError) {
     console.error('❌ Invalid environment variables:');
