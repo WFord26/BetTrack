@@ -32,7 +32,7 @@ export function renderWithProviders(
       betSlip: betSlipReducer,
       clv: clvReducer,
     },
-    ...(preloadedState && { preloadedState: preloadedState as any }),
+    preloadedState: preloadedState as RootState | undefined,
   });
 
   function Wrapper({ children }: { children: React.ReactNode }) {
@@ -57,7 +57,7 @@ export function createMockStore(preloadedState?: Partial<RootState>) {
       betSlip: betSlipReducer,
       clv: clvReducer,
     },
-    ...(preloadedState && { preloadedState: preloadedState as any }),
+    preloadedState: preloadedState as RootState | undefined,
   });
 }
 

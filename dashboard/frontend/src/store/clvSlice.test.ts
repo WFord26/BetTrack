@@ -32,6 +32,7 @@ vi.mock('../services/clv.service', () => ({
 
 describe('clvSlice', () => {
   let store: ReturnType<typeof configureStore>;
+  let dispatch: AppDispatch;
 
   beforeEach(() => {
     store = configureStore({
@@ -39,6 +40,7 @@ describe('clvSlice', () => {
         clv: clvReducer
       }
     });
+    dispatch = store.dispatch as unknown as AppDispatch;
     vi.clearAllMocks();
   });
 
@@ -93,7 +95,7 @@ describe('clvSlice', () => {
 
   describe('fetchCLVSummary', () => {
     it('should set loading state when pending', async () => {
-      const promise = (store.dispatch as AppDispatch)(fetchCLVSummary());
+      const promise = dispatch(fetchCLVSummary());
       expect((store.getState() as any).clv.loading).toBe(true);
       (promise as any).abort(); // Cancel the async action
     });
@@ -112,8 +114,8 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getSummary).mockResolvedValue(mockSummary);
 
-      await store.dispatch(fetchCLVSummary());
-      const state = store.getState().clv;
+      await dispatch(fetchCLVSummary());
+      const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
       expect(state.summary).toEqual(mockSummary);
@@ -125,7 +127,7 @@ describe('clvSlice', () => {
         response: { data: { message: 'API Error' } }
       });
 
-      await (store.dispatch as AppDispatch)(fetchCLVSummary());
+      await dispatch(fetchCLVSummary());
       const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
@@ -143,7 +145,7 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getBySport).mockResolvedValue(mockBySport);
 
-      await (store.dispatch as AppDispatch)(fetchCLVBySport());
+      await dispatch(fetchCLVBySport());
       const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
@@ -161,7 +163,7 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getByBookmaker).mockResolvedValue(mockByBookmaker);
 
-      await (store.dispatch as AppDispatch)(fetchCLVByBookmaker());
+      await dispatch(fetchCLVByBookmaker());
       const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
@@ -180,7 +182,7 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getTrends).mockResolvedValue(mockTrends);
 
-      await (store.dispatch as AppDispatch)(fetchCLVTrends({ period: 'week' }));
+      await dispatch(fetchCLVTrends({ period: 'week' }));
       const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
@@ -211,7 +213,7 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getReport).mockResolvedValue(mockReport);
 
-      await (store.dispatch as AppDispatch)(fetchCLVReport({}));
+      await dispatch(fetchCLVReport({}));
       const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);

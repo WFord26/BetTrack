@@ -7,6 +7,7 @@ import { startOddsSyncJob } from './jobs/sync-odds.job';
 import { startSettleBetsJob } from './jobs/settle-bets.job';
 import { startStatsSyncJob } from './jobs/stats-sync.job';
 import { startClosingLineCaptureJob } from './jobs/capture-closing-lines.job';
+import { initializeCleanupJob } from './jobs/cleanup-old-records.job';
 
 const PORT = parseInt(env.PORT, 10);
 
@@ -32,6 +33,7 @@ async function startServer() {
       startSettleBetsJob();
       startStatsSyncJob();
       startClosingLineCaptureJob();
+      initializeCleanupJob();
       logger.info('✅ Scheduled jobs started');
     } catch (error) {
       logger.error('Failed to start scheduled jobs:', error);

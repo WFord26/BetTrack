@@ -1,13 +1,25 @@
 import { Router, Request, Response } from 'express';
+import { z } from 'zod';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { oddsSyncService } from '../services/odds-sync.service';
 import { futuresSyncService } from '../services/futures-sync.service';
 import { outcomeResolverService } from '../services/outcome-resolver.service';
 import { getOddsSyncStatus } from '../jobs/sync-odds.job';
-import { requireAdminAccess } from '../middleware/auth-session.middleware';
+import { requireAdminAccess } from '../middleware/session.auth';
+import { validateBody } from '../middleware/validation.middleware';
 
 const router = Router();
+
+// ============================================================================
+// VALIDATION SCHEMAS
+// ============================================================================
+
+const siteConfigSchema = z.object({
+  siteName: z.string().max(100).optional(),
+  logoUrl: z.string().url('Logo URL must be a valid URL').max(500).optional().nullable(),
+  domainUrl: z.string().url('Domain URL must be a valid URL').max(255).optional().nullable()
+});
 
 // Sports data for initialization
 const SPORTS = [
@@ -396,31 +408,9 @@ router.get('/site-config', async (_req: Request, res: Response) => {
  * PUT /api/admin/site-config
  * Update site configuration
  */
-router.put('/site-config', async (req: Request, res: Response) => {
+router.put('/site-config', validateBody(siteConfigSchema), async (req: Request, res: Response) => {
   try {
     const { siteName, logoUrl, domainUrl } = req.body;
-
-    // Validate inputs
-    if (siteName && siteName.length > 100) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Site name must be 100 characters or less'
-      });
-    }
-
-    if (logoUrl && logoUrl.length > 500) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Logo URL must be 500 characters or less'
-      });
-    }
-
-    if (domainUrl && domainUrl.length > 255) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Domain URL must be 255 characters or less'
-      });
-    }
 
     const config = await prisma.siteConfig.upsert({
       where: { id: 1 },

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Data retention policies and cleanup jobs** (Issue #19):
+  - New `cleanup-old-records.job.ts`: Scheduled job to clean up old data records daily at 2 AM UTC
+  - OddsSnapshot records: 30-day retention policy (automatically deleted after 30 days)
+  - ApiKeyUsage records: 90-day retention policy (automatically deleted after 90 days)
+  - Prevents unbounded data growth in database
+
+### Fixed
+- **OddsSnapshot table missing index** (schema.prisma): Added index on capturedAt field
+  - Improves query performance when filtering/deleting by captured timestamp
+  - Supports retention policy cleanup queries
+- **Site config PUT lacks Zod validation** (admin.routes.ts): Added URL validation using Zod schema with `.url()` validator
+  for logoUrl and domainUrl fields to prevent XSS attacks via malicious URLs
+- **Force delete bypass authorization** (bets.routes.ts): Added admin authorization check for force delete query parameter
+  - Force deletes now return 403 Forbidden if non-admin user attempts the operation
+  - Regular users can still cancel their own pending bets without games started
+  - Only admins can use ?force=true to bypass settlement/game-started validation
+- **Admin routes tests missing authentication** (admin.routes.test.ts): Added mock for requireAdminAccess middleware
+  to properly authenticate test requests to protected admin endpoints
+- **Bookmaker null checks in API sync services** (odds-sync.service.ts, futures-sync.service.ts):
+  Added guards against undefined bookmakers that caused "Cannot read properties of undefined" errors
+  - Futures sync now handles missing bookmakers array
+  - Odds sync now handles missing bookmakers array
+  - Error messages safely access bookmaker.key with optional chaining
+
 ---
 
 ## [0.2.10] - 2026-04-14

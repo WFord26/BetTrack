@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **BetSlip.test.tsx missing imports** (components/bets/BetSlip.test.tsx): Added render import from @testing-library/react
+  - Properly imports screen and fireEvent alongside render
+  - Ensures vitest can resolve testing library functions
+- **CLV slice test async thunk typing** (store/clvSlice.test.ts): Fixed Redux async thunk type assertions
+  - Created properly typed AppDispatch variable in beforeEach
+  - Replaced all (store.dispatch as AppDispatch) with dispatch calls
+  - Fixes 'AsyncThunkAction not assignable to Action' errors
+  - Fixes 'Property clv does not exist on unknown' errors
+- **Test utilities Redux store typing** (test/test-utils.tsx): Improved Redux preloadedState typing
+  - Use RootState | undefined instead of loose 'as any' typing
+  - Ensures correct Redux state shape in renderWithProviders and createMockStore
+
 ### Changed
 - **CI/CD Pipeline**: Enhanced GitHub Actions test.yml to include 'dev' branch in pull_request and push triggers
   - Tests now run automatically on PRs to dev branch

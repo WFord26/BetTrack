@@ -268,6 +268,8 @@ model OddsSnapshot {
   capturedAt      DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
   game            Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
+  @@index([capturedAt])
+  @@index([gameId])
   @@map("odds_snapshots")
 }
 
