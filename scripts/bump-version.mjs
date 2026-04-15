@@ -499,21 +499,8 @@ function updateChangelog(changelogPath, newVersion) {
   const today = getTodayDate();
   const versionHeader = `## [${newVersion}] - ${today}`;
 
-  // Step 1: Replace [Unreleased] with versioned header
-  content = content.replace(unreleasedPattern, `${versionHeader}\n`);
-
-  // Step 2: Find the next ## section header (or use end of content) and insert new [Unreleased] before it
-  const nextSectionPattern = /\n(##\s)/;
-  const nextSectionMatch = content.search(nextSectionPattern);
-  
-  if (nextSectionMatch !== -1) {
-    // Insert new Unreleased section before the next section
-    const insertPoint = nextSectionMatch + 1; // +1 to skip the newline
-    content = content.slice(0, insertPoint) + `## [Unreleased]\n\n---\n\n` + content.slice(insertPoint);
-  } else {
-    // No next section, append new Unreleased section at end
-    content = content + `\n## [Unreleased]\n\n---`;
-  }
+  // Replace [Unreleased] with the versioned header, then add an empty unreleased section with separator
+  content = content.replace(unreleasedPattern, `${versionHeader}\n\n## [Unreleased]\n\n---\n\n`);
 
   writeFileSync(changelogPath, content, "utf8");
   return true;
