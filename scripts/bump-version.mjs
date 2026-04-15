@@ -31,7 +31,7 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(SCRIPT_DIR, "..");
 const HASH_STATE_PATH = path.join(ROOT_DIR, ".bump-hashes.json");
 
-const IGNORED_PATHS = [/\.tsbuildinfo$/, /\/dist\//, /\/node_modules\//, /CHANGELOG\.md$/];
+const IGNORED_PATHS = [/\.tsbuildinfo$/, /\/dist\//, /\/node_modules\//, /CHANGELOG\.md$/, /package\.json$/];
 const IGNORED_DIRECTORY_NAMES = new Set(["dist", "node_modules", ".git", "coverage", "__pycache__", ".pytest_cache"]);
 
 function printUsage() {
