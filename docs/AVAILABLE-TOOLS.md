@@ -89,6 +89,7 @@ Complete list of all MCP tools available for querying sports data and betting od
 
 | Tool Name | Description | Key Parameters |
 |-----------|-------------|----------------|
+| `get_scoreboard` | Formatted scoreboard (auto-resolves sport) | `league`, `date` |
 | `get_espn_scoreboard` | Raw ESPN scoreboard data | `sport`, `league`, `limit` |
 | `get_formatted_scoreboard` | Formatted scoreboard table | `sport`, `league`, `limit` |
 | `get_visual_scoreboard` | Interactive visual scoreboard | `sport`, `league`, `limit` |
