@@ -176,13 +176,19 @@ export class OddsSyncService {
           result.gamesProcessed++;
 
           // Process bookmakers
-          for (const bookmaker of event.bookmakers) {
+          for (const bookmaker of event.bookmakers || []) {
             try {
+              // Guard against undefined bookmaker
+              if (!bookmaker) {
+                continue;
+              }
+
               const oddsCount = await this.upsertOdds(game.id, bookmaker, event.home_team, event.away_team);
               result.oddsProcessed += oddsCount.current;
               result.snapshotsCreated += oddsCount.snapshots;
             } catch (error) {
-              const errorMsg = `Failed to upsert odds for ${bookmaker.key}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+              const bookmakerKey = bookmaker?.key || 'unknown';
+              const errorMsg = `Failed to upsert odds for ${bookmakerKey}: ${error instanceof Error ? error.message : 'Unknown error'}`;
               logger.error(errorMsg);
               result.errors.push(errorMsg);
             }

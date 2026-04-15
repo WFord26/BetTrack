@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Admin routes tests missing authentication** (admin.routes.test.ts): Added mock for requireAdminAccess middleware
+  to properly authenticate test requests to protected admin endpoints
+- **Bookmaker null checks in API sync services** (odds-sync.service.ts, futures-sync.service.ts):
+  Added guards against undefined bookmakers that caused "Cannot read properties of undefined" errors
+  - Futures sync now handles missing bookmakers array
+  - Odds sync now handles missing bookmakers array
+  - Error messages safely access bookmaker.key with optional chaining
+
 ---
 
 ## [0.2.10] - 2026-04-14
