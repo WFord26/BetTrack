@@ -63,13 +63,11 @@ export function getScopedUserId(req: AuthenticatedRequest): string | undefined {
 }
 
 export function requireAdminAccess(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  if (env.AUTH_MODE === 'none') {
-    return next();
-  }
-
+  // SECURITY: Admin routes are always protected, even in 'none' auth mode
+  // This prevents accidental exposure of admin functionality due to misconfiguration
   if (!req.user) {
-    logger.warn(`Unauthorized admin access attempt to ${req.path}`);
-    return res.status(401).json({ error: 'Authentication required' });
+    logger.warn(`Unauthorized admin access attempt to ${req.path} - No user authenticated`);
+    return res.status(401).json({ error: 'Authentication required for admin access' });
   }
 
   if (!req.user.isAdmin) {

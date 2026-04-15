@@ -15,7 +15,11 @@
     "build:backend": "npm run build --workspace=backend",
     "build:frontend": "npm run build --workspace=frontend",
     "clean": "npm run clean --workspaces",
-    "lint": "npm run lint --workspaces"
+    "lint": "npm run lint --workspaces",
+    "bump": "node ../scripts/bump-version.mjs",
+    "bump:patch": "npm run bump -- --force patch",
+    "bump:minor": "npm run bump -- --force minor",
+    "bump:major": "npm run bump -- --force major"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

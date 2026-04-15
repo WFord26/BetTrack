@@ -383,6 +383,7 @@ model ApiKey {
 
   @@index([userId])
   @@index([revoked])
+  @@index([keyPrefix]) // SECURITY: Index for O(1) API key lookup
   @@map("api_keys")
 }
 

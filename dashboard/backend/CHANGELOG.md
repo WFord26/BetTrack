@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CLV formula: `((Closing Implied Prob - Opening Implied Prob) / Opening Implied Prob) * 100`
   - Categories: positive (CLV ≥ 2%), neutral (-2% < CLV < 2%), negative (CLV ≤ -2%)
 
+### Security
+- **Hardened Authentication and Session Management** (Issue #14)
+  - CRITICAL: Removed insecure secret defaults (JWT_SECRET, SESSION_SECRET). Production startup now fails with clear error message if secrets not set
+  - CRITICAL: Migrated session store from in-memory Map to Redis-backed storage with automatic fallback to in-memory for development
+  - CRITICAL: Protected admin routes with mandatory authentication, even when AUTH_MODE='none' (prevents accidental exposure due to misconfiguration)
+  - PERFORMANCE: Optimized API key authentication from O(n) bcrypt comparisons to O(1) indexed keyPrefix lookup
+    - Added `keyPrefix` index to ApiKey model for fast database lookups
+    - Now performs bcrypt comparison only on single matched key instead of all keys
+    - Eliminates DoS vector from bcrypt-timing attacks when database has many API keys
+  - Sessions now persist across server restarts and support horizontal scaling via Redis
+  - Added proper secret validation with development-only defaults and production requirements
+
 ### Fixed
 - **TypeScript Build Errors**: Resolved all 50 compilation errors in API-Sports services (Issue #13)
   - Fixed response type assertions from `unknown` to `any` in all services
