@@ -294,6 +294,25 @@ async def search_odds(
 
 
 # ============================================================================
+# LEAGUE → SPORT LOOKUP (shared across scoreboard tools)
+# ============================================================================
+
+# Maps league code → (ESPN sport type, display name)
+# Used by get_scoreboard, get_formatted_scoreboard, get_detailed_scoreboard,
+# and get_formatted_standings to resolve the sport type from a league code alone.
+LEAGUE_SPORT_MAP: dict[str, tuple[str, str]] = {
+    "nfl":  ("football",    "NFL"),
+    "nba":  ("basketball",  "NBA"),
+    "mlb":  ("baseball",    "MLB"),
+    "nhl":  ("hockey",      "NHL"),
+    "wnba": ("basketball",  "WNBA"),
+    "college-football":         ("football",   "College Football"),
+    "mens-college-basketball":  ("basketball", "Men's College Basketball"),
+    "womens-college-basketball":("basketball", "Women's College Basketball"),
+}
+
+
+# ============================================================================
 # ESPN API TOOLS
 # ============================================================================
 
@@ -717,6 +736,55 @@ async def get_comprehensive_game_info(
 # ============================================================================
 
 @mcp.tool()
+async def get_scoreboard(
+    league: str,
+    date: Optional[str] = None
+) -> dict:
+    """
+    Get the current scoreboard for any supported league (formatted table output).
+    Automatically resolves the ESPN sport type from the league code.
+
+    Supported leagues: nfl, nba, mlb, nhl, wnba,
+                       college-football, mens-college-basketball,
+                       womens-college-basketball
+
+    Args:
+        league: League code (e.g., "nfl", "nba", "mlb", "nhl")
+        date: Optional date in YYYYMMDD format (default: today)
+
+    Returns:
+        Dictionary with formatted scoreboard table
+
+    Example:
+        get_scoreboard("nba") -> NBA games in table format
+        get_scoreboard("nfl", "20260109") -> NFL games on Jan 9, 2026
+    """
+    league_lower = league.lower()
+    if league_lower not in LEAGUE_SPORT_MAP:
+        supported = ", ".join(LEAGUE_SPORT_MAP.keys())
+        return {
+            "success": False,
+            "error": f"Unsupported league '{league}'. Supported leagues: {supported}"
+        }
+
+    sport, display_name = LEAGUE_SPORT_MAP[league_lower]
+    result = await espn_handler.get_scoreboard(sport=sport, league=league_lower, date=date, limit=15)
+
+    if result.get("success") and result.get("data"):
+        games = result["data"].get("events", [])
+        formatted_table = format_scoreboard_table(games)
+
+        return {
+            "success": True,
+            "league": display_name,
+            "formatted_output": formatted_table,
+            "game_count": len(games)
+        }
+
+    return result
+
+
+@mcp.tool()
 async def get_formatted_scoreboard(
     sport: str,
     league: str,
@@ -724,30 +792,33 @@ async def get_formatted_scoreboard(
 ) -> dict:
     """
     Get scoreboard with formatted table output (concise ESPN data).
-    
+
+    Prefer get_scoreboard(league) for simpler usage — it resolves the sport
+    type automatically from the league code.
+
     Args:
-        sport: Sport type (football, basketball, hockey)
-        league: League code (nfl, nba, nhl)
+        sport: Sport type (football, basketball, baseball, hockey)
+        league: League code (nfl, nba, mlb, nhl)
         date: Optional date in YYYYMMDD format
-    
+
     Returns:
         Dictionary with formatted scoreboard table
-    
+
     Example:
         get_formatted_scoreboard("basketball", "nba") -> NBA games in table format
     """
     result = await espn_handler.get_scoreboard(sport=sport, league=league, date=date, limit=15)
-    
+
     if result.get("success") and result.get("data"):
         games = result["data"].get("events", [])
         formatted_table = format_scoreboard_table(games)
-        
+
         return {
             "success": True,
             "formatted_output": formatted_table,
             "game_count": len(games)
         }
-    
+
     return result
 
 
