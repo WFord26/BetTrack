@@ -116,7 +116,7 @@ export class BetService {
     // Start transaction
     return await prisma.$transaction(async (tx) => {
       // Calculate odds and payout
-      const { combinedOdds, potentialPayout } = this.calculateBetOdds(data);
+      const { combinedOdds, potentialPayout } = await this.calculateBetOdds(data);
 
       // Create bet record
       const bet = await tx.bet.create({
@@ -734,10 +734,10 @@ export class BetService {
   /**
    * Calculate combined odds and payout
    */
-  private calculateBetOdds(data: CreateBetInput): {
+  private async calculateBetOdds(data: CreateBetInput): Promise<{
     combinedOdds: number;
     potentialPayout: number;
-  } {
+  }> {
     const totalLegs = data.legs.length + (data.futureLegs?.length || 0);
     
     if (data.betType === 'single') {
@@ -808,7 +808,24 @@ export class BetService {
 
     if (data.betType === 'teaser' && data.teaserPoints) {
       // Get teaser odds from lookup table
-      const firstLegSport = 'nfl'; // TODO: Get from game's sport
+      // Resolve sport from first leg's game record
+      let firstLegSport = 'nfl'; // Default fallback
+      if (data.legs.length > 0) {
+        try {
+          const firstLegGame = await prisma.game.findUnique({
+            where: { id: data.legs[0].gameId },
+            select: { sport: { select: { key: true } } }
+          });
+          if (firstLegGame?.sport?.key) {
+            // Extract sport key (e.g., 'nfl' from 'americanfootball_nfl')
+            const sportKey = firstLegGame.sport.key.split('_').pop() || 'nfl';
+            firstLegSport = sportKey;
+          }
+        } catch (error) {
+          logger.warn('Failed to resolve teaser sport, defaulting to nfl');
+        }
+      }
+      
       const teaserOdds = getTeaserOdds(
         data.legs.length,
         data.teaserPoints,
