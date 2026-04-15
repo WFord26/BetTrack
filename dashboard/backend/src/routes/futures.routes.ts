@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
-import { requireSessionAuth } from '../middleware/session.auth';
+import { requireSessionAuth } from '../middleware/auth-session.middleware';
 
 const router = Router();
 

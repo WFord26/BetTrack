@@ -5,7 +5,7 @@ import {
   AuthenticatedRequest,
   getScopedUserId,
   requireSessionAuth
-} from '../middleware/session.auth';
+} from '../middleware/auth-session.middleware';
 
 const router = Router();
 

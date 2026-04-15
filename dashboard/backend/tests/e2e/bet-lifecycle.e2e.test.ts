@@ -60,19 +60,15 @@ jest.mock('../../src/services/espn-weather.service', () => ({
   }
 }));
 
-// ------ Session auth middleware ------
-jest.mock('../../src/middleware/session.auth', () => ({
+// ------ Auth-session middleware ------
+jest.mock('../../src/middleware/auth-session.middleware', () => ({
   requireSessionAuth: jest.fn((_req: any, _res: any, next: any) => next()),
   optionalAuth:       jest.fn((_req: any, _res: any, next: any) => next()),
   isAuthEnabled:      jest.fn(() => false),
   getScopedUserId:    jest.fn(() => undefined),
   getUserId:          jest.fn(() => null),
   requireAdminAccess: jest.fn((_req: any, _res: any, next: any) => next()),
-}));
-
-// ------ Auth-session middleware ------
-jest.mock('../../src/middleware/auth-session.middleware', () => ({
-  attachAuthSession: jest.fn((_req: any, _res: any, next: any) => next()),
+  attachAuthSession:  jest.fn((_req: any, _res: any, next: any) => next()),
 }));
 
 // ------ Prisma ------

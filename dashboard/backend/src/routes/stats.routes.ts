@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../config/logger';
-import { requireSessionAuth } from '../middleware/session.auth';
+import { requireSessionAuth } from '../middleware/auth-session.middleware';
 
 const router = Router();
 const prisma = new PrismaClient();
