@@ -1,6 +1,30 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
+
+// Mock session-store before any imports that trigger redis
+jest.mock('../src/services/session-store.service', () => ({
+  initializeSessionStore: jest.fn(),
+  shutdownSessionStore: jest.fn(),
+  sessionStore: {
+    get: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
+    clear: jest.fn()
+  }
+}));
+
+// Mock auth-session middleware to read userId from req.session (set by test middleware)
+jest.mock('../src/middleware/auth-session.middleware', () => ({
+  requireSessionAuth: jest.fn((req: any, _res: any, next: any) => next()),
+  optionalAuth: jest.fn((req: any, _res: any, next: any) => next()),
+  isAuthEnabled: jest.fn(() => false),
+  getScopedUserId: jest.fn((req: any) => req.session?.user?.id || undefined),
+  getUserId: jest.fn((req: any) => req.session?.user?.id || null),
+  requireAdminAccess: jest.fn((_req: any, _res: any, next: any) => next()),
+  attachAuthSession: jest.fn((_req: any, _res: any, next: any) => next()),
+}));
+
 import apiKeysRoutes from '../src/routes/api-keys.routes';
 import { prisma } from '../src/config/database';
 import * as apiKeyGenerator from '../src/utils/api-key-generator';
