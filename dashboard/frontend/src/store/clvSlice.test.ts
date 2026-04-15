@@ -11,7 +11,8 @@ import clvReducer, {
   fetchCLVBySport,
   fetchCLVByBookmaker,
   fetchCLVTrends,
-  fetchCLVReport
+  fetchCLVReport,
+  type CLVState
 } from './clvSlice';
 import { clvService } from '../services/clv.service';
 
@@ -29,7 +30,7 @@ vi.mock('../services/clv.service', () => ({
 }));
 
 describe('clvSlice', () => {
-  let store: ReturnType<typeof configureStore>;
+  let store: ReturnType<typeof configureStore<{ clv: CLVState }>>;
 
   beforeEach(() => {
     store = configureStore({
