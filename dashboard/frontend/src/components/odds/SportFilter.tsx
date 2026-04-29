@@ -27,8 +27,8 @@ export default function SportFilter({ value, onChange }: SportFilterProps) {
             px-4 py-2 rounded-lg font-medium text-sm transition-all
             ${
               value === sport.key
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-brand-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-surface-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-surface-600'
             }
           `}
         >

@@ -138,14 +138,14 @@ export default function CLVAnalytics() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">CLV Analytics</h1>
+            <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white text-shadow-pixel tracking-wide">CLV ANALYTICS</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               Closing Line Value analysis across {summary.totalBets} bets
             </p>
           </div>
           <button
             onClick={handleExportCSV}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="btn-primary flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -155,8 +155,8 @@ export default function CLVAnalytics() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
+        <div className="card p-6">
+          <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4">Filters</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -212,7 +212,7 @@ export default function CLVAnalytics() {
             <div className="flex items-end gap-2">
               <button
                 onClick={handleApplyFilters}
-                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                className="flex-1 btn-primary"
               >
                 Apply
               </button>
@@ -228,38 +228,38 @@ export default function CLVAnalytics() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Average CLV</p>
-            <p className={`text-3xl font-bold ${summary.averageCLV >= 2 ? 'text-green-600 dark:text-green-400' : summary.averageCLV <= -2 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+          <div className="card p-6">
+            <p className="text-xs font-display font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-1">Average CLV</p>
+            <p className={`text-3xl font-bold ${summary.averageCLV >= 2 ? 'text-win-600 dark:text-win-400' : summary.averageCLV <= -2 ? 'text-loss-600 dark:text-loss-400' : 'text-live-600 dark:text-live-400'}`}>
               {summary.averageCLV > 0 ? '+' : ''}{summary.averageCLV.toFixed(2)}%
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">CLV Win Rate</p>
+          <div className="card p-6">
+            <p className="text-xs font-display font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-1">CLV Win Rate</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white">
               {formatPercentage(summary.clvWinRate)}
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Expected ROI</p>
-            <p className={`text-3xl font-bold ${summary.expectedROI >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          <div className="card p-6">
+            <p className="text-xs font-display font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-1">Expected ROI</p>
+            <p className={`text-3xl font-bold ${summary.expectedROI >= 0 ? 'text-win-600 dark:text-win-400' : 'text-loss-600 dark:text-loss-400'}`}>
               {summary.expectedROI > 0 ? '+' : ''}{summary.expectedROI.toFixed(2)}%
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Actual ROI</p>
-            <p className={`text-3xl font-bold ${summary.actualROI >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          <div className="card p-6">
+            <p className="text-xs font-display font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-1">Actual ROI</p>
+            <p className={`text-3xl font-bold ${summary.actualROI >= 0 ? 'text-win-600 dark:text-win-400' : 'text-loss-600 dark:text-loss-400'}`}>
               {summary.actualROI > 0 ? '+' : ''}{summary.actualROI.toFixed(2)}%
             </p>
           </div>
         </div>
 
         {/* CLV Trend Chart */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">CLV Trend Over Time</h3>
+        <div className="card p-6">
+          <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4">CLV Trend Over Time</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trends}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -283,12 +283,12 @@ export default function CLVAnalytics() {
                 formatter={(value: any) => [`${value.toFixed(2)}%`, 'CLV']}
               />
               <Legend wrapperStyle={{ color: '#9CA3AF' }} />
-              <Line 
-                type="monotone" 
-                dataKey="averageCLV" 
-                stroke="#8B5CF6" 
+              <Line
+                type="monotone"
+                dataKey="averageCLV"
+                stroke="#dc2626"
                 strokeWidth={3}
-                dot={{ fill: '#8B5CF6', r: 4 }}
+                dot={{ fill: '#dc2626', r: 4 }}
                 name="Average CLV"
               />
             </LineChart>
@@ -298,8 +298,8 @@ export default function CLVAnalytics() {
         {/* CLV by Sport & Bookmaker */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* By Sport */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">CLV by Sport</h3>
+          <div className="card p-6">
+            <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4">CLV by Sport</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={report.bySport}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -325,14 +325,14 @@ export default function CLVAnalytics() {
                   }}
                   formatter={(value: any) => [`${value.toFixed(2)}%`, 'Avg CLV']}
                 />
-                <Bar dataKey="averageCLV" fill="#8B5CF6" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="averageCLV" fill="#dc2626" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
           {/* By Bookmaker */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">CLV by Bookmaker</h3>
+          <div className="card p-6">
+            <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4">CLV by Bookmaker</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={report.byBookmaker}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -358,7 +358,7 @@ export default function CLVAnalytics() {
                   }}
                   formatter={(value: any) => [`${value.toFixed(2)}%`, 'Avg CLV']}
                 />
-                <Bar dataKey="averageCLV" fill="#10B981" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="averageCLV" fill="#dc2626" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -367,8 +367,8 @@ export default function CLVAnalytics() {
         {/* Top & Worst Bets */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Top Bets */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <div className="card p-6">
+            <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
               </svg>
@@ -399,8 +399,8 @@ export default function CLVAnalytics() {
           </div>
 
           {/* Worst Bets */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <div className="card p-6">
+            <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.105-1.79l-.05-.025A4 4 0 0011.055 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
               </svg>

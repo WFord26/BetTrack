@@ -235,11 +235,11 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
   }
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-50 border-2 border-blue-600 dark:border-blue-500">
+    <div className="fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-50 border-2 border-brand-600">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 px-4 py-3 flex items-center justify-between text-white">
+      <div className="bg-brand-600 px-4 py-3 flex items-center justify-between text-white">
         <div className="flex items-center gap-2">
-          <h3 className="font-bold text-lg">Bet Slip</h3>
+          <h3 className="font-display font-bold text-lg tracking-wide">BET SLIP</h3>
           <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-semibold">
             {legs.length}
           </span>
@@ -291,7 +291,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                 flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all
                 ${
                   betType === 'single'
-                    ? 'bg-blue-600 text-white shadow-md'
+                    ? 'bg-brand-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }
                 ${legs.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}
@@ -306,7 +306,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                 flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all
                 ${
                   betType === 'parlay'
-                    ? 'bg-blue-600 text-white shadow-md'
+                    ? 'bg-brand-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }
                 ${legs.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
@@ -321,7 +321,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                 flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all
                 ${
                   betType === 'teaser'
-                    ? 'bg-purple-600 text-white shadow-md'
+                    ? 'bg-brand-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }
                 ${legs.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
@@ -891,7 +891,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
             w-full py-3.5 rounded-lg font-bold text-white text-base transition-all shadow-md
             ${
               isValid && betName.trim() && !isSubmitting
-                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]'
+                ? 'bg-brand-600 hover:bg-brand-700 hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]'
                 : 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-60'
             }
           `}
