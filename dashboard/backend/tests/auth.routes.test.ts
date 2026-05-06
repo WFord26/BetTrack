@@ -356,15 +356,19 @@ describe('Auth Routes', () => {
       expect(response.body).toEqual({ success: true, message: 'Auth not enabled' });
     });
 
-    it('should handle logout errors gracefully', async () => {
-      // Setup user with failing logout
+    it('should return 500 when destroyAuthSession rejects', async () => {
+      // The legacy req.session.destroy / req.logout branches were removed
+      // when Passport + express-session were ripped out. The single
+      // failure path now is destroyAuthSession itself rejecting (e.g.
+      // Redis is down at logout time).
+      const { destroyAuthSession } = await import('../src/middleware/auth-session.middleware');
+      (destroyAuthSession as jest.MockedFunction<typeof destroyAuthSession>)
+        .mockRejectedValueOnce(new Error('Session store unavailable'));
+
       app = express();
       app.use(express.json());
-      app.use((req: any, res, next) => {
+      app.use((req: any, _res, next) => {
         req.user = { id: 'user123', email: 'test@example.com' };
-        req.logout = (callback: (err?: any) => void) => {
-          callback(new Error('Logout failed'));
-        };
         next();
       });
       app.use('/auth', authRoutes);
@@ -374,36 +378,6 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: 'Logout failed' });
       expect(mockLoggerError).toHaveBeenCalledWith('Logout error:', expect.any(Error));
-    });
-
-    it('should handle session destruction errors gracefully', async () => {
-      // Setup user with failing session destroy
-      app = express();
-      app.use(express.json());
-      app.use((req: any, res, next) => {
-        req.user = { id: 'user123', email: 'test@example.com' };
-        req.session = {
-          destroy: (callback: (err?: any) => void) => {
-            callback(new Error('Session destroy failed'));
-          }
-        };
-        req.logout = (callback: (err?: any) => void) => {
-          req.user = undefined;
-          callback();
-        };
-        next();
-      });
-      app.use('/auth', authRoutes);
-
-      const response = await request(app).post('/auth/logout');
-
-      expect(response.status).toBe(200); // Still returns success
-      expect(response.body).toEqual({ success: true });
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        'Session destruction error:',
-        expect.any(Error)
-      );
-      expect(mockLoggerInfo).toHaveBeenCalledWith('User logged out: test@example.com');
     });
 
     it('should logout user without email', async () => {

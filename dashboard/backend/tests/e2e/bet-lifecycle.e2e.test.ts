@@ -298,6 +298,21 @@ describe('Bet Lifecycle E2E', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Default $transaction implementation: pass the same prisma mock
+    // through as the `tx` client and run the callback. Specific tests
+    // can still override with .mockImplementation when they want to
+    // assert the tx-scoped fixture object explicitly.
+    (mockPrisma.$transaction as jest.MockedFunction<any>).mockImplementation(
+      async (cb: any) => cb(mockPrisma)
+    );
+
+    // The outcome resolver now runs a recovery sweep (settleStuckBets)
+    // at the end of every resolveOutcomes() invocation. That sweep calls
+    // prisma.bet.findMany — default it to empty so tests that don't
+    // care about stuck bets don't see a "stuckBets is not iterable" or
+    // similar mock-undefined error.
+    mockPrisma.bet.findMany.mockResolvedValue([]);
+
     // Build a minimal Express app (mirrors src/app.ts, without session store)
     app = express();
     app.use(express.json());
@@ -921,6 +936,15 @@ describe('Bet Lifecycle E2E', () => {
 
       expect(betRes.body.status).toBe('success');
       const createdBetId = BET_ID;  // tracked through our fixture
+
+      // The $transaction override above synthesized a `tx` shaped only
+      // for createBet (bet.create / betLeg.create / betLegFuture.create).
+      // The outcome resolver's settlement transactions need a `tx` with
+      // betLeg.update + bet.findUnique + bet.update, so restore the
+      // default pass-through that proxies to the top-level mockPrisma.
+      (mockPrisma.$transaction as jest.MockedFunction<any>).mockImplementation(
+        async (cb: any) => cb(mockPrisma)
+      );
 
       // -------- 3. Odds sync --------
       // upsertGame calls sport.findUnique to resolve sportId

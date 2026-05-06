@@ -1,6 +1,12 @@
 /**
  * Unit tests for Auth-Session Middleware
- * Tests requireSessionAuth, optionalAuth, requireAdminAccess helper functions
+ *
+ * Tests requireSessionAuth + requireAdminAccess helper functions.
+ *
+ * NOTE: `optionalAuth` was removed — it was a no-op (attachAuthSession
+ * already populates req.user when a valid session cookie is present),
+ * so tests for "calls next() when AUTH_MODE is X" were tautological.
+ * The two cases that exercised it have been deleted with the function.
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
@@ -45,7 +51,6 @@ jest.mock('../src/services/session-store.service', () => ({
 
 import {
   requireSessionAuth,
-  optionalAuth,
   requireAdminAccess,
   getUserId,
   getScopedUserId,
@@ -101,34 +106,6 @@ describe('requireSessionAuth', () => {
       expect.objectContaining({ error: 'Authentication required' })
     );
     expect(next).not.toHaveBeenCalled();
-  });
-});
-
-describe('optionalAuth', () => {
-  let next: jest.Mock;
-
-  beforeEach(() => {
-    next = jest.fn();
-    mockEnv.AUTH_MODE = 'none';
-  });
-
-  it('calls next() when AUTH_MODE is none', () => {
-    const { res } = makeRes();
-    const req = makeReq();
-
-    optionalAuth(req, res, next as NextFunction);
-
-    expect(next).toHaveBeenCalled();
-    expect(req.user).toBeUndefined();
-  });
-
-  it('calls next() when AUTH_MODE is oauth2', () => {
-    mockEnv.AUTH_MODE = 'oauth2';
-    const { res } = makeRes();
-
-    optionalAuth(makeReq(), res, next as NextFunction);
-
-    expect(next).toHaveBeenCalled();
   });
 });
 

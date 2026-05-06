@@ -73,15 +73,17 @@ describe('ErrorBoundary', () => {
 
     expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
 
-    // Click the "Try Again" button specifically
-    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
-
-    // After reset, re-render with non-throwing child
+    // Update children to non-throwing BEFORE clicking "Try Again".
+    // If we clicked first, the ErrorBoundary would immediately re-catch
+    // the still-throwing old children on re-render.
     rerender(
       <ErrorBoundary>
         <ThrowError shouldThrow={false} />
       </ErrorBoundary>
     );
+
+    // Error UI is still visible (hasError=true), now reset
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
 
     expect(screen.getByText('Normal content')).toBeInTheDocument();
   });

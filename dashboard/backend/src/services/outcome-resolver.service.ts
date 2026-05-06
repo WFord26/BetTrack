@@ -18,6 +18,7 @@ import {
 } from '../utils/odds-calculator';
 import { BetOutcome } from '../types/betting.types';
 import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 /**
  * Service for resolving game outcomes and settling bets
@@ -109,6 +110,21 @@ export class OutcomeResolverService {
         }
       }
 
+      // Recovery sweep: pick up bets whose legs are all settled but the
+      // parent bet is still pending — typically because a previous run
+      // crashed between settling legs and finalizing the bet.
+      try {
+        const recovered = await this.settleStuckBets();
+        result.betsSettled += recovered;
+        if (recovered > 0) {
+          logger.info(`Recovery sweep finalized ${recovered} previously-stuck bet(s)`);
+        }
+      } catch (error) {
+        const errorMsg = `Recovery sweep failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        logger.error(errorMsg);
+        result.errors.push(errorMsg);
+      }
+
       logger.info(`Outcome resolution complete: ${result.gamesUpdated} games, ${result.legsSettled} legs, ${result.betsSettled} bets`);
 
       if (result.errors.length > 0) {
@@ -123,6 +139,37 @@ export class OutcomeResolverService {
     }
 
     return result;
+  }
+
+  /**
+   * Recovery sweep: finalize any pending bets where every leg is already
+   * settled. Catches bets that were left in limbo by a crash between
+   * leg-update and bet-finalize in a previous run.
+   */
+  async settleStuckBets(): Promise<number> {
+    const stuckBets = await prisma.bet.findMany({
+      where: {
+        status: 'pending',
+        legs: {
+          // No legs still pending → all legs have been resolved.
+          none: { status: 'pending' },
+        },
+      },
+      select: { id: true },
+    });
+
+    let settled = 0;
+    for (const bet of stuckBets) {
+      try {
+        if (await this.checkAndSettleBet(bet.id)) settled++;
+      } catch (error) {
+        logger.error(
+          `Recovery sweep failed to settle bet ${bet.id}: ` +
+          `${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    }
+    return settled;
   }
 
   /**
@@ -268,7 +315,12 @@ export class OutcomeResolverService {
   }
 
   /**
-   * Settle all bet legs for a game
+   * Settle all bet legs for a game.
+   *
+   * Per bet, the leg updates AND the parent bet finalization happen in a
+   * single $transaction so a crash mid-flight can never leave a bet
+   * `pending` with all its legs already settled. The recovery sweep in
+   * `settleStuckBets` is a defence-in-depth backstop.
    */
   async settleBetLegs(
     gameId: string,
@@ -291,58 +343,90 @@ export class OutcomeResolverService {
 
     logger.info(`Settling ${legs.length} bet legs for game ${gameId}`);
 
-    const processedBets = new Set<string>();
-
-    // Settle each leg
+    // Group legs by bet so we can settle each bet's legs together.
+    const legsByBet = new Map<string, typeof legs>();
     for (const leg of legs) {
-      try {
-        const outcome = this.determineLegOutcome(leg, result);
-
-        await prisma.betLeg.update({
-          where: { id: leg.id },
-          data: {
-            status: outcome,
-            updatedAt: new Date()
-          }
-        });
-
-        logger.debug(`Settled leg ${leg.id}: ${outcome}`);
-
-        // Track bet for settlement
-        processedBets.add(leg.betId);
-
-      } catch (error) {
-        logger.error(`Failed to settle leg ${leg.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const existing = legsByBet.get(leg.betId);
+      if (existing) {
+        existing.push(leg);
+      } else {
+        legsByBet.set(leg.betId, [leg]);
       }
     }
 
-    // Check and settle each unique bet
-    let settledCount = 0;
-    for (const betId of processedBets) {
+    let totalLegsSettled = 0;
+    let totalBetsSettled = 0;
+
+    for (const [betId, betLegs] of legsByBet.entries()) {
+      // Pre-compute outcomes outside the transaction so determineLegOutcome
+      // throwing for a malformed leg only fails *that* bet, not the whole game.
+      const legOutcomes: Array<{ id: string; outcome: BetOutcome }> = [];
       try {
-        const wasSettled = await this.checkAndSettleBet(betId);
-        if (wasSettled) settledCount++;
+        for (const leg of betLegs) {
+          legOutcomes.push({
+            id: leg.id,
+            outcome: this.determineLegOutcome(leg, result),
+          });
+        }
       } catch (error) {
-        logger.error(`Failed to settle bet ${betId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        logger.error(
+          `Failed to determine outcomes for bet ${betId}: ` +
+          `${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+        continue;
+      }
+
+      try {
+        const settled = await prisma.$transaction(async (tx) => {
+          const now = new Date();
+          for (const { id, outcome } of legOutcomes) {
+            await tx.betLeg.update({
+              where: { id },
+              data: { status: outcome, updatedAt: now },
+            });
+          }
+          return this.finalizeBetTx(tx, betId);
+        });
+
+        totalLegsSettled += legOutcomes.length;
+        if (settled) totalBetsSettled++;
+      } catch (error) {
+        logger.error(
+          `Failed to settle bet ${betId} for game ${gameId}: ` +
+          `${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
     }
 
     return {
-      legsSettled: legs.length,
-      betsSettled: settledCount
+      legsSettled: totalLegsSettled,
+      betsSettled: totalBetsSettled,
     };
   }
 
   /**
-   * Check if bet can be settled and settle it
+   * Check if a bet can be settled and finalize it.
+   *
+   * Wraps `finalizeBetTx` in its own transaction so call-sites that aren't
+   * already inside one (e.g. the recovery sweep, manual API triggers)
+   * still get atomic behavior.
    */
   async checkAndSettleBet(betId: string): Promise<boolean> {
-    // Get bet with all legs
-    const bet = await prisma.bet.findUnique({
+    return prisma.$transaction((tx) => this.finalizeBetTx(tx, betId));
+  }
+
+  /**
+   * Inner finalization routine — runs inside a Prisma transaction client.
+   * Returns true if the bet was finalized, false if it wasn't ready
+   * (already settled, missing, or still has pending legs).
+   */
+  private async finalizeBetTx(
+    tx: Prisma.TransactionClient,
+    betId: string
+  ): Promise<boolean> {
+    const bet = await tx.bet.findUnique({
       where: { id: betId },
-      include: {
-        legs: true
-      }
+      include: { legs: true },
     });
 
     if (!bet) {
@@ -350,23 +434,19 @@ export class OutcomeResolverService {
       return false;
     }
 
-    // Check if already settled
     if (bet.status !== 'pending') {
       return false;
     }
 
-    // Check if all legs are settled
-    const pendingLegs = bet.legs.filter(leg => leg.status === 'pending');
+    const pendingLegs = bet.legs.filter((leg) => leg.status === 'pending');
     if (pendingLegs.length > 0) {
       logger.debug(`Bet ${betId} still has ${pendingLegs.length} pending legs`);
       return false;
     }
 
-    // Determine bet outcome
-    const legOutcomes = bet.legs.map(leg => leg.status as BetOutcome);
+    const legOutcomes = bet.legs.map((leg) => leg.status as BetOutcome);
     const betOutcome = this.determineBetOutcome(legOutcomes);
 
-    // Calculate actual payout
     let actualPayout: Decimal;
 
     if (betOutcome === 'lost') {
@@ -374,23 +454,19 @@ export class OutcomeResolverService {
     } else if (betOutcome === 'push') {
       actualPayout = bet.stake;
     } else if (betOutcome === 'won') {
-      // Check if there were any pushes
-      const pushCount = legOutcomes.filter(o => o === 'push').length;
-      
+      const pushCount = legOutcomes.filter((o) => o === 'push').length;
+
       if (pushCount > 0 && bet.betType === 'parlay') {
-        // Recalculate odds without push legs
-        const winningLegs = bet.legs.filter(leg => leg.status === 'won');
-        
+        const winningLegs = bet.legs.filter((leg) => leg.status === 'won');
+
         if (winningLegs.length === 0) {
           actualPayout = bet.stake; // All pushes
         } else if (winningLegs.length === 1) {
-          // Reduced to single bet
           const odds = winningLegs[0].userAdjustedOdds || winningLegs[0].odds;
           actualPayout = new Decimal(calculatePayout(bet.stake.toNumber(), odds));
         } else {
-          // Reduced parlay
-          const legs = winningLegs.map(leg => ({
-            odds: leg.userAdjustedOdds || leg.odds
+          const legs = winningLegs.map((leg) => ({
+            odds: leg.userAdjustedOdds || leg.odds,
           }));
           const decimalOdds = calculateParlayOdds(legs);
           const americanOdds = decimalToAmerican(decimalOdds);
@@ -403,19 +479,18 @@ export class OutcomeResolverService {
       actualPayout = bet.stake; // Shouldn't reach here
     }
 
-    // Update bet
-    await prisma.bet.update({
+    const now = new Date();
+    await tx.bet.update({
       where: { id: betId },
       data: {
         status: betOutcome,
         actualPayout,
-        settledAt: new Date(),
-        updatedAt: new Date()
-      }
+        settledAt: now,
+        updatedAt: now,
+      },
     });
 
     logger.info(`Settled bet ${betId}: ${betOutcome}, payout: ${actualPayout.toString()}`);
-
     return true;
   }
 
@@ -457,18 +532,55 @@ export class OutcomeResolverService {
   }
 
   /**
-   * Check if team names match (fuzzy)
+   * Check if team names refer to the same team.
+   *
+   * The previous implementation accepted any substring overlap, which
+   * matched cases like:
+   *   - "Giants" → "San Francisco Giants" AND "New York Giants"
+   *   - "Eagles" → "Philadelphia Eagles" AND "Boston College Eagles"
+   * — i.e. the mascot alone collided across teams in the same sport on
+   * the same date (think MLB doubleheader days).
+   *
+   * Tighter rules:
+   *   1. Exact normalized equality.
+   *   2. One side fully contains the OTHER, and the contained side has
+   *      at least two normalized tokens (so a market name → official name
+   *      shorthand still works, e.g. "NY Giants" ⊂ "New York Giants",
+   *      but bare mascot tokens are rejected).
+   *   3. Last-token (mascot) match AS A FALLBACK only when both names
+   *      share at least one *non-mascot* token (e.g. city/state) so we
+   *      don't collapse two different "Eagles" teams.
    */
   private teamNamesMatch(name1: string, name2: string): boolean {
-    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const n1 = normalize(name1);
-    const n2 = normalize(name2);
+    const tokenize = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[^a-z0-9 ]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
 
-    // Exact match
-    if (n1 === n2) return true;
+    const t1 = tokenize(name1);
+    const t2 = tokenize(name2);
+    if (t1.length === 0 || t2.length === 0) return false;
 
-    // Contains match
-    if (n1.includes(n2) || n2.includes(n1)) return true;
+    const norm1 = t1.join('');
+    const norm2 = t2.join('');
+
+    // 1. Exact normalized match.
+    if (norm1 === norm2) return true;
+
+    // 2. Containment, but only if the contained name has 2+ tokens.
+    if (t1.length >= 2 && norm2.includes(norm1)) return true;
+    if (t2.length >= 2 && norm1.includes(norm2)) return true;
+
+    // 3. Mascot match with shared non-mascot token.
+    const mascot1 = t1[t1.length - 1];
+    const mascot2 = t2[t2.length - 1];
+    if (mascot1 === mascot2) {
+      const set1 = new Set(t1.slice(0, -1));
+      const sharedNonMascot = t2.slice(0, -1).some((token) => set1.has(token));
+      if (sharedNonMascot) return true;
+    }
 
     return false;
   }

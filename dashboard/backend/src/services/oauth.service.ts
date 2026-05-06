@@ -18,6 +18,13 @@ interface OAuthProfile {
   name?: string;
   avatarUrl?: string;
   providerId: string;
+  /**
+   * Whether the IdP has verified this email belongs to the user.
+   * Required = true before we'll attach this profile to an existing
+   * email-matched account (otherwise an attacker could register a free
+   * account with someone else's email and claim their existing record).
+   */
+  emailVerified: boolean;
 }
 
 function normalizeEmail(email: string): string {
@@ -166,6 +173,21 @@ export class OAuthService {
       );
     }
 
+    // SECURITY: Only attach this OAuth identity to an existing account when
+    // the IdP has verified ownership of the email. Without this, an attacker
+    // who creates an OAuth account with an unverified email matching a real
+    // user could hijack that record.
+    if (
+      existingUserByEmail &&
+      !existingUser &&
+      !profile.emailVerified
+    ) {
+      throw new OAuthError(
+        'email_not_verified',
+        `Email ${email} is not verified by ${provider}`
+      );
+    }
+
     const userToUpdate = existingUser || existingUserByEmail;
 
     const user = userToUpdate
@@ -239,6 +261,9 @@ export class OAuthService {
       name: profile.name,
       avatarUrl: profile.picture,
       providerId: profile.sub,
+      // Google's OIDC userinfo returns `email_verified` as a boolean.
+      // Treat anything not strictly true as unverified.
+      emailVerified: profile.email_verified === true,
     };
   }
 
@@ -280,10 +305,18 @@ export class OAuthService {
     const profile = profileResponse.data;
     const email = profile.mail || profile.userPrincipalName;
 
+    // Microsoft Graph's /me endpoint does not expose an `email_verified`
+    // claim. For a single-tenant Azure AD deployment the `mail` attribute
+    // is provisioned/verified by the tenant admin, so we treat presence
+    // of `mail` as verified. `userPrincipalName` alone is the immutable
+    // login ID and isn't a verified mailbox — flag it as unverified.
+    const emailVerified = Boolean(profile.mail);
+
     return {
       email,
       name: profile.displayName,
       providerId: profile.id,
+      emailVerified,
     };
   }
 }

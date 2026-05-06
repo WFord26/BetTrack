@@ -54,6 +54,15 @@ export default defineConfig({
         branches: 8,
         statements: 8
       }
-    }
+    },
+    // Each test file runs in its own fork for proper isolation.
+    // execArgv raises the heap limit per fork to prevent OOM when jsdom +
+    // React + Redux environments accumulate across many test files.
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        execArgv: ['--max-old-space-size=4096'],
+      },
+    },
   }
 });

@@ -28,12 +28,15 @@ describe('PreferencesContext', () => {
   let setItemSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
-    setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    // Spy directly on window.localStorage instance (not Storage.prototype).
+    getItemSpy = vi.spyOn(window.localStorage, 'getItem').mockReturnValue(null);
+    setItemSpy = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    // Restore ONLY our spies to avoid clearing global vi.fn() mocks (e.g. matchMedia).
+    getItemSpy.mockRestore();
+    setItemSpy.mockRestore();
   });
 
   it('uses default preferences when nothing is saved', () => {

@@ -22,14 +22,19 @@ describe('DarkModeContext', () => {
   let setItemSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    // Use spies so we control what localStorage returns
-    getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
-    setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    // Spy directly on window.localStorage instance (not Storage.prototype).
+    getItemSpy = vi.spyOn(window.localStorage, 'getItem').mockReturnValue(null);
+    setItemSpy = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {});
     document.documentElement.classList.remove('dark');
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    // Restore ONLY our spies — do NOT call vi.restoreAllMocks() here because
+    // that also clears the vi.fn() matchMedia mock installed in setup.ts,
+    // causing TypeError on subsequent tests that reach the fallback branch.
+    getItemSpy.mockRestore();
+    setItemSpy.mockRestore();
+    document.documentElement.classList.remove('dark');
   });
 
   it('defaults to light mode when no saved preference', () => {

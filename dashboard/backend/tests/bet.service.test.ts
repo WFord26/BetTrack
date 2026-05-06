@@ -18,6 +18,10 @@ jest.mock('../src/config/database', () => ({
       findMany: jest.fn(),
       groupBy: jest.fn(),
       update: jest.fn(),
+      // updateMany is now used by updateBet so the ownership filter is
+      // re-asserted atomically with the mutation (closes the TOCTOU
+      // between findFirst and update).
+      updateMany: jest.fn(),
       count: jest.fn(),
       delete: jest.fn()
     },
@@ -321,7 +325,10 @@ describe('Bet Service Unit Tests', () => {
       };
 
       mockPrisma.bet.findFirst.mockResolvedValueOnce(mockExistingBet as any);
-      mockPrisma.bet.update.mockResolvedValue(mockUpdatedBet as any);
+      // updateBet now uses updateMany so the WHERE clause carries the
+      // userId filter atomically with the mutation. Returning count: 1
+      // signals "the row matched and was updated".
+      (mockPrisma.bet as any).updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.bet.findFirst.mockResolvedValueOnce(mockUpdatedBet as any);
 
       const result = await service.updateBet('bet-8', { notes: 'Updated notes' });

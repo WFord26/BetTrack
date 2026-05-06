@@ -156,13 +156,16 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
     // For parlay boost, DON'T boost individual legs - only the combined odds
     // Pass boostedCombinedOdds to backend which will apply it to the entire parlay
     const oddsToSubmit = oddsBoostPercentage > 0 ? boostedCombinedOdds : undefined;
-    
-    if (oddsBoostPercentage > 0) {
-      console.log(`Applying ${oddsBoostPercentage}% parlay boost:`);
-      console.log(`- Original combined odds: ${combinedOdds}`);
-      console.log(`- Boosted combined odds: ${oddsToSubmit}`);
-      console.log(`- Original payout: $${potentialPayout.toFixed(2)}`);
-      console.log(`- Boosted payout: $${boostedPotentialPayout.toFixed(2)}`);
+
+    if (oddsBoostPercentage > 0 && import.meta.env.DEV) {
+      // Dev-only: keep visibility into the boost math without shipping
+      // these logs to production users.
+      // eslint-disable-next-line no-console
+      console.log(
+        `Parlay boost +${oddsBoostPercentage}%: ` +
+        `${combinedOdds} → ${oddsToSubmit}, ` +
+        `$${potentialPayout.toFixed(2)} → $${boostedPotentialPayout.toFixed(2)}`
+      );
     }
 
     // Submit with boosted combined odds (bypasses Redux state entirely)

@@ -9,10 +9,32 @@ import {
   isAuthEnabled,
   saveAuthSession,
 } from '../middleware/auth-session.middleware';
+import { rateLimit } from '../middleware/rate-limit.middleware';
 import { OAuthError, oauthService } from '../services/oauth.service';
 import type { AuthProvider } from '../types/auth.types';
 
 const router = express.Router();
+
+// SECURITY: rate-limit login + callback endpoints by IP. The numbers are
+// generous — real users only hit these a handful of times per session,
+// but they cap drive-by enumeration and IdP-quota abuse.
+const oauthBeginLimiter = rateLimit({
+  windowMs: 60_000, // 1 min
+  max: 30,
+  label: 'oauth-begin',
+});
+
+const oauthCallbackLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  label: 'oauth-callback',
+});
+
+const logoutLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  label: 'logout',
+});
 
 function sanitizeRedirectPath(value: unknown): string {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) {
@@ -127,23 +149,23 @@ router.get('/status', (req: Request, res: Response) => {
   });
 });
 
-router.get('/google', async (req: Request, res: Response) => {
+router.get('/google', oauthBeginLimiter, async (req: Request, res: Response) => {
   await beginOAuth(req, res, 'google');
 });
 
-router.get('/google/callback', async (req: Request, res: Response) => {
+router.get('/google/callback', oauthCallbackLimiter, async (req: Request, res: Response) => {
   await handleOAuthCallback(req, res, 'google');
 });
 
-router.get('/microsoft', async (req: Request, res: Response) => {
+router.get('/microsoft', oauthBeginLimiter, async (req: Request, res: Response) => {
   await beginOAuth(req, res, 'microsoft');
 });
 
-router.get('/microsoft/callback', async (req: Request, res: Response) => {
+router.get('/microsoft/callback', oauthCallbackLimiter, async (req: Request, res: Response) => {
   await handleOAuthCallback(req, res, 'microsoft');
 });
 
-router.post('/logout', (req: Request, res: Response): void => {
+router.post('/logout', logoutLimiter, async (req: Request, res: Response): Promise<void> => {
   if (!isAuthEnabled()) {
     res.json({ success: true, message: 'Auth not enabled' });
     return;
@@ -151,37 +173,17 @@ router.post('/logout', (req: Request, res: Response): void => {
 
   const userEmail = req.user?.email;
 
-  const onSessionDestroyed = (err?: any) => {
-    if (err) {
-      logger.error('Session destruction error:', err);
-    }
+  try {
+    // Removed legacy `req.session.destroy` / `req.logout` branches —
+    // those came from express-session + passport, both of which were
+    // ripped out in the auth refactor. The custom session store is the
+    // single source of truth now.
+    await destroyAuthSession(req, res);
     logger.info(`User logged out: ${userEmail}`);
     res.json({ success: true });
-  };
-
-  const destroySession = () => {
-    const reqAny = req as any;
-    if (reqAny.session && typeof reqAny.session.destroy === 'function') {
-      reqAny.session.destroy(onSessionDestroyed);
-    } else {
-      destroyAuthSession(req, res).then(() => {
-        logger.info(`User logged out: ${userEmail}`);
-        res.json({ success: true });
-      });
-    }
-  };
-
-  if (typeof (req as any).logout === 'function') {
-    (req as any).logout((err: any) => {
-      if (err) {
-        logger.error('Logout error:', err);
-        res.status(500).json({ error: 'Logout failed' });
-        return;
-      }
-      destroySession();
-    });
-  } else {
-    destroySession();
+  } catch (error) {
+    logger.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
   }
 });
 

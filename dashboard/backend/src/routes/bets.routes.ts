@@ -77,8 +77,10 @@ const getBetsQuerySchema = z.object({
   sportKey: z.string().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-  limit: z.string().transform(Number).optional(),
-  offset: z.string().transform(Number).optional()
+  // Coerce + bound: previously `z.string().transform(Number)` produced
+  // NaN for non-numeric input and silently passed it to Prisma `take`.
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
 });
 
 const getStatsQuerySchema = z.object({
@@ -151,8 +153,9 @@ router.get(
       if (req.query.sportKey) filters.sportKey = req.query.sportKey as string;
       if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
       if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
-      if (req.query.limit) filters.limit = Number(req.query.limit);
-      if (req.query.offset) filters.offset = Number(req.query.offset);
+      // limit/offset are already coerced to numbers by getBetsQuerySchema
+      if (req.query.limit !== undefined) filters.limit = req.query.limit as unknown as number;
+      if (req.query.offset !== undefined) filters.offset = req.query.offset as unknown as number;
       if (userId) filters.userId = userId;
 
       const result = await betService.getBets(filters);

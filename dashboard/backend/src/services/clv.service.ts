@@ -52,14 +52,29 @@ export class CLVService {
         );
 
         if (matchingSnapshot) {
+          // OddsSnapshot price columns are `Int` (American odds) per schema —
+          // see prisma/schema.prisma. The defensive cast guards against
+          // accidental decimals slipping in from upstream parsing changes;
+          // skip rather than persist NaN if the value is non-numeric.
+          const rawPrice = (matchingSnapshot as { price?: unknown }).price;
+          const closingOdds = typeof rawPrice === 'number' && Number.isFinite(rawPrice)
+            ? Math.trunc(rawPrice)
+            : null;
+
+          if (closingOdds === null) {
+            logger.warn(
+              `Matching snapshot for bet leg ${leg.id} had non-numeric price ` +
+              `(${String(rawPrice)}); skipping closing-line capture.`
+            );
+            continue;
+          }
+
           await prisma.betLeg.update({
             where: { id: leg.id },
-            data: {
-              closingOdds: Math.round(matchingSnapshot.price)
-            }
+            data: { closingOdds },
           });
 
-          logger.info(`Captured closing odds for bet leg ${leg.id}: ${matchingSnapshot.price}`);
+          logger.info(`Captured closing odds for bet leg ${leg.id}: ${closingOdds}`);
         } else {
           logger.warn(`No matching odds snapshot for bet leg ${leg.id}`);
         }

@@ -146,10 +146,31 @@ class RedisSessionStore implements ISessionStore {
     }
 
     try {
+      // SCAN instead of KEYS — KEYS blocks the Redis event loop while
+      // it walks the entire keyspace, which is unsafe in production.
+      // SCAN walks in cursor-paged chunks so other commands can interleave.
       const pattern = `${this.SESSION_PREFIX}*`;
-      const keys = await this.client.keys(pattern);
-      if (keys.length > 0) {
-        await this.client.del(keys);
+      const SCAN_COUNT = 500;
+      // node-redis v4 wants the cursor as a string (RedisArgument).
+      // Start at "0" and stop when we cycle back to "0".
+      let cursor = '0';
+      let totalDeleted = 0;
+
+      do {
+        const reply = await this.client.scan(cursor, {
+          MATCH: pattern,
+          COUNT: SCAN_COUNT,
+        });
+        cursor = String(reply.cursor);
+        const keys = reply.keys;
+        if (keys.length > 0) {
+          await this.client.del(keys);
+          totalDeleted += keys.length;
+        }
+      } while (cursor !== '0');
+
+      if (totalDeleted > 0) {
+        logger.info(`Cleared ${totalDeleted} session keys from Redis`);
       }
     } catch (error) {
       logger.error('Failed to clear sessions in Redis:', error);

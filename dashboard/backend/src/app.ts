@@ -9,6 +9,14 @@ import { attachAuthSession } from './middleware/auth-session.middleware';
 import routes from './routes';
 
 const app = express();
+
+// SECURITY: Behind nginx (see dashboard/docker-compose.prod.yml), the
+// real client IP arrives in `X-Forwarded-For`. Without `trust proxy`,
+// `req.ip` is always the proxy and any IP-based logic (rate limit,
+// audit log, abuse heuristics) becomes useless. `1` = trust the
+// single proxy hop in front of us.
+app.set('trust proxy', 1);
+
 const allowedOrigins = (env.CORS_ORIGIN || '')
   .split(',')
   .map((value) => value.trim())

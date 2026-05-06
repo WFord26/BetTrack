@@ -33,19 +33,6 @@ export function requireSessionAuth(req: AuthenticatedRequest, res: Response, nex
 }
 
 /**
- * Optional auth - allows both authenticated and unauthenticated requests
- * Sets req.user if authenticated
- */
-export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  if (env.AUTH_MODE === 'none') {
-    req.user = undefined;
-    return next();
-  }
-
-  next();
-}
-
-/**
  * Get user ID from request
  * Returns null in standalone mode or if not authenticated
  */
@@ -194,11 +181,14 @@ function expiredSessionCookieValue(): string {
 }
 
 function writeSessionCookie(res: Response, session: AuthSession) {
-  res.setHeader('Set-Cookie', sessionCookieValue(session.id, session.expiresAt));
+  // Use `append` instead of `setHeader` so we don't clobber any other
+  // Set-Cookie headers another middleware might also be writing on the
+  // same response (CSRF tokens, locale prefs, etc.).
+  res.append('Set-Cookie', sessionCookieValue(session.id, session.expiresAt));
 }
 
 function clearSessionCookie(res: Response) {
-  res.setHeader('Set-Cookie', expiredSessionCookieValue());
+  res.append('Set-Cookie', expiredSessionCookieValue());
 }
 
 function normalizeUser(user: {

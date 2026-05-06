@@ -357,7 +357,7 @@ export class BetService {
    * Update a bet
    */
   async updateBet(id: string, data: UpdateBetInput, userId?: string): Promise<BetResponse> {
-    // Get existing bet
+    // Get existing bet (scoped by ownership when applicable)
     const existingBet = await prisma.bet.findFirst({
       where: {
         id,
@@ -392,7 +392,7 @@ export class BetService {
     }
 
     // Prepare update data
-    const updateData: Prisma.BetUpdateInput = {};
+    const updateData: Prisma.BetUpdateManyMutationInput = {};
 
     if (data.name !== undefined) {
       updateData.name = data.name;
@@ -405,18 +405,28 @@ export class BetService {
     // Recalculate payout if stake changed
     if (data.stake !== undefined) {
       updateData.stake = new Decimal(data.stake);
-      
+
       if (existingBet.oddsAtPlacement) {
         const newPayout = calculatePayout(data.stake, existingBet.oddsAtPlacement);
         updateData.potentialPayout = new Decimal(newPayout);
       }
     }
 
-    // Update bet
-    await prisma.bet.update({
-      where: { id },
-      data: updateData
+    // SECURITY: Re-assert the ownership filter at update time so the WHERE
+    // clause is atomic with the mutation (closes the TOCTOU between the
+    // findFirst above and the update). updateMany with `count` lets us
+    // detect — and fail loudly on — a concurrent ownership change.
+    const updateResult = await prisma.bet.updateMany({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
+      data: updateData,
     });
+
+    if (updateResult.count === 0) {
+      throw new Error('Bet not found');
+    }
 
     logger.info(`Updated bet ${id}`);
 
