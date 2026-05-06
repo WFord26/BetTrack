@@ -328,7 +328,12 @@ export async function saveAuthSession(req: Request, res: Response, session: Auth
 }
 
 /**
- * Create authenticated session for user
+ * Create authenticated session for user.
+ *
+ * SECURITY: Rotates the session ID on login to prevent session fixation.
+ * If we reused the pre-auth session ID, an attacker who managed to plant a
+ * known session cookie on the victim before they signed in would end up
+ * sharing the authenticated session.
  */
 export async function createAuthenticatedSession(
   req: Request,
@@ -336,12 +341,28 @@ export async function createAuthenticatedSession(
   user: AuthenticatedUser,
   redirectPath?: string
 ) {
-  const session = await ensureAuthSession(req, res);
+  const sessionStore = getSessionStore();
+
+  // Discard any pre-auth session so its ID can never reach an authed state.
+  if (req.authSession) {
+    try {
+      await sessionStore.delete(req.authSession.id);
+    } catch (error) {
+      logger.warn('Failed to delete pre-auth session during rotation:', error);
+    }
+    req.authSession = undefined;
+  }
+
+  // Mint a fresh session bound to the new user.
+  const session = createSession();
   session.userId = user.id;
   session.oauthState = undefined;
   session.oauthProvider = undefined;
   session.redirectPath = redirectPath;
-  await saveAuthSession(req, res, session);
+
+  await sessionStore.set(session.id, session);
+  req.authSession = session;
+  writeSessionCookie(res, session);
   req.user = user;
 }
 

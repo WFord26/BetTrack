@@ -273,13 +273,15 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
  * GET /api/keys/:id/usage
  * Get usage statistics for an API key
  */
-router.get('/:id/usage', async (req: Request, res: Response) => {
+router.get('/:id/usage', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { limit = '100' } = req.query;
 
-    // Get userId from session if in auth mode
-    const userId = (req as any).session?.user?.id || null;
+    // SECURITY: Use the canonical session helper (the legacy
+    // `req.session.user.id` was removed in the auth refactor and would
+    // always evaluate to null here, bypassing the ownership check below).
+    const userId = getScopedUserId(req) || null;
 
     // Find existing key
     const existingKey = await prisma.apiKey.findUnique({
@@ -301,11 +303,17 @@ router.get('/:id/usage', async (req: Request, res: Response) => {
       });
     }
 
+    // Clamp limit to a safe range and reject non-numeric input
+    const parsedLimit = parseInt(limit as string, 10);
+    const safeLimit = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), 500)
+      : 100;
+
     // Get usage logs
     const usage = await prisma.apiKeyUsage.findMany({
       where: { apiKeyId: id },
       orderBy: { createdAt: 'desc' },
-      take: parseInt(limit as string),
+      take: safeLimit,
       select: {
         id: true,
         endpoint: true,

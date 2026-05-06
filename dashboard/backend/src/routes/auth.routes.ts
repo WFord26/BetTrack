@@ -7,6 +7,7 @@ import {
   destroyAuthSession,
   ensureAuthSession,
   isAuthEnabled,
+  saveAuthSession,
 } from '../middleware/auth-session.middleware';
 import { OAuthError, oauthService } from '../services/oauth.service';
 import type { AuthProvider } from '../types/auth.types';
@@ -59,6 +60,12 @@ async function beginOAuth(req: Request, res: Response, provider: AuthProvider) {
   session.oauthState = state;
   session.oauthProvider = provider;
   session.redirectPath = redirectPath;
+
+  // SECURITY: Persist the mutated session BEFORE redirecting to the IdP.
+  // RedisSessionStore JSON-serializes on write, so without this save the
+  // oauthState/oauthProvider are lost and the callback's CSRF check fails
+  // (and OAuth login is broken in any deployment using Redis).
+  await saveAuthSession(req, res, session);
 
   const authorizationUrl = oauthService.buildAuthorizationUrl(provider, state);
   res.redirect(authorizationUrl);

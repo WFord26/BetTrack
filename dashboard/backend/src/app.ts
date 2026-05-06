@@ -14,11 +14,35 @@ const allowedOrigins = (env.CORS_ORIGIN || '')
   .map((value) => value.trim())
   .filter(Boolean);
 
+// SECURITY: With `credentials: true`, allowing all origins is a CSRF risk.
+// Fail closed in production when CORS_ORIGIN is unset; in non-production,
+// fall back to permissive (and warn loudly) to keep local dev workflows
+// — Vite, Storybook, etc. — working without ceremony.
+if (allowedOrigins.length === 0) {
+  if (env.NODE_ENV === 'production') {
+    logger.error('❌ CORS_ORIGIN is not set in production — refusing to start with an open CORS policy.');
+    throw new Error('CORS_ORIGIN must be configured in production');
+  }
+  logger.warn('⚠️  CORS_ORIGIN not set — allowing all origins (development only, NOT PRODUCTION SAFE).');
+}
+
 // Security & Performance Middleware
 app.use(helmet());
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    // Same-origin / non-browser requests (no Origin header) are always allowed.
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    // Dev fallback: when no allow-list is configured we already warned above.
+    if (allowedOrigins.length === 0 && env.NODE_ENV !== 'production') {
+      callback(null, true);
+      return;
+    }
+
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
     }

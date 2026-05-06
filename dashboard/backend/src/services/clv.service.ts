@@ -203,11 +203,14 @@ export class CLVService {
     }>;
   }> {
     try {
-      // Build where clause
+      // Build where clause.
+      //
+      // NOTE: `clv` lives on BetLeg, not Bet — keep the `clv: { not: null }`
+      // filter on the outer (BetLeg) where only. Including it under
+      // `where.bet.clv` causes Prisma to throw `Unknown arg 'clv'`.
       const betWhere: any = {
         ...(userId ? { userId } : {}),
         ...(filters?.betType && { betType: filters.betType }),
-        clv: { not: null }
       };
 
       if (filters?.startDate || filters?.endDate) {
@@ -563,9 +566,34 @@ export class CLVService {
     const positiveCLVTotal = settledBets.filter(leg => leg.clvCategory === 'positive').length;
     const clvWinRate = positiveCLVTotal > 0 ? (positiveCLVWins / positiveCLVTotal) * 100 : 0;
 
-    // Calculate ROI
-    const totalStaked = betLegs.reduce((sum, leg) => sum + (leg.bet.stake || 0), 0);
-    const totalProfit = betLegs.reduce((sum, leg) => sum + (leg.bet.profit || 0), 0);
+    // Calculate ROI.
+    //
+    // `bet.stake` and `bet.actualPayout` are Prisma Decimals — adding them
+    // to a number with `+` produces string concatenation (Decimal#valueOf
+    // returns a string), so we must coerce via `.toNumber()` first.
+    //
+    // The Bet model has no `profit` column, so derive it from
+    // `actualPayout - stake` (treating an unsettled `actualPayout` as 0,
+    // which yields a -stake contribution — matching the existing semantics
+    // used in bet.service.getStats).
+    const decimalToNumber = (value: unknown): number => {
+      if (value == null) return 0;
+      if (typeof value === 'number') return value;
+      if (typeof (value as { toNumber?: () => number }).toNumber === 'function') {
+        return (value as { toNumber: () => number }).toNumber();
+      }
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const totalStaked = betLegs.reduce(
+      (sum, leg) => sum + decimalToNumber(leg.bet?.stake),
+      0
+    );
+    const totalProfit = betLegs.reduce(
+      (sum, leg) => sum + (decimalToNumber(leg.bet?.actualPayout) - decimalToNumber(leg.bet?.stake)),
+      0
+    );
     const actualROI = totalStaked > 0 ? (totalProfit / totalStaked) * 100 : 0;
 
     // Expected ROI (simplified: average CLV as proxy)

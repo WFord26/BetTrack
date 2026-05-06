@@ -431,11 +431,18 @@ export class BetService {
    * Cancel a bet
    */
   async cancelBet(id: string, force: boolean = false, userId?: string): Promise<void> {
+    // Authorization model:
+    //   - force=false → owner-only: scope by userId so a user can only cancel their own bets.
+    //   - force=true  → admin override (the route gate verifies req.user.isAdmin
+    //                    before calling with force). Admins must be able to delete
+    //                    ANY user's bet, so we drop the userId filter here.
+    const ownershipFilter = !force && userId ? { userId } : {};
+
     // Get bet with legs
     const bet = await prisma.bet.findFirst({
       where: {
         id,
-        ...(userId ? { userId } : {}),
+        ...ownershipFilter,
       },
       include: {
         legs: {

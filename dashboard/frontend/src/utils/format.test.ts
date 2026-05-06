@@ -42,14 +42,16 @@ describe('Format Utilities', () => {
 
   describe('formatDate', () => {
     it('formats dates correctly', () => {
-      const dateString = '2026-01-15';
+      // Use noon local time to avoid UTC midnight timezone boundary crossing
+      const dateString = '2026-01-15T12:00:00';
       const formatted = formatDate(dateString);
       
       expect(formatted).toMatch(/Jan 15/);
     });
 
     it('handles different dates', () => {
-      const dateString = '2026-12-25';
+      // Use noon local time to avoid UTC midnight timezone boundary crossing
+      const dateString = '2026-12-25T12:00:00';
       const formatted = formatDate(dateString);
       
       expect(formatted).toBeDefined();
