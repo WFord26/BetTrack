@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CLV service unit tests** (`tests/clv.service.test.ts`): 21 tests covering calculation accuracy, closing line capture, per-bet CLV, report generation, and edge cases (Issue #3)
+
 ---
 
 ## [0.2.11] - 2026-04-14
