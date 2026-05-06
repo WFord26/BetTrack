@@ -160,8 +160,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
     if (oddsBoostPercentage > 0 && import.meta.env.DEV) {
       // Dev-only: keep visibility into the boost math without shipping
       // these logs to production users.
-      // eslint-disable-next-line no-console
-      console.log(
+      console.log( // eslint-disable-line no-console
         `Parlay boost +${oddsBoostPercentage}%: ` +
         `${combinedOdds} → ${oddsToSubmit}, ` +
         `$${potentialPayout.toFixed(2)} → $${boostedPotentialPayout.toFixed(2)}`
