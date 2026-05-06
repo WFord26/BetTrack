@@ -8,29 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Wiki documentation instructions** (`.github/instructions/wiki-docs.instructions.md`): Auto-attaching rules for `docs/wiki/**` enforcing `.md`-extension links, anchor syntax, and page structure
-- **New wiki page prompt** (`.github/prompts/new-wiki-page.prompt.md`): Slash command to scaffold wiki pages with correct conventions
-
-### Changed
-- **CI/CD Pipeline**: Enhanced GitHub Actions test.yml to include 'dev' branch in pull_request and push triggers
-  - Tests now run automatically on PRs to dev branch
-  - Tests now run automatically on pushes to dev branch
-  - Maintains existing triggers for main, beta, and develop branches
-
----
-
-
-## [0.2.5] - 2026-04-14
-
-### Fixed
-- **Bump script changelog order**: Corrected `bump-version.mjs` replacement so `[Unreleased]` section
-  stays at the top with a `---` separator and versioned release is inserted below it
-
----
-
-## [0.2.4] - 2026-04-14
-
-### Added
 - **Unified `get_scoreboard(league, date)` tool**: Single entry-point scoreboard tool that
   automatically resolves the ESPN sport type from the league code via a shared
   `LEAGUE_SPORT_MAP` lookup dictionary. Eliminates the need to pass both `sport` and
@@ -39,13 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`LEAGUE_SPORT_MAP` constant**: Centralised dictionary mapping league codes to
   (ESPN sport type, display name) tuples, shared across scoreboard tools to prevent
   duplicated hard-coded strings.
-- **Version Bump System**: Automated semantic versioning for monorepo components (dev branch)
-  - File hashing system (`scripts/bump-version.mjs`) to detect changes in MCP, backend, and frontend
-  - Automatic semantic version bumping on code changes with `npm run bump`
-  - Preserves `package.json` and `package-lock.json` from hash tracking to avoid infinite bumps
-  - Support for forced bumps: `npm run bump:patch|minor|major`
-  - Stores file snapshots in `.bump-hashes.json` for change detection
-  - Documentation: `scripts/BUMP-SYSTEM.md` and `scripts/BUMP-QUICK-START.md`
 
 ### Changed
 - `get_formatted_scoreboard` docstring updated to recommend `get_scoreboard(league)` for
