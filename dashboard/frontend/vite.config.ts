@@ -55,13 +55,14 @@ export default defineConfig({
         statements: 8
       }
     },
-    // Each test file runs in its own fork for proper isolation.
-    // execArgv raises the heap limit per fork to prevent OOM when jsdom +
-    // React + Redux environments accumulate across many test files.
+    // maxForks: 1 runs one file at a time, each in its own fresh fork process.
+    // This prevents memory from accumulating across test files (the singleFork
+    // approach ran all files in one process, hitting >8GB by file #9).
     pool: 'forks',
     poolOptions: {
       forks: {
-        execArgv: ['--max-old-space-size=4096'],
+        maxForks: 1,
+        minForks: 1,
       },
     },
   }

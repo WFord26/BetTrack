@@ -112,7 +112,7 @@ export default function CLVAnalytics() {
     );
   }
 
-  if (!report || report.summary.totalBets === 0) {
+  if (!report || !report.summary || report.summary.totalBets === 0) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
         <div className="max-w-7xl mx-auto">

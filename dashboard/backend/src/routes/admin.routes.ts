@@ -41,7 +41,7 @@ const SPORTS = [
 ];
 
 router.use((req, res, next) => {
-  if (req.method === 'GET' && req.path === '/site-config') {
+  if (req.method === 'GET' && (req.path === '/site-config' || req.path === '/health')) {
     return next();
   }
 
