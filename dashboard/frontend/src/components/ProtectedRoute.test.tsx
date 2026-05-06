@@ -1,13 +1,32 @@
 /**
  * Tests for ProtectedRoute component
+ *
+ * Note: We mock react-router-dom (Navigate + useLocation) to prevent jsdom's
+ * browser-history integration from spinning up an infinite event-listener loop
+ * that exhausts V8 heap memory. ProtectedRoute only uses Navigate + useLocation
+ * from react-router-dom, so a lightweight mock is sufficient.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
-import { renderWithProviders } from '../test/test-utils';
+import { render, screen } from '@testing-library/react';
 import ProtectedRoute from './ProtectedRoute';
 
-// Mock the useAuth hook
+// Stub react-router-dom before importing ProtectedRoute so jsdom never sets
+// up popstate / history listeners.
+vi.mock('react-router-dom', () => ({
+  Navigate: ({ to }: { to: string }) => (
+    <div data-testid="navigate-redirect" data-to={to} />
+  ),
+  useLocation: vi.fn(() => ({
+    pathname: '/',
+    search: '',
+    hash: '',
+    state: null,
+    key: 'default',
+  })),
+}));
+
+// Mock useAuth hook
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
@@ -37,7 +56,7 @@ describe('ProtectedRoute', () => {
       loading: true,
     });
 
-    renderWithProviders(
+    render(
       <ProtectedRoute>
         <div>Protected content</div>
       </ProtectedRoute>
@@ -56,7 +75,7 @@ describe('ProtectedRoute', () => {
       loading: false,
     });
 
-    renderWithProviders(
+    render(
       <ProtectedRoute>
         <div>Protected content</div>
       </ProtectedRoute>
@@ -73,7 +92,7 @@ describe('ProtectedRoute', () => {
       loading: false,
     });
 
-    renderWithProviders(
+    render(
       <ProtectedRoute>
         <div>Protected content</div>
       </ProtectedRoute>
@@ -82,7 +101,7 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('Protected content')).toBeInTheDocument();
   });
 
-  it('redirects to login when auth is enabled and user is not authenticated', () => {
+  it('renders a redirect when auth is enabled and user is not authenticated', () => {
     mockUseAuth.mockReturnValue({
       ...baseAuth,
       user: null,
@@ -90,13 +109,15 @@ describe('ProtectedRoute', () => {
       loading: false,
     });
 
-    renderWithProviders(
+    render(
       <ProtectedRoute>
         <div>Protected content</div>
       </ProtectedRoute>
     );
 
-    // Content should not be rendered - user is redirected to /login
+    // Navigate stub is rendered; protected content is not shown
+    expect(screen.getByTestId('navigate-redirect')).toBeInTheDocument();
+    expect(screen.getByTestId('navigate-redirect')).toHaveAttribute('data-to', '/login');
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 });

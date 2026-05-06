@@ -65,7 +65,7 @@ describe('useBetSlip', () => {
     };
 
     act(() => {
-      result.current.handleAddLeg(leg);
+      result.current.addLeg(leg);
     });
 
     expect(result.current.legs).toHaveLength(1);
@@ -86,13 +86,13 @@ describe('useBetSlip', () => {
     };
 
     act(() => {
-      result.current.handleAddLeg(leg);
+      result.current.addLeg(leg);
     });
 
     expect(result.current.legs).toHaveLength(1);
 
     act(() => {
-      result.current.handleRemoveLeg(0);
+      result.current.removeLeg(0);
     });
 
     expect(result.current.legs).toHaveLength(0);
@@ -103,7 +103,7 @@ describe('useBetSlip', () => {
     const { result } = renderHook(() => useBetSlip(), { wrapper });
 
     act(() => {
-      result.current.handleSetStake(100);
+      result.current.setStake(100);
     });
 
     expect(result.current.stake).toBe(100);
@@ -114,7 +114,7 @@ describe('useBetSlip', () => {
     const { result } = renderHook(() => useBetSlip(), { wrapper });
 
     act(() => {
-      result.current.handleSetBetType('parlay');
+      result.current.setBetType('parlay');
     });
 
     expect(result.current.betType).toBe('parlay');
@@ -134,12 +134,12 @@ describe('useBetSlip', () => {
     };
 
     act(() => {
-      result.current.handleAddLeg(leg);
-      result.current.handleSetStake(100);
+      result.current.addLeg(leg);
+      result.current.setStake(100);
     });
 
     act(() => {
-      result.current.handleClearSlip();
+      result.current.clearSlip();
     });
 
     expect(result.current.legs).toHaveLength(0);
@@ -169,10 +169,10 @@ describe('useBetSlip', () => {
     };
 
     act(() => {
-      result.current.handleSetBetType('parlay');
-      result.current.handleAddLeg(leg1);
-      result.current.handleAddLeg(leg2);
-      result.current.handleSetStake(100);
+      result.current.setBetType('parlay');
+      result.current.addLeg(leg1);
+      result.current.addLeg(leg2);
+      result.current.setStake(100);
     });
 
     // Two -110 legs parlayed: decimal odds ≈ 1.909 * 1.909 ≈ 3.645
@@ -198,8 +198,8 @@ describe('useBetSlip', () => {
     };
 
     act(() => {
-      result.current.handleAddLeg(leg);
-      result.current.handleSetStake(100);
+      result.current.addLeg(leg);
+      result.current.setStake(100);
     });
 
     await act(async () => {
@@ -227,8 +227,8 @@ describe('useBetSlip', () => {
     };
 
     act(() => {
-      result.current.handleAddLeg(leg);
-      result.current.handleSetStake(100);
+      result.current.addLeg(leg);
+      result.current.setStake(100);
     });
 
     await act(async () => {

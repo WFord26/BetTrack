@@ -55,14 +55,15 @@ export default defineConfig({
         statements: 8
       }
     },
-    // maxForks: 1 runs one file at a time, each in its own fresh fork process.
-    // This prevents memory from accumulating across test files (the singleFork
-    // approach ran all files in one process, hitting >8GB by file #9).
+    // maxForks:1 runs one file at a time, each in its own fresh fork process,
+    // so memory never accumulates across files. execArgv raises the per-fork
+    // V8 heap limit for any single test file with a heavy module graph.
     pool: 'forks',
     poolOptions: {
       forks: {
         maxForks: 1,
         minForks: 1,
+        execArgv: ['--max-old-space-size=4096'],
       },
     },
   }

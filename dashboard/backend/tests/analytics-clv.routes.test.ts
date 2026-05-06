@@ -143,18 +143,32 @@ describe('GET /api/analytics/clv/by-bookmaker', () => {
   });
 });
 
-describe('GET /api/analytics/clv/by-bet-type', () => {
+describe('GET /api/analytics/clv/trends', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('returns 200 with CLV by bet type', async () => {
+  it('returns 200 with CLV trends', async () => {
     mockClvService.generateCLVReport.mockResolvedValue(sampleReport as any);
 
-    const res = await request(app).get('/api/analytics/clv/by-bet-type');
+    const res = await request(app).get('/api/analytics/clv/trends');
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data).toBeDefined();
+  });
+
+  it('accepts sportKey and betType query params', async () => {
+    mockClvService.generateCLVReport.mockResolvedValue(sampleReport as any);
+
+    const res = await request(app)
+      .get('/api/analytics/clv/trends')
+      .query({ sportKey: 'basketball_nba', betType: 'single' });
+
+    expect(res.status).toBe(200);
+    expect(mockClvService.generateCLVReport).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ sportKey: 'basketball_nba', betType: 'single' })
+    );
   });
 });
