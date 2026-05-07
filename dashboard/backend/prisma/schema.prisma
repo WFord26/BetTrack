@@ -144,6 +144,10 @@ model Game {
   awayScore          Int?              @map("away_score")
   period             String?           @db.VarChar(20)
   clock              String?           @db.VarChar(20)
+  inningHalf         String?           @map("inning_half") @db.VarChar(10)  // "Top" or "Bot" for baseball
+  balls              Int?
+  strikes            Int?
+  outs               Int?
   createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   sport              Sport             @relation(fields: [sportId], references: [id])
