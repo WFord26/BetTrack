@@ -8,6 +8,7 @@ import apiKeysRoutes from './api-keys.routes';
 import aiBetsRoutes from './ai-bets.routes';
 import statsRoutes from './stats.routes';
 import analyticsCLVRoutes from './analytics-clv.routes';
+import analyticsDisagreementRoutes from './analytics-disagreement.routes';
 import authRoutes from './auth.routes';
 
 const router = Router();
@@ -23,5 +24,6 @@ router.use('/keys', apiKeysRoutes);
 router.use('/ai/bets', aiBetsRoutes);
 router.use('/stats', statsRoutes);
 router.use('/analytics/clv', analyticsCLVRoutes);
+router.use('/analytics/disagreement', analyticsDisagreementRoutes);
 
 export default router;

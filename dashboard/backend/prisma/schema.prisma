@@ -154,12 +154,38 @@ model Game {
   betLegs            BetLeg[]
   gameStats          GameStats[]
   playerStats        PlayerGameStats[]
+  marketConsensus    MarketConsensus[]
 
   @@index([commenceTime])
   @@index([status])
   @@index([apiSportsGameId])
   @@index([season])
   @@map("games")
+}
+
+// Market consensus for bookmaker disagreement detection
+model MarketConsensus {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId            String   @map("game_id") @db.Uuid
+  marketType        String   @map("market_type") @db.VarChar(20)
+  calculatedAt      DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+
+  // Consensus metrics
+  consensusLine     Decimal  @map("consensus_line") @db.Decimal(8, 2)
+  standardDeviation Decimal  @map("standard_deviation") @db.Decimal(8, 2)
+  outlierBookmakers Json     @map("outlier_bookmakers")    // [{bookmaker, line, deviation}]
+  bookmakerCount    Int      @map("bookmaker_count")
+
+  // Value indicators
+  disagreementScore Int      @map("disagreement_score")    // 1-100
+  bestValue         Json     @map("best_value")            // {side, bookmaker, line, impliedProb}
+
+  game              Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+  @@index([disagreementScore])
+  @@index([calculatedAt])
+  @@map("market_consensus")
 }
 
 // Futures (outrights) - championship/tournament winners

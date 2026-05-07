@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Bookmaker Disagreement Detection — Phase 1** (Issue #4): New analytics feature to surface value opportunities where bookmakers strongly disagree.
+  - `src/types/disagreement.types.ts`: Shared types (`HighDisagreementGame`, `ConsensusResult`, `OutlierBookmaker`, `BestValue`) and category/colour helpers.
+  - `src/components/odds/HighDisagreementGames.tsx`: Dashboard widget listing top 5 high-disagreement games with scores and categories; auto-refreshes every 60 seconds.
+  - `src/components/odds/DisagreementBreakdown.tsx`: Modal showing per-market consensus line, standard deviation, outlier bookmakers (highlighted), and best-value indicator.
+  - `src/pages/ValueOpportunities.tsx`: Full page at `/analytics/disagreement` with filters (min score, sport, time-to-game) and sort controls.
+  - `src/App.tsx`: Route registered at `/analytics/disagreement`.
+
 ---
 
 ## [0.3.12] - 2026-05-07

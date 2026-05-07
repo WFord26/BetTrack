@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Bookmaker Disagreement Detection — Phase 1** (Issue #4): Detects market uncertainty by calculating consensus lines and disagreement scores across all bookmakers for each upcoming game.
+  - `prisma/schema.prisma`: New `MarketConsensus` model with consensus line, standard deviation, outlier bookmakers, bookmaker count, disagreement score (1–100), and best-value indicator. Migration: `20260507000002_add_market_consensus`.
+  - `src/services/market-consensus.service.ts`: `MarketConsensusService` with `calculateConsensus()` (h2h, spreads, totals), `runBatchCalculation()` (upcoming 48 h), `findHighDisagreement()`, `getDisagreementForGame()`, `getDisagreementHistory()`, and `getBookmakerOutlierStats()`.
+  - `src/jobs/consensus-calc.job.ts`: Scheduled job (`*/15 * * * *`) that runs batch consensus calculation on startup and every 15 minutes.
+  - `src/routes/analytics-disagreement.routes.ts`: Four new authenticated endpoints: `GET /api/analytics/disagreement/live`, `GET /api/analytics/disagreement/game/:gameId`, `GET /api/analytics/disagreement/trends`, `GET /api/analytics/disagreement/bookmaker/:bookmaker`.
+  - `src/server.ts`: `startConsensusCalcJob()` registered alongside existing scheduled jobs.
+
 ### Fixed
 
 - **OAuth callback redirects to initiating frontend** (`routes/auth.routes.ts`, `services/oauth.service.ts`, `types/auth.types.ts`): When `CORS_ORIGIN` contains multiple allowed origins, callbacks now redirect to the origin that started the login instead of always using the first entry
