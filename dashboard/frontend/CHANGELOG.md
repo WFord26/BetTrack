@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.10] - 2026-05-06
+
 ### Changed
 
 - **UI consistency and design tokens**: Updated BetHistory, CLVAnalytics, EnhancedDashboard, Stats, and Header components to use Tailwind utility classes and new brand/semantic color tokens; replaced inline styles for better maintainability
