@@ -1,0 +1,854 @@
+openapi: 3.1.0
+info:
+  title: BetTrack External & MCP Server API
+  description: |
+    This document describes two external-facing API surfaces for BetTrack:
+
+    1. **Sports Data MCP Server** (`sports_mcp_server.py`) — A Model Context Protocol server
+       exposing 30+ tools for Claude Desktop to query live sports data from The Odds API and ESPN.
+       This is **not** a REST API. It communicates via MCP stdio transport. The tools are
+       documented here as reference and for integration-testing purposes.
+
+    2. **Dashboard MCP Server** (`dashboard_mcp_server.py`) — A companion MCP server that
+       connects Claude Desktop directly to the BetTrack dashboard backend, enabling bet creation
+       and portfolio management via natural language through Claude.
+
+    ## MCP Protocol
+
+    MCP servers communicate over stdio using JSON-RPC. Claude Desktop discovers tools via the
+    MCP manifest (`manifest.json`) and calls them by name. You cannot call these tools directly
+    via HTTP — they are invoked by the Claude Desktop MCP runtime.
+
+    To install either server, download the `.mcpb` package from the Releases page and install
+    via Claude Desktop settings. See `mcp/README.md` for full setup instructions.
+
+    ## Sports Data Sources
+
+    - **The Odds API** (`https://the-odds-api.com`) — Live betting odds from 40+ bookmakers
+    - **ESPN API** — Scores, standings, schedules, rosters, and news (unofficial public API)
+
+  version: 0.2.5
+  contact:
+    url: https://github.com/WFord26/BetTrack
+  license:
+    name: MIT
+
+tags:
+  - name: Odds API Tools
+    description: |
+      Tools powered by The Odds API. Requires `ODDS_API_KEY` environment variable.
+      Supports round-robin across multiple keys via comma-separated `ODDS_API_KEY=key1,key2,...`.
+  - name: ESPN Tools
+    description: Tools powered by the ESPN public API. No API key required.
+  - name: Scoreboard Tools
+    description: Rich visual scoreboards and formatted tables for Claude artifacts.
+  - name: Team Reference Tools
+    description: Static team lookup tables for NFL, NBA, and NHL.
+  - name: Dashboard Tools
+    description: |
+      Tools from `dashboard_mcp_server.py` that connect to the BetTrack REST backend.
+      Requires `BETTRACK_API_URL` (backend base URL) and `BETTRACK_API_KEY` (`sk_` token).
+
+# OpenAPI does not model MCP stdio tools natively. We use a /tools/ pseudo-path
+# convention to document each tool as a virtual "POST" endpoint for reference.
+# Each "request body" maps to the tool's input parameters.
+# Each "response" maps to the tool's return type.
+paths:
+  # ============================================================
+  # ODDS API TOOLS
+  # ============================================================
+  /tools/get_available_sports:
+    post:
+      tags: [Odds API Tools]
+      summary: List available sports from The Odds API
+      description: |
+        Returns currently in-season sports (or all sports when `all_sports=true`).
+        Each sport includes its key, display title, group (e.g. "American Football"), and active status.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                all_sports:
+                  type: boolean
+                  default: false
+                  description: If true, return all sports including off-season. Default returns only in-season sports.
+      responses:
+        '200':
+          description: Sports list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sports:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                          example: americanfootball_nfl
+                        title:
+                          type: string
+                          example: NFL
+                        group:
+                          type: string
+                          example: American Football
+                        active:
+                          type: boolean
+
+  /tools/get_odds:
+    post:
+      tags: [Odds API Tools]
+      summary: Get current betting odds for upcoming games
+      description: |
+        Returns odds for all upcoming games in a sport from multiple bookmakers.
+        Supports game markets (moneyline, spreads, totals) and 70+ player prop markets
+        across NFL, NBA, NHL, and MLB.
+
+        **Supported Bookmakers (US region):** DraftKings, FanDuel, BetMGM, Caesars, PointsBet,
+        BetRivers, WynnBET, and others.
+
+        **Configurable via environment:**
+        - `BOOKMAKERS_FILTER` — Comma-separated list of bookmaker keys to include
+        - `BOOKMAKERS_LIMIT` — Max bookmakers to show per game (default: 5)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport]
+              properties:
+                sport:
+                  type: string
+                  description: Sport key
+                  example: americanfootball_nfl
+                regions:
+                  type: string
+                  default: us
+                  description: Comma-separated bookmaker regions (us, us2, uk, au, eu)
+                markets:
+                  type: string
+                  description: |
+                    Comma-separated market keys. Defaults to `h2h`.
+
+                    Game markets: `h2h`, `spreads`, `totals`, `outrights`
+
+                    Player props (NFL): `player_pass_tds`, `player_pass_yds`, `player_rush_yds`,
+                    `player_receptions`, `player_reception_yds`, `player_anytime_touchdown`,
+                    `player_first_touchdown`, `player_field_goals`, `player_sacks`, `player_tackles_assists`
+
+                    Player props (NBA): `player_points`, `player_rebounds`, `player_assists`,
+                    `player_threes`, `player_blocks`, `player_steals`, `player_double_double`,
+                    `player_triple_double`, `player_points_rebounds_assists`
+
+                    Player props (MLB): `player_hits`, `player_home_runs`, `player_rbis`,
+                    `player_total_bases`, `player_strikeouts`, `player_walks`, `player_earned_runs`
+
+                    Player props (NHL): `player_goals`, `player_shots_on_goal`, `player_saves`,
+                    `player_blocked_shots`, `player_power_play_goals`
+                  example: h2h,spreads
+                odds_format:
+                  type: string
+                  enum: [american, decimal, fractional]
+                  default: american
+                date_format:
+                  type: string
+                  enum: [iso, unix]
+                  default: iso
+      responses:
+        '200':
+          description: Games with odds from multiple bookmakers
+
+  /tools/get_scores:
+    post:
+      tags: [Odds API Tools]
+      summary: Get scores for recent, live, and upcoming games
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport]
+              properties:
+                sport:
+                  type: string
+                  example: basketball_nba
+                days_from:
+                  type: integer
+                  default: 3
+                  maximum: 3
+                  description: Number of days from today to include
+      responses:
+        '200':
+          description: Game scores with live and final results
+
+  /tools/get_event_odds:
+    post:
+      tags: [Odds API Tools]
+      summary: Get detailed odds for a specific game/event
+      description: |
+        More granular than `get_odds` — targets a single event by ID for deeper market coverage
+        including player props.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, event_id]
+              properties:
+                sport:
+                  type: string
+                  example: basketball_nba
+                event_id:
+                  type: string
+                  description: Event ID from `get_odds` or `get_scores`
+                regions:
+                  type: string
+                  default: us
+                markets:
+                  type: string
+                  description: Comma-separated market keys (same options as `get_odds`)
+                odds_format:
+                  type: string
+                  enum: [american, decimal, fractional]
+                  default: american
+      responses:
+        '200':
+          description: Detailed event odds
+
+  /tools/search_odds:
+    post:
+      tags: [Odds API Tools]
+      summary: Natural language search for betting odds
+      description: |
+        Search for odds by team name or matchup description. Useful for conversational queries
+        like "Lakers odds tonight" or "Chiefs vs Bills".
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  description: Natural language search query
+                  example: "Lakers vs Warriors"
+                sport:
+                  type: string
+                  nullable: true
+                  description: Optional sport key to narrow the search
+                regions:
+                  type: string
+                  default: us
+                markets:
+                  type: string
+                  default: h2h
+      responses:
+        '200':
+          description: Matching games with odds
+
+  # ============================================================
+  # ESPN TOOLS
+  # ============================================================
+  /tools/get_espn_scoreboard:
+    post:
+      tags: [ESPN Tools]
+      summary: Get ESPN scoreboard for a league
+      description: Returns live and recent scores with team logos and game status.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, league]
+              properties:
+                sport:
+                  type: string
+                  description: ESPN sport type
+                  enum: [football, basketball, baseball, hockey, soccer]
+                league:
+                  type: string
+                  description: League identifier
+                  enum: [nfl, nba, mlb, nhl, ncaaf, mens-college-basketball, wnba, epl, uefachampions]
+                date:
+                  type: string
+                  description: Date filter (YYYYMMDD format). Defaults to today.
+                  example: "20260109"
+      responses:
+        '200':
+          description: Scoreboard with game summaries
+
+  /tools/get_espn_standings:
+    post:
+      tags: [ESPN Tools]
+      summary: Get league standings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, league]
+              properties:
+                sport:
+                  type: string
+                league:
+                  type: string
+                season:
+                  type: integer
+                  nullable: true
+                  description: Season year (e.g. 2025). Defaults to current season.
+      responses:
+        '200':
+          description: Division/conference standings
+
+  /tools/get_espn_teams:
+    post:
+      tags: [ESPN Tools]
+      summary: Get all teams in a league
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, league]
+              properties:
+                sport:
+                  type: string
+                league:
+                  type: string
+      responses:
+        '200':
+          description: Team list with IDs, abbreviations, colors, and logo URLs
+
+  /tools/get_espn_team_details:
+    post:
+      tags: [ESPN Tools]
+      summary: Get detailed information about a specific team
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, league, team_id]
+              properties:
+                sport:
+                  type: string
+                league:
+                  type: string
+                team_id:
+                  type: string
+                  description: ESPN team ID or abbreviation
+      responses:
+        '200':
+          description: Team details including roster, record, and venue
+
+  /tools/get_espn_team_schedule:
+    post:
+      tags: [ESPN Tools]
+      summary: Get a team's schedule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, league, team_id]
+              properties:
+                sport:
+                  type: string
+                league:
+                  type: string
+                team_id:
+                  type: string
+                season:
+                  type: integer
+                  nullable: true
+      responses:
+        '200':
+          description: Team schedule with game results
+
+  /tools/get_espn_news:
+    post:
+      tags: [ESPN Tools]
+      summary: Get the latest ESPN news for a sport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport]
+              properties:
+                sport:
+                  type: string
+                league:
+                  type: string
+                  nullable: true
+                limit:
+                  type: integer
+                  default: 10
+      responses:
+        '200':
+          description: News headlines with links
+
+  /tools/search_espn:
+    post:
+      tags: [ESPN Tools]
+      summary: Search ESPN for teams, players, and news
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  example: LeBron James
+                limit:
+                  type: integer
+                  default: 10
+      responses:
+        '200':
+          description: Search results
+
+  /tools/get_espn_game_summary:
+    post:
+      tags: [ESPN Tools]
+      summary: Get a detailed game summary from ESPN
+      description: Returns box score, scoring plays, team and player statistics.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, league, event_id]
+              properties:
+                sport:
+                  type: string
+                league:
+                  type: string
+                event_id:
+                  type: string
+                  description: ESPN event ID
+      responses:
+        '200':
+          description: Full game summary with box score
+
+  /tools/get_comprehensive_game_info:
+    post:
+      tags: [ESPN Tools]
+      summary: Get combined ESPN + odds data for a matchup
+      description: |
+        One-call solution that merges ESPN scoreboard data with Odds API betting lines
+        for a single game. Useful for asking "tell me everything about tonight's Chiefs game".
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, league]
+              properties:
+                sport:
+                  type: string
+                league:
+                  type: string
+                team_name:
+                  type: string
+                  nullable: true
+                  description: Filter by team name
+                date:
+                  type: string
+                  nullable: true
+                  description: Game date (YYYYMMDD)
+      responses:
+        '200':
+          description: Combined ESPN and odds data for the matched game
+
+  # ============================================================
+  # SCOREBOARD / VISUALIZATION TOOLS
+  # ============================================================
+  /tools/get_scoreboard:
+    post:
+      tags: [Scoreboard Tools]
+      summary: Get plain-text scoreboard for a league
+      description: Returns a compact text-format scoreboard. Use `get_formatted_scoreboard` for markdown tables.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [league]
+              properties:
+                league:
+                  type: string
+                  description: League key (nfl, nba, mlb, nhl, college-football, mens-college-basketball, etc.)
+                  example: nba
+                date:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Text scoreboard
+
+  /tools/get_formatted_scoreboard:
+    post:
+      tags: [Scoreboard Tools]
+      summary: Get markdown-formatted scoreboard table
+      description: Returns a Markdown table suitable for rendering in Claude responses.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [league]
+              properties:
+                league:
+                  type: string
+                date:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Markdown scoreboard table
+
+  /tools/get_detailed_scoreboard:
+    post:
+      tags: [Scoreboard Tools]
+      summary: Get detailed scoreboard with quarter/period scores
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [league]
+              properties:
+                league:
+                  type: string
+                date:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Detailed scoreboard with period-by-period breakdown
+
+  /tools/get_formatted_standings:
+    post:
+      tags: [Scoreboard Tools]
+      summary: Get markdown-formatted standings table
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [league]
+              properties:
+                league:
+                  type: string
+                season:
+                  type: integer
+                  nullable: true
+      responses:
+        '200':
+          description: Markdown standings table
+
+  /tools/get_matchup_cards:
+    post:
+      tags: [Scoreboard Tools]
+      summary: Generate rich matchup cards with odds for Claude artifacts
+      description: |
+        Returns a React JSX artifact with styled matchup cards for upcoming games.
+        Each card includes team logos, kickoff time, and odds from multiple bookmakers.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [league]
+              properties:
+                league:
+                  type: string
+                date:
+                  type: string
+                  nullable: true
+                markets:
+                  type: string
+                  default: h2h,spreads
+      responses:
+        '200':
+          description: React JSX code for rendering matchup cards as a Claude artifact
+
+  /tools/get_odds_card_artifact:
+    post:
+      tags: [Scoreboard Tools]
+      summary: Generate an odds comparison card as a Claude artifact
+      description: |
+        Produces a visually styled odds comparison artifact for a specific game,
+        comparing lines across multiple bookmakers.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sport, game_identifier]
+              properties:
+                sport:
+                  type: string
+                game_identifier:
+                  type: string
+                  description: Team name or partial match string
+                markets:
+                  type: string
+                  default: h2h,spreads,totals
+                regions:
+                  type: string
+                  default: us
+      responses:
+        '200':
+          description: Styled odds comparison React artifact
+
+  /tools/get_visual_scoreboard:
+    post:
+      tags: [Scoreboard Tools]
+      summary: Generate an interactive visual scoreboard React artifact
+      description: |
+        Creates a full interactive scoreboard as a React artifact with live scores,
+        team logos, and game statuses.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [league]
+              properties:
+                league:
+                  type: string
+                date:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Interactive React scoreboard artifact
+
+  # ============================================================
+  # TEAM REFERENCE TOOLS
+  # ============================================================
+  /tools/get_team_reference:
+    post:
+      tags: [Team Reference Tools]
+      summary: Get the static team reference table for a league
+      description: |
+        Returns a lookup table mapping team names, abbreviations, cities, and conference/division data.
+        Covers NFL, NBA, and NHL. Useful for resolving team identifiers before calling other tools.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [league]
+              properties:
+                league:
+                  type: string
+                  enum: [nfl, nba, nhl]
+      responses:
+        '200':
+          description: Team reference table
+
+  /tools/find_team:
+    post:
+      tags: [Team Reference Tools]
+      summary: Find a team by partial name match
+      description: Fuzzy searches the static team reference table for NFL, NBA, or NHL teams.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [team_name, league]
+              properties:
+                team_name:
+                  type: string
+                  example: "Kansas City"
+                league:
+                  type: string
+                  enum: [nfl, nba, nhl]
+      responses:
+        '200':
+          description: Best-matching team(s) with ESPN ID and logo URL
+
+  # ============================================================
+  # DASHBOARD MCP TOOLS
+  # ============================================================
+  /tools/dashboard/create_bet:
+    post:
+      tags: [Dashboard Tools]
+      summary: Create a bet via the BetTrack dashboard backend
+      description: |
+        Allows Claude to create a bet directly in the BetTrack dashboard from a conversation.
+        Calls `POST /api/ai/bets` on the dashboard backend using the configured API key.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [selections, betType, stake]
+              properties:
+                selections:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [gameId, type, selection, odds]
+                    properties:
+                      gameId:
+                        type: string
+                        description: BetTrack internal game UUID
+                      type:
+                        type: string
+                        enum: [moneyline, spread, total]
+                      selection:
+                        type: string
+                        enum: [home, away, over, under]
+                      odds:
+                        type: integer
+                        description: American odds
+                      line:
+                        type: number
+                        nullable: true
+                betType:
+                  type: string
+                  enum: [single, parlay, teaser]
+                stake:
+                  type: number
+                  minimum: 0.01
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Bet created successfully
+
+  /tools/dashboard/get_active_games:
+    post:
+      tags: [Dashboard Tools]
+      summary: Get active games from BetTrack dashboard
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sport:
+                  type: string
+                  nullable: true
+                  description: Filter by sport key (e.g. `americanfootball_nfl`)
+                date:
+                  type: string
+                  nullable: true
+                  description: Date filter (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Games stored in the BetTrack database
+
+  /tools/dashboard/get_my_bets:
+    post:
+      tags: [Dashboard Tools]
+      summary: Get bets from the BetTrack dashboard
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [all, pending, won, lost, push]
+                  default: all
+      responses:
+        '200':
+          description: List of bets
+
+  /tools/dashboard/get_bet_details:
+    post:
+      tags: [Dashboard Tools]
+      summary: Get full details for a specific bet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bet_id]
+              properties:
+                bet_id:
+                  type: string
+                  description: Bet UUID
+      responses:
+        '200':
+          description: Bet with all legs and settlement info
+
+  /tools/dashboard/get_game_odds:
+    post:
+      tags: [Dashboard Tools]
+      summary: Get current odds for a game from BetTrack
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [game_id]
+              properties:
+                game_id:
+                  type: string
+                  description: BetTrack game UUID
+      responses:
+        '200':
+          description: Current odds for the game
+
+  /tools/dashboard/get_dashboard_stats:
+    post:
+      tags: [Dashboard Tools]
+      summary: Get aggregate betting stats from the dashboard
+      description: Returns win rate, ROI, net profit, and breakdowns by sport and bet type.
+      responses:
+        '200':
+          description: Aggregate betting statistics
+
+  /tools/dashboard/search_teams:
+    post:
+      tags: [Dashboard Tools]
+      summary: Search for teams in the BetTrack database
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  example: Chiefs
+      responses:
+        '200':
+          description: Matching teams with IDs and sport info
+
+# Configuration reference (not an API path — included for documentation)
+x-mcp-configuration:
+  sports_mcp_server:
+    required_env:
+      - name: ODDS_API_KEY
+        description: API key from https://the-odds-api.com. Supports comma-separated round-robin.
+    optional_env:
+      - name: BOOKMAKERS_FILTER
+        description: Comma-separated list of bookmaker keys to show (e.g. draftkings,fanduel)
+      - name: BOOKMAKERS_LIMIT
+        description: Max bookmakers per game (default 5)
+      - name: SPORTS_MCP_CONFIG_DIR
+        description: Directory for persistent .env file (survives MCP package updates)
+  dashboard_mcp_server:
+    required_env:
+      - name: BETTRACK_API_URL
+        description: Base URL of the BetTrack backend (e.g. https://yourdomain.com)
+      - name: BETTRACK_API_KEY
+        description: API key with sk_ prefix generated from the BetTrack dashboard

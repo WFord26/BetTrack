@@ -57,6 +57,7 @@ export interface UpdateBetInput {
 // ============================================================================
 
 export interface BetFilters {
+  userId?: string;
   status?: BetStatus | BetStatus[];
   betType?: BetType;
   sportKey?: string;
@@ -67,6 +68,7 @@ export interface BetFilters {
 }
 
 export interface StatsFilters {
+  userId?: string;
   sportKey?: string;
   betType?: BetType;
   startDate?: Date;

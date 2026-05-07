@@ -4,13 +4,22 @@ import { betService } from '../services/bet.service';
 import { validateBody, validateParams, validateQuery } from '../middleware/validation.middleware';
 import { logger } from '../config/logger';
 import {
+  AuthenticatedRequest,
+  getScopedUserId,
+  requireSessionAuth
+} from '../middleware/auth-session.middleware';
+import {
   VALID_BET_TYPES,
   VALID_BET_STATUSES,
   VALID_SELECTION_TYPES,
-  VALID_SELECTIONS
+  VALID_SELECTIONS,
+  BetFilters,
+  StatsFilters
 } from '../types/bet.types';
 
 const router = Router();
+
+router.use(requireSessionAuth);
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -68,8 +77,10 @@ const getBetsQuerySchema = z.object({
   sportKey: z.string().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-  limit: z.string().transform(Number).optional(),
-  offset: z.string().transform(Number).optional()
+  // Coerce + bound: previously `z.string().transform(Number)` produced
+  // NaN for non-numeric input and silently passed it to Prisma `take`.
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
 });
 
 const getStatsQuerySchema = z.object({
@@ -95,14 +106,16 @@ const uuidParamSchema = z.object({
 router.get(
   '/stats',
   validateQuery(getStatsQuerySchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const filters: any = {};
+      const filters: StatsFilters = {};
+      const userId = getScopedUserId(req);
 
-      if (req.query.sportKey) filters.sportKey = req.query.sportKey;
-      if (req.query.betType) filters.betType = req.query.betType;
+      if (req.query.sportKey) filters.sportKey = req.query.sportKey as string;
+      if (req.query.betType) filters.betType = req.query.betType as StatsFilters['betType'];
       if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
       if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
+      if (userId) filters.userId = userId;
 
       const stats = await betService.getStats(filters);
 
@@ -123,24 +136,27 @@ router.get(
 router.get(
   '/',
   validateQuery(getBetsQuerySchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const filters: any = {};
+      const filters: BetFilters = {};
+      const userId = getScopedUserId(req);
 
       // Handle status (can be comma-separated)
       if (req.query.status) {
         const statusStr = req.query.status as string;
         filters.status = statusStr.includes(',')
-          ? statusStr.split(',')
-          : statusStr;
+          ? (statusStr.split(',') as BetFilters['status'])
+          : (statusStr as BetFilters['status']);
       }
 
-      if (req.query.betType) filters.betType = req.query.betType;
-      if (req.query.sportKey) filters.sportKey = req.query.sportKey;
+      if (req.query.betType) filters.betType = req.query.betType as BetFilters['betType'];
+      if (req.query.sportKey) filters.sportKey = req.query.sportKey as string;
       if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
       if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
-      if (req.query.limit) filters.limit = Number(req.query.limit);
-      if (req.query.offset) filters.offset = Number(req.query.offset);
+      // limit/offset are already coerced to numbers by getBetsQuerySchema
+      if (req.query.limit !== undefined) filters.limit = req.query.limit as unknown as number;
+      if (req.query.offset !== undefined) filters.offset = req.query.offset as unknown as number;
+      if (userId) filters.userId = userId;
 
       const result = await betService.getBets(filters);
 
@@ -163,9 +179,9 @@ router.get(
 router.get(
   '/:id',
   validateParams(uuidParamSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const bet = await betService.getBetById(req.params.id);
+      const bet = await betService.getBetById(req.params.id, getScopedUserId(req));
 
       if (!bet) {
         return res.status(404).json({
@@ -191,9 +207,9 @@ router.get(
 router.post(
   '/',
   validateBody(createBetSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const bet = await betService.createBet(req.body);
+      const bet = await betService.createBet(req.body, getScopedUserId(req));
 
       res.status(201).json({
         status: 'success',
@@ -214,9 +230,9 @@ router.patch(
   '/:id',
   validateParams(uuidParamSchema),
   validateBody(updateBetSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const bet = await betService.updateBet(req.params.id, req.body);
+      const bet = await betService.updateBet(req.params.id, req.body, getScopedUserId(req));
 
       res.json({
         status: 'success',
@@ -231,20 +247,28 @@ router.patch(
 
 /**
  * DELETE /api/bets/:id
- * Delete bet (supports ?force=true to delete any bet)
+ * Delete bet (supports ?force=true to delete any bet, requires admin)
  */
 router.delete(
   '/:id',
   validateParams(uuidParamSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const force = req.query.force === 'true';
-      await betService.cancelBet(req.params.id, force);
 
-      res.json({
-        status: 'success',
-        message: 'Bet deleted'
-      });
+      // Force delete requires admin access
+      if (force && !req.user?.isAdmin) {
+        const userEmail = req.user?.email || 'unknown';
+        logger.warn(`Unauthorized force delete attempt by ${userEmail} for bet ${req.params.id}`);
+        return res.status(403).json({
+          status: 'error',
+          message: 'Admin access required to force delete bets'
+        });
+      }
+
+      await betService.cancelBet(req.params.id, force, getScopedUserId(req));
+
+      res.status(204).send();
     } catch (error) {
       logger.error('Error deleting bet:', error);
       next(error);
@@ -260,10 +284,15 @@ router.post(
   '/:id/settle',
   validateParams(uuidParamSchema),
   validateBody(settleBetSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { status, actualPayout } = req.body;
-      const bet = await betService.settleBet(req.params.id, status, actualPayout);
+      const bet = await betService.settleBet(
+        req.params.id,
+        status,
+        actualPayout,
+        getScopedUserId(req)
+      );
 
       res.json({
         status: 'success',

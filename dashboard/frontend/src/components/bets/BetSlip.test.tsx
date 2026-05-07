@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import BetSlip from '@/components/bets/BetSlip';
 import { renderWithProviders, mockGame, waitForAsync } from '@/test/test-utils';
 import type { RootState } from '@/store';

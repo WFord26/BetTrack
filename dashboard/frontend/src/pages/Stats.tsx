@@ -151,7 +151,7 @@ export default function Stats() {
         {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Statistics</h1>
+            <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white text-shadow-pixel tracking-wide">STATISTICS</h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
               Analyze your betting performance
             </p>
@@ -167,7 +167,7 @@ export default function Stats() {
                   px-4 py-2 rounded-lg font-medium text-sm transition-all
                   ${
                     dateRange === range
-                      ? 'bg-blue-600 text-white shadow-md'
+                      ? 'bg-brand-600 text-white shadow-md'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
                   }
                 `}
@@ -196,8 +196,8 @@ export default function Stats() {
         {/* Breakdown Tables */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* By Sport */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">By Sport</h3>
+          <div className="card p-6">
+            <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4">By Sport</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -231,8 +231,8 @@ export default function Stats() {
           </div>
 
           {/* By Bet Type */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">By Bet Type</h3>
+          <div className="card p-6">
+            <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4">By Bet Type</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

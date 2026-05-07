@@ -32,7 +32,11 @@ jest.mock('../src/config/database', () => ({
       findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn()
-    }
+    },
+    // settleBetLegs + checkAndSettleBet now wrap their work in
+    // prisma.$transaction so a crash mid-flight can never leave a bet
+    // pending with all legs settled. Default the mock to pass-through.
+    $transaction: jest.fn(),
   }
 }));
 
@@ -77,6 +81,19 @@ describe('OutcomeResolverService', () => {
     // Mock the service's internal ESPN client instead of global axios
     mockAxios = new MockAdapter((service as any).espnClient);
     jest.clearAllMocks();
+
+    // Default $transaction implementation: pass the same prisma mock
+    // through as the `tx` client and run the callback. Tests that want
+    // to assert against a tx-scoped client can override this.
+    (mockPrisma.$transaction as jest.MockedFunction<any>).mockImplementation(
+      async (cb: any) => cb(mockPrisma)
+    );
+
+    // Recovery sweep (settleStuckBets) calls bet.findMany at the end of
+    // every resolveOutcomes invocation. Default to empty so tests that
+    // don't care about the sweep don't fail with "stuckBets is not
+    // iterable".
+    mockPrisma.bet.findMany.mockResolvedValue([]);
   });
 
   afterEach(() => {

@@ -194,7 +194,8 @@ npm run dev
 
 ### Session not persisting
 - Ensure `SESSION_SECRET` is set and consistent
-- Check that Redis or session store is configured if using in production
+- Check that your browser accepts the `bettrack.sid` cookie from the API origin
+- The current implementation uses an in-memory session store, so sessions reset on server restart
 
 ### Multiple users with same email
 - The system prevents creating accounts with duplicate emails across providers
@@ -204,30 +205,16 @@ npm run dev
 
 For production deployment, additionally configure:
 
-1. **Session Store**: Use Redis instead of in-memory sessions
+1. **Session Store**: Replace the current in-memory session store with Redis or another shared store
    ```typescript
-   // In server.ts
-   import RedisStore from "connect-redis";
-   import { createClient } from "redis";
-   
-   const redisClient = createClient({ url: process.env.REDIS_URL });
-   redisClient.connect();
-   
-   app.use(session({
-     store: new RedisStore({ client: redisClient }),
-     // ... other options
-   }));
+   // The current auth middleware stores sessions in process memory.
+   // For multi-instance production deployments, move that state to Redis.
    ```
 
-2. **HTTPS Only**: Force HTTPS in production
+2. **HTTPS Only**: Keep secure cookies enabled in production
    ```typescript
-   app.use(session({
-     cookie: {
-       secure: process.env.NODE_ENV === 'production', // HTTPS only
-       httpOnly: true,
-       sameSite: 'lax'
-     }
-   }));
+   // The auth middleware already marks cookies as Secure in production.
+   // Make sure the app is served behind HTTPS so browsers will send them.
    ```
 
 3. **Environment Variables**: Use cloud secrets management

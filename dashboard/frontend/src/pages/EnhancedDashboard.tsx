@@ -130,9 +130,9 @@ export default function EnhancedDashboard() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="text-6xl mb-4 animate-bounce">🎮</div>
-            <div className="text-white text-xl font-bold mb-2">Loading Games...</div>
-            <div className="text-gray-400">Fetching the latest odds</div>
+            <div className="w-12 h-12 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="font-display font-bold text-xl text-gray-900 dark:text-white mb-1">Loading Games...</div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Fetching the latest odds</div>
           </div>
         </div>
       </div>
@@ -175,14 +175,6 @@ export default function EnhancedDashboard() {
         }}
       />
       
-      {/* CRT Scanlines Effect */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-3"
-        style={{
-          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
-          backgroundSize: '100% 4px'
-        }}
-      />
       {/* Mobile Menu Button */}
       <button
         onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
@@ -240,12 +232,7 @@ export default function EnhancedDashboard() {
         <div className="container mx-auto px-4 py-8 lg:py-8 pt-20 lg:pt-8">
       {/* Games Count */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white"
-            style={{
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-              textShadow: '2px 2px 0px rgba(0,0,0,0.3)',
-              letterSpacing: '0.05em'
-            }}>
+        <h2 className="text-xl font-display font-bold text-gray-900 dark:text-white text-shadow-pixel tracking-wide">
           {filteredGames.length} {filteredGames.length === 1 ? 'Game' : 'Games'} Found
         </h2>
         {filteredGames.length !== games.length && (
@@ -262,13 +249,10 @@ export default function EnhancedDashboard() {
                boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
                imageRendering: 'pixelated'
              }}>
-          <div className="text-6xl mb-4" style={{ filter: 'drop-shadow(4px 4px 0px rgba(0,0,0,0.3))' }}>🔍</div>
-          <h3 className="text-gray-900 dark:text-white text-xl font-bold mb-2"
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-                letterSpacing: '0.05em'
-              }}>No Games Found</h3>
+          <svg className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <h3 className="font-display font-bold text-xl text-gray-900 dark:text-white text-shadow-pixel mb-2">No Games Found</h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Try adjusting your filters or selecting a different date
           </p>
@@ -277,14 +261,7 @@ export default function EnhancedDashboard() {
               setSelectedSports([]);
               setSelectedStatus('all');
             }}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors border-2 border-red-700"
-            style={{
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-              textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
-              boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
-              letterSpacing: '0.05em',
-              fontWeight: 'bold'
-            }}
+            className="btn-primary"
           >
             Clear Filters
           </button>

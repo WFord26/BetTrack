@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Ball -->
+  <circle cx="512" cy="512" r="460" fill="#F5F0E8"/>
+  <circle cx="512" cy="512" r="460" fill="none" stroke="#D4C9B0" stroke-width="8"/>
+
+  <!-- Left stitch curve -->
+  <path d="M 340 180 C 260 320, 240 480, 280 640 C 300 720, 330 790, 370 850"
+        fill="none" stroke="#CC2222" stroke-width="28" stroke-linecap="round"/>
+
+  <!-- Right stitch curve -->
+  <path d="M 684 180 C 764 320, 784 480, 744 640 C 724 720, 694 790, 654 850"
+        fill="none" stroke="#CC2222" stroke-width="28" stroke-linecap="round"/>
+
+  <!-- Left stitches -->
+  <line x1="340" y1="222" x2="300" y2="238" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="326" y1="278" x2="284" y2="286" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="316" y1="336" x2="274" y2="338" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="308" y1="396" x2="268" y2="392" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="304" y1="456" x2="264" y2="448" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="302" y1="516" x2="262" y2="512" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="304" y1="576" x2="264" y2="576" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="310" y1="634" x2="270" y2="638" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="322" y1="690" x2="284" y2="700" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="342" y1="744" x2="306" y2="760" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="366" y1="796" x2="334" y2="816" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+
+  <!-- Right stitches -->
+  <line x1="684" y1="222" x2="724" y2="238" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="698" y1="278" x2="740" y2="286" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="708" y1="336" x2="750" y2="338" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="716" y1="396" x2="756" y2="392" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="720" y1="456" x2="760" y2="448" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="722" y1="516" x2="762" y2="512" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="720" y1="576" x2="760" y2="576" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="714" y1="634" x2="754" y2="638" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="702" y1="690" x2="740" y2="700" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="682" y1="744" x2="718" y2="760" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+  <line x1="658" y1="796" x2="690" y2="816" stroke="#CC2222" stroke-width="20" stroke-linecap="round"/>
+</svg>

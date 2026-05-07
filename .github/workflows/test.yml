@@ -2,13 +2,13 @@ name: Test & Validate
 
 on:
   pull_request:
-    branches: [main, beta, develop]
+    branches: [main, dev, beta, develop]
     paths:
       - 'dashboard/**'
       - 'mcp/**'
       - '.github/workflows/test.yml'
   push:
-    branches: [main, beta]
+    branches: [main, dev, beta]
     paths:
       - 'dashboard/**'
       - 'mcp/**'
@@ -235,7 +235,22 @@ jobs:
         working-directory: ./mcp
         env:
           ODDS_API_KEY: test-key
-        run: timeout 10s python sports_mcp_server.py || code=$?; if [[ $code -ne 124 && $code -ne 0 ]]; then exit $code; fi
+        # `timeout 10s …` exits 124 when it kills a still-running
+        # process. Treat 124 (clean timeout) and 0 (clean exit) as
+        # success; anything else is a real startup failure.
+        # The previous form (`… || code=$?; if …`) was broken: `;`
+        # ends the `||` so `code` was unset on success and could be
+        # stale on failure.
+        shell: bash
+        run: |
+          set +e
+          timeout 10s python sports_mcp_server.py
+          code=$?
+          set -e
+          if [[ $code -ne 124 && $code -ne 0 ]]; then
+            echo "MCP server exited with $code"
+            exit $code
+          fi
 
   build-validation:
     name: Build Validation

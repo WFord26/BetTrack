@@ -14,8 +14,14 @@ jest.mock('../src/config/database', () => ({
     bet: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
+      groupBy: jest.fn(),
       update: jest.fn(),
+      // updateMany is now used by updateBet so the ownership filter is
+      // re-asserted atomically with the mutation (closes the TOCTOU
+      // between findFirst and update).
+      updateMany: jest.fn(),
       count: jest.fn(),
       delete: jest.fn()
     },
@@ -31,6 +37,7 @@ jest.mock('../src/config/database', () => ({
       findUnique: jest.fn(),
       findMany: jest.fn()
     },
+    $queryRawUnsafe: jest.fn(),
     $transaction: jest.fn((callback) => {
       // Mock transaction by calling the callback with mocked prisma
       return callback({
@@ -181,23 +188,24 @@ describe('Bet Service Unit Tests', () => {
         betType: 'single' as const,
         stake: new Decimal(100),
         status: 'pending' as const,
-        legs: []
+        legs: [],
+        futureLegs: []
       };
 
-      mockPrisma.bet.findUnique.mockResolvedValue(mockBet as any);
+      mockPrisma.bet.findFirst.mockResolvedValue(mockBet as any);
       mockPrisma.betLeg.findMany.mockResolvedValue([]);
 
       const result = await service.getBetById('bet-5');
 
       expect(result).toBeDefined();
       expect(result?.id).toBe('bet-5');
-      expect(mockPrisma.bet.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'bet-5' } })
+      expect(mockPrisma.bet.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: 'bet-5' }) })
       );
     });
 
     it('should return null for non-existent bet', async () => {
-      mockPrisma.bet.findUnique.mockResolvedValue(null);
+      mockPrisma.bet.findFirst.mockResolvedValue(null);
 
       const result = await service.getBetById('nonexistent');
 
@@ -270,27 +278,33 @@ describe('Bet Service Unit Tests', () => {
 
   describe('Bet Statistics', () => {
     it('should calculate stats from database', async () => {
-      mockPrisma.bet.findMany.mockResolvedValue([
-        {
-          stake: new Decimal(100),
-          actualPayout: new Decimal(190),
-          status: 'won',
-          legs: [{ game: { sport: { key: 'basketball_nba' } } }]
-        },
-        {
-          stake: new Decimal(50),
-          actualPayout: new Decimal(0),
-          status: 'lost',
-          legs: [{ game: { sport: { key: 'basketball_nba' } } }]
-        }
-      ] as any);
+      // Mock groupBy for status aggregation
+      (mockPrisma.bet.groupBy as jest.Mock)
+        .mockResolvedValueOnce([
+          { status: 'won', _count: 1, _sum: { stake: new Decimal(100), actualPayout: new Decimal(190) } },
+          { status: 'lost', _count: 1, _sum: { stake: new Decimal(50), actualPayout: new Decimal(0) } }
+        ])
+        // Mock groupBy for betType+status aggregation
+        .mockResolvedValueOnce([
+          { betType: 'single', status: 'won', _count: 1, _sum: { stake: new Decimal(100), actualPayout: new Decimal(190) } },
+          { betType: 'single', status: 'lost', _count: 1, _sum: { stake: new Decimal(50), actualPayout: new Decimal(0) } }
+        ]);
 
-      mockPrisma.bet.count.mockResolvedValue(2);
+      // Mock raw query for sport breakdown
+      (mockPrisma.$queryRawUnsafe as jest.Mock).mockResolvedValue([
+        { sport_key: 'basketball_nba', count: BigInt(2), won: BigInt(1), net_profit: 40 }
+      ]);
 
       const stats = await service.getStats({});
 
       expect(stats.totalBets).toBe(2);
-      expect(stats).toBeDefined();
+      expect(stats.wonBets).toBe(1);
+      expect(stats.lostBets).toBe(1);
+      expect(stats.totalStaked).toBe(150);
+      expect(stats.totalPayout).toBe(190);
+      expect(stats.netProfit).toBe(40);
+      expect(stats.bySport['basketball_nba']).toEqual({ count: 2, won: 1, netProfit: 40 });
+      expect(stats.byBetType['single']).toEqual({ count: 2, won: 1, netProfit: 40 });
     });
   });
 
@@ -306,12 +320,16 @@ describe('Bet Service Unit Tests', () => {
 
       const mockUpdatedBet = {
         ...mockExistingBet,
-        notes: 'Updated notes'
+        notes: 'Updated notes',
+        futureLegs: []
       };
 
-      mockPrisma.bet.findUnique.mockResolvedValueOnce(mockExistingBet as any);
-      mockPrisma.bet.update.mockResolvedValue(mockUpdatedBet as any);
-      mockPrisma.bet.findUnique.mockResolvedValueOnce(mockUpdatedBet as any);
+      mockPrisma.bet.findFirst.mockResolvedValueOnce(mockExistingBet as any);
+      // updateBet now uses updateMany so the WHERE clause carries the
+      // userId filter atomically with the mutation. Returning count: 1
+      // signals "the row matched and was updated".
+      (mockPrisma.bet as any).updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.bet.findFirst.mockResolvedValueOnce(mockUpdatedBet as any);
 
       const result = await service.updateBet('bet-8', { notes: 'Updated notes' });
 
@@ -330,7 +348,7 @@ describe('Bet Service Unit Tests', () => {
         }]
       };
 
-      mockPrisma.bet.findUnique.mockResolvedValueOnce(mockExistingBet as any);
+      mockPrisma.bet.findFirst.mockResolvedValueOnce(mockExistingBet as any);
       mockPrisma.bet.delete.mockResolvedValue(mockExistingBet as any);
 
       await expect(service.cancelBet('bet-9')).resolves.not.toThrow();

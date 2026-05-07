@@ -2,74 +2,228 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom animations */
+/* ── BetTrack Global Styles ──────────────────────────────────────────────────
+ *
+ * Token usage convention:
+ *   - font-display  → monospace brand font (headings, page titles, CTAs)
+ *   - font-body     → Inter (body copy, data, labels)
+ *   - brand-*       → red ramp, primary brand color
+ *   - surface-*     → dark-optimized gray for backgrounds/cards
+ *   - win/loss/push/live → semantic bet outcome colors
+ *   - shadow-pixel-*    → retro offset shadows
+ *   - text-shadow-pixel → retro text shadows (via plugin)
+ *
+ * See tailwind.config.js for full token documentation.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
 @keyframes slide-in-right {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);   opacity: 1; }
 }
 
 @keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-.animate-slide-in-right {
-  animation: slide-in-right 0.3s ease-out;
+@keyframes pixel-pulse {
+  0%, 100% { box-shadow: 0 6px 0 #991b1b, 0 10px 20px rgba(0,0,0,0.4); }
+  50%       { box-shadow: 0 4px 0 #991b1b, 0 8px 16px rgba(0,0,0,0.3); }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out;
-}
+.animate-slide-in-right { animation: slide-in-right 0.3s ease-out; }
+.animate-fade-in        { animation: fade-in 0.2s ease-out; }
+.animate-pixel-pulse    { animation: pixel-pulse 2s ease-in-out infinite; }
 
+/* ── Root ────────────────────────────────────────────────────────────────── */
 :root {
+  /* Body font — Inter. font-display (monospace) is applied per-component. */
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Base layer ──────────────────────────────────────────────────────────── */
 @layer base {
   html, body {
-    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    /* surface-50 / surface-900 — dark mode uses near-black page background */
+    @apply bg-surface-50 dark:bg-surface-900 text-gray-900 dark:text-gray-100;
     overflow: hidden;
     height: 100%;
   }
-  
+
   #root {
     height: 100%;
   }
+
+  /* Headings use display (monospace) font to carry the brand identity
+   * throughout the app, not just on the landing page. Body text stays Inter. */
+  h1, h2, h3 {
+    @apply font-display;
+  }
+
+  /* Focus ring — brand red instead of the default blue */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white dark:ring-offset-surface-900;
+  }
 }
 
+/* ── Component layer ─────────────────────────────────────────────────────── */
 @layer components {
+
+  /* ── Buttons ──────────────────────────────────────────────────────────── */
+
+  /* Primary button — brand red, standard rounded. App-interior UI. */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors;
+    @apply bg-brand-600 hover:bg-brand-700 active:bg-brand-800
+           text-white font-display font-semibold
+           py-2 px-4 rounded-lg
+           transition-all duration-150
+           focus-visible:ring-2 focus-visible:ring-brand-500;
   }
 
+  /* Secondary button — neutral. App-interior UI. */
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors;
+    @apply bg-gray-200 hover:bg-gray-300 active:bg-gray-400
+           dark:bg-surface-700 dark:hover:bg-surface-600
+           text-gray-800 dark:text-gray-200
+           font-semibold py-2 px-4 rounded-lg
+           transition-all duration-150;
   }
 
-  .card {
-    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-4;
+  /* Pixel button — brand red with the retro 3D press shadow. Use on marketing
+   * pages, hero sections, and anywhere the western aesthetic is appropriate.
+   * Matches the inline-styled buttons in Home.tsx. */
+  .btn-pixel {
+    @apply relative
+           bg-brand-600 hover:bg-brand-700
+           text-white font-display font-bold
+           py-4 px-8
+           rounded-pixel
+           border-4 border-brand-800
+           transition-all duration-100
+           select-none cursor-pointer;
+    box-shadow: 0 6px 0 #7f1d1d, 0 10px 20px rgba(0,0,0,0.4);
   }
+  .btn-pixel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 0 #7f1d1d, 0 14px 24px rgba(0,0,0,0.45);
+  }
+  .btn-pixel:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #7f1d1d, 0 4px 10px rgba(0,0,0,0.3);
+  }
+
+  /* Pixel button — dark/ghost variant (gray background, same press effect) */
+  .btn-pixel-ghost {
+    @apply relative
+           bg-surface-700 hover:bg-surface-600
+           text-white font-display font-bold
+           py-4 px-8
+           rounded-pixel
+           border-4 border-surface-800
+           transition-all duration-100
+           select-none cursor-pointer;
+    box-shadow: 0 6px 0 #030712, 0 10px 20px rgba(0,0,0,0.4);
+  }
+  .btn-pixel-ghost:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 0 #030712, 0 14px 24px rgba(0,0,0,0.45);
+  }
+  .btn-pixel-ghost:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #030712, 0 4px 10px rgba(0,0,0,0.3);
+  }
+
+  /* ── Cards ────────────────────────────────────────────────────────────── */
+
+  /* Standard app card — clean, rounded. Use in dashboard, stats, history.
+   * Pixel offset shadow connects the app interior to the landing page aesthetic.
+   * Light: gray offset. Dark: near-black offset. */
+  .card {
+    @apply bg-white dark:bg-surface-800
+           rounded-lg
+           border border-gray-100 dark:border-surface-700
+           p-4;
+    box-shadow: 2px 2px 0px #9ca3af;
+  }
+  .dark .card {
+    box-shadow: 2px 2px 0px #030712;
+  }
+
+  /* Pixel card — retro style with hard offset shadow. Use on landing page
+   * and anywhere the western aesthetic should carry through. */
+  .card-pixel {
+    @apply bg-surface-50 dark:bg-surface-800
+           rounded-pixel
+           p-6
+           transition-all duration-200;
+    border: 4px solid;
+    @apply border-gray-300 dark:border-surface-700;
+  }
+  .card-pixel:hover {
+    transform: translateY(-4px);
+  }
+  /* Light mode pixel card shadow */
+  :root:not(.dark) .card-pixel {
+    box-shadow: 0 6px 0 #9ca3af, 0 10px 20px rgba(0,0,0,0.15);
+  }
+  /* Dark mode pixel card shadow */
+  .dark .card-pixel {
+    box-shadow: 0 6px 0 #030712, 0 10px 20px rgba(0,0,0,0.3);
+  }
+
+  /* ── Bet outcome badges ───────────────────────────────────────────────── */
+  /* Use these instead of ad-hoc green/red/gray badge classes */
+
+  .badge-win {
+    @apply px-2 py-0.5 rounded text-xs font-semibold
+           bg-win-100 text-win-800
+           dark:bg-win-900 dark:text-win-200;
+  }
+  .badge-loss {
+    @apply px-2 py-0.5 rounded text-xs font-semibold
+           bg-loss-100 text-loss-800
+           dark:bg-loss-900 dark:text-loss-200;
+  }
+  .badge-push {
+    @apply px-2 py-0.5 rounded text-xs font-semibold
+           bg-push-100 text-push-700
+           dark:bg-push-800 dark:text-push-300;
+  }
+  .badge-live {
+    @apply px-2 py-0.5 rounded text-xs font-semibold
+           bg-live-100 text-live-800
+           dark:bg-live-900 dark:text-live-200
+           animate-pulse;
+  }
+
+  /* ── Navigation active state ─────────────────────────────────────────── */
+  /* Centralised so changing the brand active color is a one-line edit */
+  .nav-link-active {
+    @apply bg-brand-600 text-white shadow-md;
+  }
+  .nav-link-inactive {
+    @apply text-gray-700 dark:text-gray-300
+           hover:bg-gray-100 dark:hover:bg-surface-800
+           hover:text-gray-900 dark:hover:text-white;
+  }
+
+  /* ── Section headings (brand display font) ───────────────────────────── */
+  /* Use these on page-level section titles for consistent typographic rhythm */
+  .heading-pixel {
+    @apply font-display font-bold text-shadow-pixel;
+  }
+  .heading-pixel-lg {
+    @apply font-display font-bold text-shadow-pixel-lg;
+  }
+
 }
+

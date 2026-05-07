@@ -16,6 +16,24 @@ For detailed change history, see the component-specific changelogs:
 
 Changes that affect the entire project structure:
 
+## [Unreleased]
+
+### Added
+
+- **Wiki documentation instructions** (`.github/instructions/wiki-docs.instructions.md`): Auto-attaches when editing `docs/wiki/**` files, enforcing `.md`-extension cross-page links, correct anchor syntax, image CDN URLs, and consistent page structure
+- **New wiki page prompt** (`.github/prompts/new-wiki-page.prompt.md`): Scaffolds a new wiki page with correct structure, TOC, and linking conventions via `/new-wiki-page` slash command
+- **GitHub roadmap setup script** (`docs/setup-github-roadmap.sh`): Automates creation of GitHub milestones ("Phase: Now" / "Phase: Next"), labels, and issues with acceptance criteria for the BetTrack project roadmap
+- **Project documentation** (`docs/PROJECT.md`, `docs/BUILDOUT_SUMMARY.md`, `docs/api/README.md`): Added project overview, build summary, and API README
+- **OpenAPI specifications** (`docs/api/openapi-external.yaml`, `docs/api/openapi-internal.yaml`): Full external and internal API specs
+- **CLV Analytics API documentation** (`docs/wiki/API-DOCUMENTATION.md`): Documented all 7 CLV endpoints (summary, by-sport, by-bookmaker, trends, report, calculate, update-stats)
+
+### Changed
+
+- **UI consistency and design tokens**: Refactored BetHistory, CLVAnalytics, EnhancedDashboard, Stats, and Header components to use Tailwind utility classes and new brand/semantic color tokens; replaced inline styles for better maintainability
+- **Loading and empty states**: Enhanced visual treatment across dashboard pages with improved indicators and retro pixel text-shadow utilities
+
+---
+
 ## [2026-02-03] 
 
 ### Release Summary

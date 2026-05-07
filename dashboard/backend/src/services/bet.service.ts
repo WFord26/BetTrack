@@ -21,6 +21,55 @@ import {
   decimalToAmerican
 } from '../utils/odds-calculator';
 import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
+import type { Sport } from '../types/betting.types';
+
+// ---------------------------------------------------------------------------
+// Prisma payload types for strongly-typed format helpers
+// ---------------------------------------------------------------------------
+
+const betWithLegsInclude = {
+  legs: {
+    include: {
+      game: {
+        include: {
+          sport: { select: { key: true, name: true } }
+        }
+      }
+    }
+  }
+} as const;
+
+const betWithLegsAndFutureLegsInclude = {
+  legs: {
+    include: {
+      game: {
+        include: {
+          sport: { select: { key: true, name: true } }
+        }
+      }
+    }
+  },
+  futureLegs: {
+    include: {
+      future: {
+        select: {
+          id: true,
+          title: true,
+          season: true,
+          sport: { select: { key: true } }
+        }
+      }
+    }
+  }
+} as const;
+
+type BetWithLegs = Prisma.BetGetPayload<{ include: typeof betWithLegsInclude }>;
+type BetWithLegsAndFutureLegs = Prisma.BetGetPayload<{ include: typeof betWithLegsAndFutureLegsInclude }>;
+type FormattableBet = BetWithLegs | BetWithLegsAndFutureLegs;
+
+type BetLegWithGame = FormattableBet['legs'][number];
+type BetLegFutureWithFuture = BetWithLegsAndFutureLegs['futureLegs'][number];
 
 /**
  * Service for managing bets
@@ -35,7 +84,7 @@ export class BetService {
   /**
    * Create a new bet
    */
-  async createBet(data: CreateBetInput): Promise<BetResponse> {
+  async createBet(data: CreateBetInput, userId?: string): Promise<BetResponse> {
     logger.info(`Creating ${data.betType} bet: ${data.name}`);
     
     // Debug logging for boost
@@ -68,11 +117,12 @@ export class BetService {
     // Start transaction
     return await prisma.$transaction(async (tx) => {
       // Calculate odds and payout
-      const { combinedOdds, potentialPayout } = this.calculateBetOdds(data);
+      const { combinedOdds, potentialPayout } = await this.calculateBetOdds(data);
 
       // Create bet record
       const bet = await tx.bet.create({
         data: {
+          userId: userId || null,
           name: data.name,
           betType: data.betType,
           stake: new Decimal(data.stake),
@@ -189,7 +239,11 @@ export class BetService {
     const offset = filters.offset || 0;
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.BetWhereInput = {};
+
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
 
     if (filters.status) {
       where.status = Array.isArray(filters.status)
@@ -259,9 +313,12 @@ export class BetService {
   /**
    * Get bet by ID
    */
-  async getBetById(id: string): Promise<BetResponse | null> {
-    const bet = await prisma.bet.findUnique({
-      where: { id },
+  async getBetById(id: string, userId?: string): Promise<BetResponse | null> {
+    const bet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
       include: {
         legs: {
           include: {
@@ -299,10 +356,13 @@ export class BetService {
   /**
    * Update a bet
    */
-  async updateBet(id: string, data: UpdateBetInput): Promise<BetResponse> {
-    // Get existing bet
-    const existingBet = await prisma.bet.findUnique({
-      where: { id },
+  async updateBet(id: string, data: UpdateBetInput, userId?: string): Promise<BetResponse> {
+    // Get existing bet (scoped by ownership when applicable)
+    const existingBet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
       include: {
         legs: {
           include: {
@@ -332,7 +392,7 @@ export class BetService {
     }
 
     // Prepare update data
-    const updateData: any = {};
+    const updateData: Prisma.BetUpdateManyMutationInput = {};
 
     if (data.name !== undefined) {
       updateData.name = data.name;
@@ -345,31 +405,55 @@ export class BetService {
     // Recalculate payout if stake changed
     if (data.stake !== undefined) {
       updateData.stake = new Decimal(data.stake);
-      
+
       if (existingBet.oddsAtPlacement) {
         const newPayout = calculatePayout(data.stake, existingBet.oddsAtPlacement);
         updateData.potentialPayout = new Decimal(newPayout);
       }
     }
 
-    // Update bet
-    await prisma.bet.update({
-      where: { id },
-      data: updateData
+    // SECURITY: Re-assert the ownership filter at update time so the WHERE
+    // clause is atomic with the mutation (closes the TOCTOU between the
+    // findFirst above and the update). updateMany with `count` lets us
+    // detect — and fail loudly on — a concurrent ownership change.
+    const updateResult = await prisma.bet.updateMany({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
+      data: updateData,
     });
+
+    if (updateResult.count === 0) {
+      throw new Error('Bet not found');
+    }
 
     logger.info(`Updated bet ${id}`);
 
-    return this.getBetById(id) as Promise<BetResponse>;
+    const updatedBet = await this.getBetById(id, userId);
+    if (!updatedBet) {
+      throw new Error('Bet not found after update');
+    }
+    return updatedBet;
   }
 
   /**
    * Cancel a bet
    */
-  async cancelBet(id: string, force: boolean = false): Promise<void> {
+  async cancelBet(id: string, force: boolean = false, userId?: string): Promise<void> {
+    // Authorization model:
+    //   - force=false → owner-only: scope by userId so a user can only cancel their own bets.
+    //   - force=true  → admin override (the route gate verifies req.user.isAdmin
+    //                    before calling with force). Admins must be able to delete
+    //                    ANY user's bet, so we drop the userId filter here.
+    const ownershipFilter = !force && userId ? { userId } : {};
+
     // Get bet with legs
-    const bet = await prisma.bet.findUnique({
-      where: { id },
+    const bet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...ownershipFilter,
+      },
       include: {
         legs: {
           include: {
@@ -403,7 +487,7 @@ export class BetService {
 
     // Delete bet (legs will cascade)
     await prisma.bet.delete({
-      where: { id }
+      where: { id: bet.id }
     });
 
     logger.info(`${force ? 'Force deleted' : 'Cancelled'} bet ${id}`);
@@ -415,10 +499,14 @@ export class BetService {
   async settleBet(
     id: string,
     status: 'won' | 'lost' | 'push',
-    actualPayout?: number
+    actualPayout?: number,
+    userId?: string
   ): Promise<BetResponse> {
-    const bet = await prisma.bet.findUnique({
-      where: { id },
+    const bet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...(userId ? { userId } : {}),
+      },
       select: { status: true, stake: true, potentialPayout: true }
     });
 
@@ -454,15 +542,24 @@ export class BetService {
 
     logger.info(`Settled bet ${id}: ${status}`);
 
-    return this.getBetById(id) as Promise<BetResponse>;
+    const settledBet = await this.getBetById(id, userId);
+    if (!settledBet) {
+      throw new Error('Bet not found after settlement');
+    }
+    return settledBet;
   }
 
   /**
-   * Get betting statistics
+   * Get betting statistics using database aggregation
+   * Uses groupBy/aggregate instead of loading all rows into memory
    */
   async getStats(filters: StatsFilters = {}): Promise<BetStats> {
     // Build where clause
-    const where: any = {};
+    const where: Prisma.BetWhereInput = {};
+
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
 
     if (filters.betType) {
       where.betType = filters.betType;
@@ -490,25 +587,37 @@ export class BetService {
       };
     }
 
-    // Get all bets
-    const bets = await prisma.bet.findMany({
-      where,
-      include: {
-        legs: {
-          include: {
-            game: {
-              include: {
-                sport: true
-              }
-            }
-          }
+    // Run all aggregation queries in parallel
+    const [statusGroups, betTypeStatusGroups, sportBreakdown] = await Promise.all([
+      // 1. Group by status: counts + sums
+      prisma.bet.groupBy({
+        by: ['status'],
+        where,
+        _count: true,
+        _sum: {
+          stake: true,
+          actualPayout: true
         }
-      }
-    });
+      }),
 
-    // Calculate stats
+      // 2. Group by betType + status: counts + sums for byBetType breakdown
+      prisma.bet.groupBy({
+        by: ['betType', 'status'],
+        where,
+        _count: true,
+        _sum: {
+          stake: true,
+          actualPayout: true
+        }
+      }),
+
+      // 3. By sport breakdown using raw SQL (joins through bet_legs → games → sports)
+      this.getStatsBySport(where, filters)
+    ]);
+
+    // Build stats from status groups
     const stats: BetStats = {
-      totalBets: bets.length,
+      totalBets: 0,
       wonBets: 0,
       lostBets: 0,
       pushBets: 0,
@@ -522,43 +631,43 @@ export class BetService {
       bySport: {}
     };
 
-    // Process each bet
-    for (const bet of bets) {
-      const stake = bet.stake.toNumber();
-      const payout = bet.actualPayout?.toNumber() || 0;
+    for (const group of statusGroups) {
+      const count = group._count;
+      const stake = group._sum.stake?.toNumber() || 0;
+      const payout = group._sum.actualPayout?.toNumber() || 0;
 
+      stats.totalBets += count;
       stats.totalStaked += stake;
       stats.totalPayout += payout;
 
-      // Count by status
-      if (bet.status === 'won') stats.wonBets++;
-      else if (bet.status === 'lost') stats.lostBets++;
-      else if (bet.status === 'push') stats.pushBets++;
-      else if (bet.status === 'pending') stats.pendingBets++;
-
-      // By bet type
-      if (!stats.byBetType[bet.betType]) {
-        stats.byBetType[bet.betType] = { count: 0, won: 0, netProfit: 0 };
-      }
-      stats.byBetType[bet.betType]!.count++;
-      if (bet.status === 'won') stats.byBetType[bet.betType]!.won++;
-      stats.byBetType[bet.betType]!.netProfit += (payout - stake);
-
-      // By sport (use first leg's sport)
-      if (bet.legs.length > 0) {
-        const sportKey = bet.legs[0].game.sport.key;
-        if (!stats.bySport[sportKey]) {
-          stats.bySport[sportKey] = { count: 0, won: 0, netProfit: 0 };
-        }
-        stats.bySport[sportKey].count++;
-        if (bet.status === 'won') stats.bySport[sportKey].won++;
-        stats.bySport[sportKey].netProfit += (payout - stake);
+      switch (group.status) {
+        case 'won': stats.wonBets = count; break;
+        case 'lost': stats.lostBets = count; break;
+        case 'push': stats.pushBets = count; break;
+        case 'pending': stats.pendingBets = count; break;
       }
     }
 
+    // Build byBetType from betType+status groups
+    for (const group of betTypeStatusGroups) {
+      const betType = group.betType;
+      const stake = group._sum.stake?.toNumber() || 0;
+      const payout = group._sum.actualPayout?.toNumber() || 0;
+
+      if (!stats.byBetType[betType]) {
+        stats.byBetType[betType] = { count: 0, won: 0, netProfit: 0 };
+      }
+      stats.byBetType[betType]!.count += group._count;
+      if (group.status === 'won') stats.byBetType[betType]!.won += group._count;
+      stats.byBetType[betType]!.netProfit += (payout - stake);
+    }
+
+    // Apply sport breakdown
+    stats.bySport = sportBreakdown;
+
     // Calculate rates
     stats.netProfit = stats.totalPayout - stats.totalStaked;
-    
+
     const settledBets = stats.wonBets + stats.lostBets + stats.pushBets;
     if (settledBets > 0) {
       stats.winRate = (stats.wonBets / settledBets) * 100;
@@ -569,6 +678,78 @@ export class BetService {
     }
 
     return stats;
+  }
+
+  /**
+   * Get stats broken down by sport using a raw SQL query.
+   * Joins bet_legs → games → sports to attribute each bet to its first leg's sport.
+   */
+  private async getStatsBySport(
+    _where: Prisma.BetWhereInput,
+    filters: StatsFilters
+  ): Promise<BetStats['bySport']> {
+    // Build parameterized WHERE conditions for the raw query
+    const conditions: string[] = ['1=1'];
+    const params: (string | Date)[] = [];
+    let paramIndex = 1;
+
+    if (filters.userId) {
+      conditions.push(`b.user_id = $${paramIndex++}`);
+      params.push(filters.userId);
+    }
+    if (filters.betType) {
+      conditions.push(`b.bet_type = $${paramIndex++}`);
+      params.push(filters.betType);
+    }
+    if (filters.startDate) {
+      conditions.push(`b.placed_at >= $${paramIndex++}`);
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      conditions.push(`b.placed_at <= $${paramIndex++}`);
+      params.push(filters.endDate);
+    }
+    if (filters.sportKey) {
+      conditions.push(`s.key = $${paramIndex++}`);
+      params.push(filters.sportKey);
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    // Use DISTINCT ON to pick first leg per bet, then aggregate by sport
+    const rows = await prisma.$queryRawUnsafe<Array<{
+      sport_key: string;
+      count: bigint;
+      won: bigint;
+      net_profit: number;
+    }>>(
+      `SELECT
+        s.key AS sport_key,
+        COUNT(*)::bigint AS count,
+        COUNT(*) FILTER (WHERE b.status = 'won')::bigint AS won,
+        COALESCE(SUM(COALESCE(b.actual_payout, 0) - b.stake), 0)::float AS net_profit
+      FROM (
+        SELECT DISTINCT ON (bl.bet_id) bl.bet_id, g.sport_id
+        FROM bet_legs bl
+        JOIN games g ON g.id = bl.game_id
+        ORDER BY bl.bet_id, bl.created_at
+      ) first_leg
+      JOIN bets b ON b.id = first_leg.bet_id
+      JOIN sports s ON s.id = first_leg.sport_id
+      WHERE ${whereClause}
+      GROUP BY s.key`,
+      ...params
+    );
+
+    const bySport: BetStats['bySport'] = {};
+    for (const row of rows) {
+      bySport[row.sport_key] = {
+        count: Number(row.count),
+        won: Number(row.won),
+        netProfit: row.net_profit
+      };
+    }
+    return bySport;
   }
 
   // ========================================================================
@@ -656,10 +837,10 @@ export class BetService {
   /**
    * Calculate combined odds and payout
    */
-  private calculateBetOdds(data: CreateBetInput): {
+  private async calculateBetOdds(data: CreateBetInput): Promise<{
     combinedOdds: number;
     potentialPayout: number;
-  } {
+  }> {
     const totalLegs = data.legs.length + (data.futureLegs?.length || 0);
     
     if (data.betType === 'single') {
@@ -730,11 +911,28 @@ export class BetService {
 
     if (data.betType === 'teaser' && data.teaserPoints) {
       // Get teaser odds from lookup table
-      const firstLegSport = 'nfl'; // TODO: Get from game's sport
+      // Resolve sport from first leg's game record
+      let firstLegSport = 'nfl'; // Default fallback
+      if (data.legs.length > 0) {
+        try {
+          const firstLegGame = await prisma.game.findUnique({
+            where: { id: data.legs[0].gameId },
+            select: { sport: { select: { key: true } } }
+          });
+          if (firstLegGame?.sport?.key) {
+            // Extract sport key (e.g., 'nfl' from 'americanfootball_nfl')
+            const sportKey = firstLegGame.sport.key.split('_').pop() || 'nfl';
+            firstLegSport = sportKey;
+          }
+        } catch (error) {
+          logger.warn('Failed to resolve teaser sport, defaulting to nfl');
+        }
+      }
+      
       const teaserOdds = getTeaserOdds(
         data.legs.length,
         data.teaserPoints,
-        firstLegSport
+        firstLegSport as Sport
       );
 
       if (!teaserOdds) {
@@ -749,35 +947,39 @@ export class BetService {
   }
 
   /**
-   * Format bet for response
+   * Format bet for response.
+   * Prisma returns `string` for all @db.VarChar columns, so narrowing casts to
+   * the union types defined in BetResponse are required here.  The values are
+   * guaranteed valid by input validation at creation time.
    */
-  private formatBet(bet: any): BetResponse {
+  private formatBet(bet: FormattableBet): BetResponse {
+    const futureLegs = 'futureLegs' in bet ? bet.futureLegs : undefined;
     return {
       id: bet.id,
       name: bet.name,
-      betType: bet.betType,
+      betType: bet.betType as BetResponse['betType'],
       stake: bet.stake,
       potentialPayout: bet.potentialPayout,
       actualPayout: bet.actualPayout,
-      status: bet.status,
+      status: bet.status as BetResponse['status'],
       oddsAtPlacement: bet.oddsAtPlacement,
       teaserPoints: bet.teaserPoints,
       notes: bet.notes,
       placedAt: bet.placedAt,
       settledAt: bet.settledAt,
-      legs: bet.legs.map((leg: any) => this.formatBetLeg(leg)),
-      futureLegs: bet.futureLegs ? bet.futureLegs.map((leg: any) => this.formatBetLegFuture(leg)) : undefined
+      legs: bet.legs.map((leg) => this.formatBetLeg(leg)),
+      futureLegs: futureLegs ? futureLegs.map((leg) => this.formatBetLegFuture(leg)) : undefined
     };
   }
 
   /**
    * Format bet leg for response
    */
-  private formatBetLeg(leg: any): BetLegResponse {
+  private formatBetLeg(leg: BetLegWithGame): BetLegResponse {
     return {
       id: leg.id,
-      selectionType: leg.selectionType,
-      selection: leg.selection,
+      selectionType: leg.selectionType as BetLegResponse['selectionType'],
+      selection: leg.selection as BetLegResponse['selection'],
       teamName: leg.teamName,
       line: leg.line,
       odds: leg.odds,
@@ -785,7 +987,7 @@ export class BetService {
       userAdjustedLine: leg.userAdjustedLine,
       userAdjustedOdds: leg.userAdjustedOdds,
       teaserAdjustedLine: leg.teaserAdjustedLine,
-      status: leg.status,
+      status: leg.status as BetLegResponse['status'],
       game: {
         id: leg.game.id,
         externalId: leg.game.externalId,
@@ -806,13 +1008,13 @@ export class BetService {
   /**
    * Format bet leg future for response
    */
-  private formatBetLegFuture(leg: any): BetLegFutureResponse {
+  private formatBetLegFuture(leg: BetLegFutureWithFuture): BetLegFutureResponse {
     return {
       id: leg.id,
       outcome: leg.outcome,
       odds: leg.odds,
       userAdjustedOdds: leg.userAdjustedOdds,
-      status: leg.status,
+      status: leg.status as BetLegFutureResponse['status'],
       future: {
         id: leg.future.id,
         title: leg.future.title,

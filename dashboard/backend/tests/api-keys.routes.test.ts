@@ -1,6 +1,30 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
+
+// Mock session-store before any imports that trigger redis
+jest.mock('../src/services/session-store.service', () => ({
+  initializeSessionStore: jest.fn(),
+  shutdownSessionStore: jest.fn(),
+  sessionStore: {
+    get: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
+    clear: jest.fn()
+  }
+}));
+
+// Mock auth-session middleware to read userId from req.session (set by test middleware)
+jest.mock('../src/middleware/auth-session.middleware', () => ({
+  requireSessionAuth: jest.fn((req: any, _res: any, next: any) => next()),
+  optionalAuth: jest.fn((req: any, _res: any, next: any) => next()),
+  isAuthEnabled: jest.fn(() => false),
+  getScopedUserId: jest.fn((req: any) => req.session?.user?.id || undefined),
+  getUserId: jest.fn((req: any) => req.session?.user?.id || null),
+  requireAdminAccess: jest.fn((_req: any, _res: any, next: any) => next()),
+  attachAuthSession: jest.fn((_req: any, _res: any, next: any) => next()),
+}));
+
 import apiKeysRoutes from '../src/routes/api-keys.routes';
 import { prisma } from '../src/config/database';
 import * as apiKeyGenerator from '../src/utils/api-key-generator';
@@ -265,14 +289,19 @@ describe('API Keys Routes', () => {
       });
     });
 
+    // POST validation now flows through validateBody(createApiKeyBodySchema)
+    // which returns { status: 'error', message, errors } instead of the
+    // hand-rolled { success: false, error } shape — all four tests below
+    // assert against the new shape from validation.middleware.
+
     it('should reject request without name', async () => {
       const response = await request(app)
         .post('/api/keys')
         .send({})
         .expect(400);
 
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Name is required');
+      expect(response.body.status).toBe('error');
+      expect(response.body.message).toBe('Name is required');
       expect(prisma.apiKey.create).not.toHaveBeenCalled();
     });
 
@@ -282,8 +311,9 @@ describe('API Keys Routes', () => {
         .send({ name: '   ' })
         .expect(400);
 
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Name is required');
+      expect(response.body.status).toBe('error');
+      // Zod's `.trim().min(1)` reports the min(1) violation here.
+      expect(response.body.message).toBe('Name is required');
     });
 
     it('should reject request with non-string name', async () => {
@@ -292,8 +322,9 @@ describe('API Keys Routes', () => {
         .send({ name: 123 })
         .expect(400);
 
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Name is required');
+      expect(response.body.status).toBe('error');
+      // Zod's `z.string()` rejects with a type error for numeric input.
+      expect(response.body.message).toMatch(/string/i);
     });
 
     it('should reject invalid expiration date', async () => {
@@ -305,8 +336,8 @@ describe('API Keys Routes', () => {
         })
         .expect(400);
 
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Invalid expiration date');
+      expect(response.body.status).toBe('error');
+      expect(response.body.message).toBe('Invalid expiration date');
       expect(prisma.apiKey.create).not.toHaveBeenCalled();
     });
 
@@ -584,73 +615,56 @@ describe('API Keys Routes', () => {
       );
     });
 
-    it('should ignore empty string name', async () => {
-      const existingKey = {
-        id: 'key123',
-        name: 'Original Name',
-        userId: null,
-        permissions: { read: true }
-      };
+    // Validation behavior changed: PUT now uses a strict Zod schema, so
+    // bad inputs are rejected with 400 instead of being silently dropped.
+    // (Silent-drop allowed callers to unknowingly send no-op updates and
+    // also let unknown permission keys leak through.)
 
-      jest.mocked(prisma.apiKey.findUnique).mockResolvedValue(existingKey as any);
-      jest.mocked(prisma.apiKey.update).mockResolvedValue(existingKey as any);
-
+    it('should reject empty / whitespace-only name with 400', async () => {
       await request(app)
         .put('/api/keys/key123')
         .send({ name: '   ' })
-        .expect(200);
+        .expect(400);
 
-      expect(prisma.apiKey.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: {}
-        })
-      );
+      expect(prisma.apiKey.update).not.toHaveBeenCalled();
     });
 
-    it('should ignore non-string name', async () => {
-      const existingKey = {
-        id: 'key123',
-        name: 'Original Name',
-        userId: null,
-        permissions: { read: true }
-      };
-
-      jest.mocked(prisma.apiKey.findUnique).mockResolvedValue(existingKey as any);
-      jest.mocked(prisma.apiKey.update).mockResolvedValue(existingKey as any);
-
+    it('should reject non-string name with 400', async () => {
       await request(app)
         .put('/api/keys/key123')
         .send({ name: 123 })
-        .expect(200);
+        .expect(400);
 
-      expect(prisma.apiKey.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: {}
-        })
-      );
+      expect(prisma.apiKey.update).not.toHaveBeenCalled();
     });
 
-    it('should ignore non-object permissions', async () => {
-      const existingKey = {
-        id: 'key123',
-        name: 'Test Key',
-        userId: null,
-        permissions: { read: true }
-      };
-
-      jest.mocked(prisma.apiKey.findUnique).mockResolvedValue(existingKey as any);
-      jest.mocked(prisma.apiKey.update).mockResolvedValue(existingKey as any);
-
+    it('should reject non-object permissions with 400', async () => {
       await request(app)
         .put('/api/keys/key123')
         .send({ permissions: 'invalid' })
-        .expect(200);
+        .expect(400);
 
-      expect(prisma.apiKey.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: {}
-        })
-      );
+      expect(prisma.apiKey.update).not.toHaveBeenCalled();
+    });
+
+    it('should reject unknown permission keys with 400', async () => {
+      // SECURITY regression: previously any object was accepted, so a
+      // user could mint a key with `{ admin: true }`.
+      await request(app)
+        .put('/api/keys/key123')
+        .send({ permissions: { admin: true } })
+        .expect(400);
+
+      expect(prisma.apiKey.update).not.toHaveBeenCalled();
+    });
+
+    it('should reject empty body (no name or permissions) with 400', async () => {
+      await request(app)
+        .put('/api/keys/key123')
+        .send({})
+        .expect(400);
+
+      expect(prisma.apiKey.update).not.toHaveBeenCalled();
     });
 
     it('should handle database errors during update', async () => {

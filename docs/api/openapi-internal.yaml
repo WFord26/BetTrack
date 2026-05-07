@@ -1,0 +1,1822 @@
+openapi: 3.1.0
+info:
+  title: BetTrack Dashboard REST API
+  description: |
+    Internal REST API for the BetTrack sports betting dashboard backend.
+
+    ## Authentication
+
+    The API supports two modes controlled by the `AUTH_MODE` environment variable:
+
+    - **`none`** (default) — All routes accessible without login. Admin routes still require a valid admin session.
+    - **`oauth2`** — Session-based OAuth2 authentication via Google or Microsoft (Azure AD).
+
+    MCP integration routes and AI bet creation use API key Bearer tokens prefixed with `sk_`.
+
+    ## Base URL
+
+    Default: `http://localhost:3001`
+
+    All API routes are prefixed with `/api`.
+  version: 0.2.11
+  contact:
+    url: https://github.com/WFord26/BetTrack
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Local development
+  - url: https://{domain}
+    description: Production
+    variables:
+      domain:
+        default: yourdomain.com
+        description: Your production domain
+
+tags:
+  - name: Health
+    description: Service health and readiness checks
+  - name: Auth
+    description: OAuth2 authentication flow and session management
+  - name: Games
+    description: Browse upcoming and live games with odds
+  - name: Bets
+    description: Create, track, and settle bets
+  - name: Futures
+    description: Futures and outright market listings
+  - name: Stats
+    description: Game, team, and player statistics
+  - name: CLV Analytics
+    description: Closing Line Value analysis and reporting
+  - name: API Keys
+    description: Generate and manage API keys for MCP integration
+  - name: Admin
+    description: Administrative operations (requires admin session)
+  - name: MCP Integration
+    description: Optimized routes for MCP Server integration (requires API key)
+  - name: AI Bets
+    description: AI-assisted bet creation (requires API key)
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: bettrack_session
+      description: Session cookie established after OAuth2 login. Not required when AUTH_MODE=none.
+    apiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: sk_<key>
+      description: API key with `sk_` prefix. Generate via POST /api/keys.
+
+  schemas:
+    SuccessEnvelope:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          description: Response payload (schema varies by endpoint)
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+        message:
+          type: string
+          example: Route not found
+        error:
+          type: string
+          description: Technical error detail (may be omitted in production)
+
+    BetType:
+      type: string
+      enum: [single, parlay, teaser]
+      description: Type of bet. A single has one leg; a parlay combines multiple legs; a teaser adjusts spread/total lines by a fixed number of points.
+
+    BetStatus:
+      type: string
+      enum: [pending, won, lost, push]
+
+    SelectionType:
+      type: string
+      enum: [moneyline, spread, total]
+
+    Selection:
+      type: string
+      enum: [home, away, over, under]
+
+    BetLeg:
+      type: object
+      required: [gameId, selectionType, selection, odds]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        selectionType:
+          $ref: '#/components/schemas/SelectionType'
+        selection:
+          $ref: '#/components/schemas/Selection'
+        teamName:
+          type: string
+          nullable: true
+        line:
+          type: number
+          nullable: true
+          description: Point spread or total line value
+        odds:
+          type: integer
+          description: American odds (e.g. -110, +150)
+        userAdjustedLine:
+          type: number
+          nullable: true
+        userAdjustedOdds:
+          type: integer
+          nullable: true
+
+    FutureLeg:
+      type: object
+      required: [futureId, outcome, odds]
+      properties:
+        futureId:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          description: The futures outcome label (e.g. "Kansas City Chiefs")
+        odds:
+          type: integer
+          description: American odds
+        userAdjustedOdds:
+          type: integer
+          nullable: true
+
+    Bet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        betType:
+          $ref: '#/components/schemas/BetType'
+        stake:
+          type: number
+          format: decimal
+        potentialPayout:
+          type: number
+          format: decimal
+          nullable: true
+        actualPayout:
+          type: number
+          format: decimal
+          nullable: true
+        status:
+          $ref: '#/components/schemas/BetStatus'
+        oddsAtPlacement:
+          type: integer
+          nullable: true
+          description: Composite American odds at bet placement
+        teaserPoints:
+          type: number
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        placedAt:
+          type: string
+          format: date-time
+        settledAt:
+          type: string
+          format: date-time
+          nullable: true
+        legs:
+          type: array
+          items:
+            $ref: '#/components/schemas/BetLeg'
+
+    BetStats:
+      type: object
+      properties:
+        totalBets:
+          type: integer
+        wonBets:
+          type: integer
+        lostBets:
+          type: integer
+        pushBets:
+          type: integer
+        pendingBets:
+          type: integer
+        winRate:
+          type: number
+          description: Win rate as a percentage (0-100)
+        totalStaked:
+          type: number
+        totalPayout:
+          type: number
+        netProfit:
+          type: number
+        roi:
+          type: number
+          description: Return on investment as a percentage
+        byBetType:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              count:
+                type: integer
+              won:
+                type: integer
+              netProfit:
+                type: number
+        bySport:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              count:
+                type: integer
+              won:
+                type: integer
+              netProfit:
+                type: number
+
+    Game:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalId:
+          type: string
+        sportKey:
+          type: string
+          example: americanfootball_nfl
+        sportName:
+          type: string
+          example: NFL
+        homeTeamName:
+          type: string
+        awayTeamName:
+          type: string
+        commenceTime:
+          type: string
+          format: date-time
+        venue:
+          type: string
+          nullable: true
+        weather:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [scheduled, in_progress, final, postponed]
+        homeScore:
+          type: integer
+          nullable: true
+        awayScore:
+          type: integer
+          nullable: true
+        period:
+          type: string
+          nullable: true
+        clock:
+          type: string
+          nullable: true
+        bookmakers:
+          type: array
+          description: Grouped odds by bookmaker
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              title:
+                type: string
+              markets:
+                type: array
+                items:
+                  type: object
+
+    Future:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Super Bowl LX Winner
+        status:
+          type: string
+          enum: [active, settled]
+        sport:
+          type: object
+          properties:
+            key:
+              type: string
+            name:
+              type: string
+        groupedOutcomes:
+          type: array
+          items:
+            type: object
+            properties:
+              outcome:
+                type: string
+              bookmakers:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    bookmaker:
+                      type: string
+                    price:
+                      type: integer
+              bestOdds:
+                type: integer
+
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        keyPrefix:
+          type: string
+          example: sk_abc123...
+        permissions:
+          type: object
+          properties:
+            read:
+              type: boolean
+            write:
+              type: boolean
+            bets:
+              type: boolean
+            stats:
+              type: boolean
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        revoked:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CLVReport:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            totalBets:
+              type: integer
+            betsWithCLV:
+              type: integer
+            averageCLV:
+              type: number
+            positiveCLVBets:
+              type: integer
+            negativeCLVBets:
+              type: integer
+        topBets:
+          type: array
+          items:
+            type: object
+        worstBets:
+          type: array
+          items:
+            type: object
+        bySport:
+          type: object
+          additionalProperties:
+            type: object
+        byBookmaker:
+          type: object
+          additionalProperties:
+            type: object
+
+paths:
+  # ============================================================
+  # HEALTH
+  # ============================================================
+  /health:
+    get:
+      tags: [Health]
+      summary: Service health check
+      description: Returns 200 with service status. No authentication required.
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  service:
+                    type: string
+                    example: sports-betting-dashboard
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # ============================================================
+  # AUTH
+  # ============================================================
+  /api/auth/status:
+    get:
+      tags: [Auth]
+      summary: Get authentication status and available providers
+      responses:
+        '200':
+          description: Auth status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authEnabled:
+                    type: boolean
+                  authMode:
+                    type: string
+                    enum: [none, oauth2]
+                  user:
+                    nullable: true
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      name:
+                        type: string
+                      isAdmin:
+                        type: boolean
+                  providers:
+                    type: array
+                    items:
+                      type: string
+                    example: [google, microsoft]
+
+  /api/auth/google:
+    get:
+      tags: [Auth]
+      summary: Initiate Google OAuth2 flow
+      description: Redirects to Google authorization page. Requires `AUTH_MODE=oauth2` and Google credentials configured.
+      parameters:
+        - name: redirectTo
+          in: query
+          description: Path to redirect to after successful login
+          schema:
+            type: string
+            default: /
+      responses:
+        '302':
+          description: Redirect to Google authorization URL
+        '404':
+          description: Google auth not configured
+
+  /api/auth/google/callback:
+    get:
+      tags: [Auth]
+      summary: Google OAuth2 callback
+      description: Handled internally by BetTrack after Google redirects back. Sets session cookie on success.
+      responses:
+        '302':
+          description: Redirect to frontend (success or error path)
+
+  /api/auth/microsoft:
+    get:
+      tags: [Auth]
+      summary: Initiate Microsoft OAuth2 flow
+      description: Redirects to Microsoft authorization page. Requires `AUTH_MODE=oauth2` and Azure AD credentials configured.
+      parameters:
+        - name: redirectTo
+          in: query
+          schema:
+            type: string
+            default: /
+      responses:
+        '302':
+          description: Redirect to Microsoft authorization URL
+        '404':
+          description: Microsoft auth not configured
+
+  /api/auth/microsoft/callback:
+    get:
+      tags: [Auth]
+      summary: Microsoft OAuth2 callback
+      responses:
+        '302':
+          description: Redirect to frontend (success or error path)
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out current user
+      description: Destroys the current session. Returns 200 even if auth is disabled.
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    nullable: true
+                  authEnabled:
+                    type: boolean
+        '401':
+          description: Not authenticated
+
+  # ============================================================
+  # GAMES
+  # ============================================================
+  /api/games:
+    get:
+      tags: [Games]
+      summary: List games with filters
+      description: Returns games and their current odds. Supports timezone-aware date filtering.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: date
+          in: query
+          description: Filter by user's local date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: "2026-01-09"
+        - name: sport
+          in: query
+          description: Sport key filter (e.g. `americanfootball_nfl`). Use `all` for all sports.
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Game status filter
+          schema:
+            type: string
+            enum: [scheduled, in_progress, final]
+        - name: timezoneOffset
+          in: query
+          description: Client timezone offset in minutes (from `Date.getTimezoneOffset()`)
+          schema:
+            type: integer
+            example: 420
+        - name: bookmaker
+          in: query
+          description: Filter odds by specific bookmaker key
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of games with odds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      games:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Game'
+                      count:
+                        type: integer
+
+  /api/games/{id}:
+    get:
+      tags: [Games]
+      summary: Get a single game with full odds detail
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Game with full odds data
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+        '404':
+          description: Game not found
+
+  /api/games/{id}/odds:
+    get:
+      tags: [Games]
+      summary: Get current odds for a game
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: bookmaker
+          in: query
+          schema:
+            type: string
+        - name: marketType
+          in: query
+          description: Filter by market type
+          schema:
+            type: string
+            enum: [h2h, spreads, totals]
+      responses:
+        '200':
+          description: Current odds for the game
+
+  /api/games/{id}/odds/history:
+    get:
+      tags: [Games]
+      summary: Get odds movement history for a game
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: bookmaker
+          in: query
+          schema:
+            type: string
+        - name: marketType
+          in: query
+          schema:
+            type: string
+            enum: [h2h, spreads, totals]
+        - name: hours
+          in: query
+          description: How many hours of history to return (default 24)
+          schema:
+            type: integer
+            default: 24
+      responses:
+        '200':
+          description: Odds history snapshots sorted by time
+
+  # ============================================================
+  # BETS
+  # ============================================================
+  /api/bets:
+    get:
+      tags: [Bets]
+      summary: List bets with filters
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status. Comma-separated values allowed (e.g. `pending,won`).
+          schema:
+            type: string
+        - name: betType
+          in: query
+          schema:
+            $ref: '#/components/schemas/BetType'
+        - name: sportKey
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Paginated list of bets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Bet'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+
+    post:
+      tags: [Bets]
+      summary: Create a new bet
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, betType, stake]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                betType:
+                  $ref: '#/components/schemas/BetType'
+                stake:
+                  type: number
+                  minimum: 0.01
+                legs:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/BetLeg'
+                  description: Game bet legs (at least one leg or futureLeg required)
+                futureLegs:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/FutureLeg'
+                teaserPoints:
+                  type: number
+                  description: Number of teaser points (required for teaser bets)
+                notes:
+                  type: string
+                  maxLength: 500
+                boostedCombinedOdds:
+                  type: integer
+                  description: Override combined odds (e.g. for parlay boosts)
+            examples:
+              single_bet:
+                summary: Single moneyline bet
+                value:
+                  name: Chiefs ML
+                  betType: single
+                  stake: 50
+                  legs:
+                    - gameId: 550e8400-e29b-41d4-a716-446655440000
+                      selectionType: moneyline
+                      selection: home
+                      odds: -165
+              parlay_bet:
+                summary: Two-leg parlay
+                value:
+                  name: Sunday Parlay
+                  betType: parlay
+                  stake: 25
+                  legs:
+                    - gameId: 550e8400-e29b-41d4-a716-446655440000
+                      selectionType: spread
+                      selection: away
+                      line: -3.5
+                      odds: -110
+                    - gameId: 660e8400-e29b-41d4-a716-446655440001
+                      selectionType: total
+                      selection: over
+                      line: 48.5
+                      odds: -110
+      responses:
+        '201':
+          description: Bet created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '400':
+          description: Validation error
+
+  /api/bets/stats:
+    get:
+      tags: [Bets]
+      summary: Get aggregate betting statistics
+      description: Must be called before `/api/bets/:id` in route order — both share the same prefix.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: sportKey
+          in: query
+          schema:
+            type: string
+        - name: betType
+          in: query
+          schema:
+            $ref: '#/components/schemas/BetType'
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Betting statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/BetStats'
+
+  /api/bets/{id}:
+    get:
+      tags: [Bets]
+      summary: Get a bet with all legs
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Bet with full leg details
+        '404':
+          description: Bet not found
+
+    patch:
+      tags: [Bets]
+      summary: Update a pending bet
+      description: Only `name`, `stake`, and `notes` can be changed. Bet must be in `pending` status.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                stake:
+                  type: number
+                  minimum: 0.01
+                notes:
+                  type: string
+                  maxLength: 500
+      responses:
+        '200':
+          description: Updated bet
+        '404':
+          description: Bet not found
+
+    delete:
+      tags: [Bets]
+      summary: Delete (cancel) a bet
+      description: |
+        Deletes a pending bet. Admins can pass `?force=true` to delete bets in any status.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: force
+          in: query
+          description: Force delete any bet regardless of status (admin only)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Bet deleted
+        '403':
+          description: Admin access required for force delete
+        '404':
+          description: Bet not found
+
+  /api/bets/{id}/settle:
+    post:
+      tags: [Bets]
+      summary: Manually settle a bet
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [won, lost, push]
+                actualPayout:
+                  type: number
+                  minimum: 0
+                  description: Actual payout amount (optional, calculated from odds if omitted)
+      responses:
+        '200':
+          description: Settled bet
+        '404':
+          description: Bet not found
+
+  # ============================================================
+  # FUTURES
+  # ============================================================
+  /api/futures:
+    get:
+      tags: [Futures]
+      summary: List active futures markets
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: sportKey
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, settled]
+            default: active
+      responses:
+        '200':
+          description: List of futures with grouped odds by outcome
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Future'
+
+  /api/futures/{id}:
+    get:
+      tags: [Futures]
+      summary: Get a single future with odds history
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Future with grouped outcomes and line movement history
+        '404':
+          description: Future not found
+
+  # ============================================================
+  # STATS
+  # ============================================================
+  /api/stats/game/{gameId}:
+    get:
+      tags: [Stats]
+      summary: Get team and player stats for a game
+      description: Returns box score stats, season averages, and player game logs for both teams.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Game stats with team and player breakdowns
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      teamStats:
+                        type: array
+                        items:
+                          type: object
+                      playerStats:
+                        type: array
+                        items:
+                          type: object
+                      seasonAverages:
+                        type: array
+                        items:
+                          type: object
+        '404':
+          description: Game not found
+
+  /api/stats/team/{teamId}:
+    get:
+      tags: [Stats]
+      summary: Get season stats and game history for a team
+      description: Returns season stats, game log, and home/away splits.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: season
+          in: query
+          description: Four-digit season year (e.g. 2025)
+          schema:
+            type: integer
+        - name: location
+          in: query
+          description: Filter game history by home or away games
+          schema:
+            type: string
+            enum: [home, away, all]
+            default: all
+      responses:
+        '200':
+          description: Team stats with splits
+        '400':
+          description: Invalid team ID
+
+  /api/stats/player/{playerId}:
+    get:
+      tags: [Stats]
+      summary: Get player details and game log
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Player with last 20 games of stats
+        '404':
+          description: Player not found
+
+  # ============================================================
+  # CLV ANALYTICS
+  # ============================================================
+  /api/analytics/clv/summary:
+    get:
+      tags: [CLV Analytics]
+      summary: Get overall CLV summary statistics
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: CLV summary
+
+  /api/analytics/clv/by-sport:
+    get:
+      tags: [CLV Analytics]
+      summary: Get CLV breakdown by sport
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: CLV grouped by sport key
+
+  /api/analytics/clv/by-bookmaker:
+    get:
+      tags: [CLV Analytics]
+      summary: Get CLV breakdown by bookmaker
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: CLV grouped by bookmaker
+
+  /api/analytics/clv/trends:
+    get:
+      tags: [CLV Analytics]
+      summary: Get CLV trends with optional date and sport filters
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: sportKey
+          in: query
+          schema:
+            type: string
+        - name: betType
+          in: query
+          schema:
+            $ref: '#/components/schemas/BetType'
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: CLV trends with summary, top/worst bets, and breakdown by sport and bookmaker
+
+  /api/analytics/clv/report:
+    get:
+      tags: [CLV Analytics]
+      summary: Get full CLV report
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: sportKey
+          in: query
+          schema:
+            type: string
+        - name: betType
+          in: query
+          schema:
+            $ref: '#/components/schemas/BetType'
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Full CLV report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/CLVReport'
+
+  /api/analytics/clv/calculate/{betId}:
+    post:
+      tags: [CLV Analytics]
+      summary: Calculate CLV for a specific bet
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: betId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: CLV calculated successfully
+
+  /api/analytics/clv/update-stats:
+    post:
+      tags: [CLV Analytics]
+      summary: Recalculate and update aggregated CLV stats for current user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: CLV stats updated
+
+  # ============================================================
+  # API KEYS
+  # ============================================================
+  /api/keys:
+    get:
+      tags: [API Keys]
+      summary: List API keys for the current user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of API keys (full key value is never returned here)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      keys:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ApiKey'
+
+    post:
+      tags: [API Keys]
+      summary: Create a new API key
+      description: |
+        Returns the full API key exactly **once** — it cannot be retrieved again. Save it immediately.
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  description: Human-readable label for the key
+                permissions:
+                  type: object
+                  properties:
+                    read:
+                      type: boolean
+                      default: true
+                    write:
+                      type: boolean
+                      default: true
+                    bets:
+                      type: boolean
+                      default: true
+                    stats:
+                      type: boolean
+                      default: true
+                expiresAt:
+                  type: string
+                  format: date-time
+                  description: Optional expiration date
+      responses:
+        '201':
+          description: API key created. The `key` field contains the full `sk_` token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                        description: Full API key (only shown once)
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      keyPrefix:
+                        type: string
+                      permissions:
+                        type: object
+                      expiresAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      createdAt:
+                        type: string
+                        format: date-time
+                  message:
+                    type: string
+
+  /api/keys/{id}:
+    put:
+      tags: [API Keys]
+      summary: Update an API key's name or permissions
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                permissions:
+                  type: object
+      responses:
+        '200':
+          description: Updated key metadata
+        '404':
+          description: Key not found
+
+    delete:
+      tags: [API Keys]
+      summary: Revoke an API key (soft delete)
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Key revoked
+        '404':
+          description: Key not found
+
+  /api/keys/{id}/usage:
+    get:
+      tags: [API Keys]
+      summary: Get usage logs for an API key
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Usage logs
+
+  # ============================================================
+  # ADMIN
+  # ============================================================
+  /api/admin/site-config:
+    get:
+      tags: [Admin]
+      summary: Get site configuration
+      description: Public endpoint — returns site name, logo URL, and domain. No auth required.
+      responses:
+        '200':
+          description: Site configuration
+
+    put:
+      tags: [Admin]
+      summary: Update site configuration
+      description: Requires admin session.
+      security:
+        - sessionAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                siteName:
+                  type: string
+                  maxLength: 100
+                logoUrl:
+                  type: string
+                  format: uri
+                  nullable: true
+                domainUrl:
+                  type: string
+                  format: uri
+                  nullable: true
+      responses:
+        '200':
+          description: Updated config
+
+  /api/admin/sports:
+    get:
+      tags: [Admin]
+      summary: Get all sports with counts
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: List of sports with game and team counts
+
+  /api/admin/sports/{sportKey}:
+    patch:
+      tags: [Admin]
+      summary: Activate or deactivate a sport
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: sportKey
+          in: path
+          required: true
+          schema:
+            type: string
+            example: americanfootball_nfl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Sport updated
+        '404':
+          description: Sport not found
+
+  /api/admin/sync-odds:
+    post:
+      tags: [Admin]
+      summary: Trigger odds synchronization
+      description: Starts a background odds sync from The Odds API. Returns immediately.
+      security:
+        - sessionAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sportKey:
+                  type: string
+                  description: Sync a specific sport only. Omit to sync all active sports.
+      responses:
+        '200':
+          description: Sync started in background
+
+  /api/admin/sync-futures:
+    post:
+      tags: [Admin]
+      summary: Trigger futures odds synchronization
+      security:
+        - sessionAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sportKey:
+                  type: string
+      responses:
+        '200':
+          description: Futures sync started
+
+  /api/admin/resolve-outcomes:
+    post:
+      tags: [Admin]
+      summary: Trigger bet outcome resolution
+      description: Resolves pending bets against final game scores. Runs in background.
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Outcome resolution started
+
+  /api/admin/init-sports:
+    post:
+      tags: [Admin]
+      summary: Initialize default sports in database
+      description: Upserts the 7 default sport records (NFL, NBA, NCAAB, NHL, MLB, EPL, UEFA CL).
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Sports initialized
+
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      summary: Get database statistics
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Counts for sports, teams, games, odds, bets, and bet legs
+
+  /api/admin/health:
+    get:
+      tags: [Admin]
+      summary: Detailed health check with database connectivity
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Service healthy with DB connectivity confirmed
+        '503':
+          description: Service unhealthy
+
+  # ============================================================
+  # MCP INTEGRATION
+  # ============================================================
+  /api/mcp/bets/active:
+    get:
+      tags: [MCP Integration]
+      summary: Get all pending bets (optimized for MCP)
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Pending bets formatted for MCP context
+
+  /api/mcp/bets/summary:
+    get:
+      tags: [MCP Integration]
+      summary: Get quick betting summary for MCP
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: High-level summary (win/loss record, ROI, recent activity)
+
+  /api/mcp/bets/advice-context:
+    get:
+      tags: [MCP Integration]
+      summary: Get full context for AI betting advice
+      description: Returns active bets, recent history, and stats packaged for LLM consumption.
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Full advice context object
+
+  /api/mcp/games/with-exposure:
+    get:
+      tags: [MCP Integration]
+      summary: Get games with user's betting positions
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: sport
+          in: query
+          schema:
+            type: string
+        - name: onlyWithBets
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        '200':
+          description: Games annotated with active bet exposure
+
+  /api/mcp/bets/quick-create:
+    post:
+      tags: [MCP Integration]
+      summary: Simplified bet creation for MCP
+      description: Streamlined endpoint for creating single or parlay bets from MCP without full validation overhead.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [game_id, selection_type, selection, stake, odds]
+              properties:
+                game_id:
+                  type: string
+                  format: uuid
+                selection_type:
+                  $ref: '#/components/schemas/SelectionType'
+                selection:
+                  $ref: '#/components/schemas/Selection'
+                stake:
+                  type: number
+                  minimum: 0.01
+                odds:
+                  type: integer
+                line:
+                  type: number
+                  nullable: true
+                name:
+                  type: string
+                  maxLength: 100
+      responses:
+        '201':
+          description: Bet created
+
+  # ============================================================
+  # AI BETS
+  # ============================================================
+  /api/ai/bets:
+    post:
+      tags: [AI Bets]
+      summary: Create a bet from AI-extracted data
+      description: |
+        Accepts structured bet data extracted from AI analysis (MCP, image recognition, conversation).
+        Supports single, parlay, and teaser bets with automatic Same-Game Parlay (SGP) detection.
+
+        Legs on the same `gameId` are treated as SGP legs and their odds are multiplied accordingly.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [selections, betType, stake]
+              properties:
+                selections:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [gameId, type, selection, odds]
+                    properties:
+                      gameId:
+                        type: string
+                        format: uuid
+                      type:
+                        $ref: '#/components/schemas/SelectionType'
+                      selection:
+                        $ref: '#/components/schemas/Selection'
+                      odds:
+                        type: integer
+                        description: American odds
+                      line:
+                        type: number
+                        description: Required for spread and total bets
+                      teamName:
+                        type: string
+                        nullable: true
+                betType:
+                  type: string
+                  enum: [single, parlay, teaser]
+                stake:
+                  type: number
+                  minimum: 0.01
+                teaserPoints:
+                  type: number
+                  nullable: true
+                notes:
+                  type: string
+                  nullable: true
+                source:
+                  type: string
+                  enum: [mcp, image, text, conversation]
+                  default: mcp
+            examples:
+              single_ai_bet:
+                summary: Single bet from MCP
+                value:
+                  selections:
+                    - gameId: 550e8400-e29b-41d4-a716-446655440000
+                      type: moneyline
+                      selection: home
+                      odds: -150
+                      teamName: Kansas City Chiefs
+                  betType: single
+                  stake: 100
+                  source: mcp
+              sgp_parlay:
+                summary: Same-Game Parlay (two legs on one game)
+                value:
+                  selections:
+                    - gameId: 550e8400-e29b-41d4-a716-446655440000
+                      type: spread
+                      selection: home
+                      odds: -110
+                      line: -3.5
+                    - gameId: 550e8400-e29b-41d4-a716-446655440000
+                      type: total
+                      selection: over
+                      odds: -115
+                      line: 47.5
+                  betType: parlay
+                  stake: 50
+                  source: mcp
+      responses:
+        '200':
+          description: Bet created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  bet:
+                    $ref: '#/components/schemas/Bet'
+                  message:
+                    type: string
+        '400':
+          description: Validation error or game IDs not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                  details:
+                    type: object

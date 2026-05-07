@@ -1,7 +1,6 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { logger } from '../config/logger';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
 
 /**
  * CLV (Closing Line Value) Service
@@ -53,14 +52,29 @@ export class CLVService {
         );
 
         if (matchingSnapshot) {
+          // OddsSnapshot price columns are `Int` (American odds) per schema —
+          // see prisma/schema.prisma. The defensive cast guards against
+          // accidental decimals slipping in from upstream parsing changes;
+          // skip rather than persist NaN if the value is non-numeric.
+          const rawPrice = (matchingSnapshot as { price?: unknown }).price;
+          const closingOdds = typeof rawPrice === 'number' && Number.isFinite(rawPrice)
+            ? Math.trunc(rawPrice)
+            : null;
+
+          if (closingOdds === null) {
+            logger.warn(
+              `Matching snapshot for bet leg ${leg.id} had non-numeric price ` +
+              `(${String(rawPrice)}); skipping closing-line capture.`
+            );
+            continue;
+          }
+
           await prisma.betLeg.update({
             where: { id: leg.id },
-            data: {
-              closingOdds: Math.round(matchingSnapshot.price)
-            }
+            data: { closingOdds },
           });
 
-          logger.info(`Captured closing odds for bet leg ${leg.id}: ${matchingSnapshot.price}`);
+          logger.info(`Captured closing odds for bet leg ${leg.id}: ${closingOdds}`);
         } else {
           logger.warn(`No matching odds snapshot for bet leg ${leg.id}`);
         }
@@ -129,9 +143,16 @@ export class CLVService {
    * Calculate CLV for all bet legs in a bet
    */
   async calculateCLVForBet(betId: string): Promise<void> {
+    await this.calculateCLVForBetForUser(betId);
+  }
+
+  async calculateCLVForBetForUser(betId: string, userId?: string): Promise<void> {
     try {
-      const bet = await prisma.bet.findUnique({
-        where: { id: betId },
+      const bet = await prisma.bet.findFirst({
+        where: {
+          id: betId,
+          ...(userId ? { userId } : {}),
+        },
         include: { legs: true }
       });
 
@@ -157,7 +178,7 @@ export class CLVService {
    * Generate CLV report for a user
    */
   async generateCLVReport(
-    userId: string,
+    userId?: string,
     filters?: {
       sportKey?: string;
       betType?: string;
@@ -197,19 +218,37 @@ export class CLVService {
     }>;
   }> {
     try {
-      // Build where clause
+      // Build where clause.
+      //
+      // NOTE: `clv` lives on BetLeg, not Bet — keep the `clv: { not: null }`
+      // filter on the outer (BetLeg) where only. Including it under
+      // `where.bet.clv` causes Prisma to throw `Unknown arg 'clv'`.
+      const betWhere: any = {
+        ...(userId ? { userId } : {}),
+        ...(filters?.betType && { betType: filters.betType }),
+      };
+
+      if (filters?.startDate || filters?.endDate) {
+        betWhere.placedAt = {};
+        if (filters?.startDate) {
+          betWhere.placedAt.gte = filters.startDate;
+        }
+        if (filters?.endDate) {
+          betWhere.placedAt.lte = filters.endDate;
+        }
+      }
+
       const where: any = {
-        bet: {
-          userId,
-          ...(filters?.betType && { betType: filters.betType }),
-          ...(filters?.startDate && { createdAt: { gte: filters.startDate } }),
-          ...(filters?.endDate && { createdAt: { lte: filters.endDate } })
-        },
+        bet: betWhere,
         clv: { not: null }
       };
 
       if (filters?.sportKey) {
-        where.game = { sportKey: filters.sportKey };
+        where.game = {
+          sport: {
+            key: filters.sportKey
+          }
+        };
       }
 
       // Get all bet legs with CLV data
@@ -298,7 +337,7 @@ export class CLVService {
         worstBets
       };
     } catch (error) {
-      logger.error(`Error generating CLV report for user ${userId}:`, error);
+      logger.error(`Error generating CLV report for user ${userId || 'all-users'}:`, error);
       throw error;
     }
   }
@@ -307,8 +346,13 @@ export class CLVService {
    * Update aggregated CLV stats for a user
    * Should be called after bets are settled
    */
-  async updateCLVStats(userId: string): Promise<void> {
+  async updateCLVStats(userId?: string): Promise<void> {
     try {
+      if (!userId) {
+        logger.info('Skipping CLV stats update because no scoped user was provided');
+        return;
+      }
+
       // Get all bet legs with CLV data
       const betLegs = await prisma.betLeg.findMany({
         where: {
@@ -537,9 +581,34 @@ export class CLVService {
     const positiveCLVTotal = settledBets.filter(leg => leg.clvCategory === 'positive').length;
     const clvWinRate = positiveCLVTotal > 0 ? (positiveCLVWins / positiveCLVTotal) * 100 : 0;
 
-    // Calculate ROI
-    const totalStaked = betLegs.reduce((sum, leg) => sum + (leg.bet.stake || 0), 0);
-    const totalProfit = betLegs.reduce((sum, leg) => sum + (leg.bet.profit || 0), 0);
+    // Calculate ROI.
+    //
+    // `bet.stake` and `bet.actualPayout` are Prisma Decimals — adding them
+    // to a number with `+` produces string concatenation (Decimal#valueOf
+    // returns a string), so we must coerce via `.toNumber()` first.
+    //
+    // The Bet model has no `profit` column, so derive it from
+    // `actualPayout - stake` (treating an unsettled `actualPayout` as 0,
+    // which yields a -stake contribution — matching the existing semantics
+    // used in bet.service.getStats).
+    const decimalToNumber = (value: unknown): number => {
+      if (value == null) return 0;
+      if (typeof value === 'number') return value;
+      if (typeof (value as { toNumber?: () => number }).toNumber === 'function') {
+        return (value as { toNumber: () => number }).toNumber();
+      }
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const totalStaked = betLegs.reduce(
+      (sum, leg) => sum + decimalToNumber(leg.bet?.stake),
+      0
+    );
+    const totalProfit = betLegs.reduce(
+      (sum, leg) => sum + (decimalToNumber(leg.bet?.actualPayout) - decimalToNumber(leg.bet?.stake)),
+      0
+    );
     const actualROI = totalStaked > 0 ? (totalProfit / totalStaked) * 100 : 0;
 
     // Expected ROI (simplified: average CLV as proxy)

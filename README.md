@@ -94,11 +94,19 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 - **[Deployment Guide](dashboard/DEPLOYMENT.md)** - Production deployment with Docker & Nginx
 - **[Testing Guide](dashboard/TESTING.md)** - Running backend and frontend tests
 
+### API Documentation
+
+- **[API Index](docs/api/README.md)** - Overview of all API surfaces
+- **[Internal REST API](docs/api/openapi-internal.yaml)** - OpenAPI 3.1 spec for dashboard backend routes
+- **[External MCP API](docs/api/openapi-external.yaml)** - OpenAPI 3.1 spec for MCP integration and AI routes
+
 ### General Documentation
 
 - **[Release Process](docs/RELEASE-PROCESS.md)** - Version management and release workflow
 - **[CI/CD & Testing](docs/CI-CD-TESTING.md)** - Automated testing and deployment
 - **[Build Quick Reference](scripts/QUICK_REFERENCE.md)** - Common build commands
+- **[CLV Analytics](docs/CLV-IMPLEMENTATION-COMPLETE.md)** - Closing Line Value implementation details
+- **[Analytics Summary](docs/ANALYTICS-IMPLEMENTATION-SUMMARY.md)** - Full analytics feature planning
 
 ## Supported Sports
 
@@ -132,11 +140,34 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 - **Deployment:** Docker, Nginx, Let's Encrypt SSL
 
 
+## Authentication
+
+BetTrack supports two authentication modes configured via the `AUTH_MODE` environment variable:
+
+- **`none`** (default) — Standalone mode with no authentication. All dashboard routes are accessible without login. Admin routes are still protected and require a valid session.
+- **`oauth2`** — Full OAuth2 authentication via Google or Microsoft (Azure AD). Users must log in before accessing any API endpoint.
+
+### API Key Access
+
+The MCP integration routes (`/api/mcp/*`) and the AI bet creation route (`/api/ai/bets`) use Bearer token authentication with API keys prefixed `sk_`. Generate API keys through the dashboard under **Settings → API Keys** or via `POST /api/keys`.
+
+```
+Authorization: Bearer sk_<your-api-key>
+```
+
+## API Documentation
+
+Complete API reference is available in the [`docs/api/`](docs/api/) folder:
+
+- **[API Documentation Index](docs/api/README.md)** — Overview and quick reference
+- **[Internal REST API (OpenAPI)](docs/api/openapi-internal.yaml)** — Full OpenAPI 3.1 spec for the dashboard backend
+- **[External MCP API (OpenAPI)](docs/api/openapi-external.yaml)** — OpenAPI spec for MCP integration routes
+
 ## Support
 
 - **Issues:** [GitHub Issues](https://github.com/WFord26/BetTrack/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/WFord26/BetTrack/discussions)
-- **Documentation:** Project Wiki (coming soon)
+- **Documentation:** [Project Wiki](docs/wiki/) | [Internal Docs](docs/internal/)
 
 ---
 

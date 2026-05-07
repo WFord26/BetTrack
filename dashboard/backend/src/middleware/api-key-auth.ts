@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
-import { verifyApiKey } from '../utils/api-key-generator';
+import { verifyApiKey, getKeyPrefix } from '../utils/api-key-generator';
 
 export class ApiKeyAuthError extends Error {
   statusCode = 401;
@@ -30,6 +30,7 @@ declare global {
 
 /**
  * Middleware to authenticate requests using API keys
+ * SECURITY: Uses O(1) keyPrefix lookup to avoid DoS vector
  * Usage: Add to routes that should be accessible via API key
  */
 export const apiKeyAuth = async (
@@ -46,10 +47,15 @@ export const apiKeyAuth = async (
     }
 
     const key = authHeader.replace('Bearer ', '');
+    
+    // Extract key prefix (first 12 chars) for indexed lookup
+    const keyPrefix = getKeyPrefix(key).slice(0, -3); // Remove trailing '...'
 
-    // Find all non-revoked, non-expired API keys
-    const apiKeys = await prisma.apiKey.findMany({
+    // SECURITY: O(1) lookup using keyPrefix index instead of loading all keys
+    // This prevents bcrypt comparison on every key in database
+    const apiKey = await prisma.apiKey.findFirst({
       where: {
+        keyPrefix,
         revoked: false,
         OR: [
           { expiresAt: null },
@@ -58,23 +64,19 @@ export const apiKeyAuth = async (
       }
     });
 
-    // Verify the key against each stored hash
-    let matchedKey: typeof apiKeys[0] | null = null;
-    for (const apiKey of apiKeys) {
-      const isValid = await verifyApiKey(key, apiKey.keyHash);
-      if (isValid) {
-        matchedKey = apiKey;
-        break;
-      }
+    if (!apiKey) {
+      throw new ApiKeyAuthError('Invalid or expired API key');
     }
 
-    if (!matchedKey) {
+    // Verify only the single matched key
+    const isValid = await verifyApiKey(key, apiKey.keyHash);
+    if (!isValid) {
       throw new ApiKeyAuthError('Invalid or expired API key');
     }
 
     // Update last used timestamp (async, don't wait)
     prisma.apiKey.update({
-      where: { id: matchedKey.id },
+      where: { id: apiKey.id },
       data: { lastUsedAt: new Date() }
     }).catch(err => {
       logger.error('Failed to update API key last used timestamp:', err);
@@ -83,7 +85,7 @@ export const apiKeyAuth = async (
     // Log usage (async, don't wait)
     prisma.apiKeyUsage.create({
       data: {
-        apiKeyId: matchedKey.id,
+        apiKeyId: apiKey.id,
         endpoint: req.path,
         method: req.method,
         ipAddress: req.ip || req.socket.remoteAddress || null,
@@ -95,10 +97,10 @@ export const apiKeyAuth = async (
 
     // Attach API key data to request
     req.apiKey = {
-      id: matchedKey.id,
-      userId: matchedKey.userId,
-      name: matchedKey.name,
-      permissions: matchedKey.permissions
+      id: apiKey.id,
+      userId: apiKey.userId,
+      name: apiKey.name,
+      permissions: apiKey.permissions
     };
 
     next();
@@ -117,6 +119,7 @@ export const apiKeyAuth = async (
     }
   }
 };
+
 
 /**
  * Check if API key has specific permission

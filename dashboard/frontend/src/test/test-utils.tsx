@@ -8,6 +8,7 @@ import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
 import betSlipReducer from '../store/betSlipSlice';
+import clvReducer from '../store/clvSlice';
 import type { RootState } from '../store';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
@@ -21,16 +22,19 @@ interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
 export function renderWithProviders(
   ui: ReactElement,
   {
-    preloadedState = {},
-    store = configureStore({
-      reducer: {
-        betSlip: betSlipReducer,
-      },
-      preloadedState,
-    }),
+    preloadedState,
+    store: customStore,
     ...renderOptions
   }: ExtendedRenderOptions = {}
 ) {
+  const store = customStore || configureStore({
+    reducer: {
+      betSlip: betSlipReducer,
+      clv: clvReducer,
+    },
+    preloadedState: preloadedState as RootState | undefined,
+  });
+
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <Provider store={store}>
@@ -51,8 +55,9 @@ export function createMockStore(preloadedState?: Partial<RootState>) {
   return configureStore({
     reducer: {
       betSlip: betSlipReducer,
+      clv: clvReducer,
     },
-    preloadedState,
+    preloadedState: preloadedState as RootState | undefined,
   });
 }
 

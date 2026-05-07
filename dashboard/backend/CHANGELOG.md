@@ -7,6 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+
+## [0.2.15] - 2026-05-07
+
+### Fixed
+
+- **Missing Prisma migration for three schema indexes** (`prisma/migrations/20260507000001_add_missing_indexes/migration.sql`): Three indexes present in `schema.prisma` had no corresponding migration SQL, so `prisma migrate deploy` (used by CI and the production Dockerfile) never created them in deployed databases: `api_keys_key_prefix_idx` (O(1) API-key auth lookup, P2 infra hardening), `odds_snapshots_game_id_idx`, and `odds_snapshots_captured_at_idx` (line-movement and CLV-capture queries). All three `CREATE INDEX IF NOT EXISTS` statements are safe to apply on a live database.
+
+---
+
+## [0.2.14] - 2026-05-07
+
+### Fixed
+
+- **OAuth callback redirects to initiating frontend** (`routes/auth.routes.ts`, `services/oauth.service.ts`, `types/auth.types.ts`): When `CORS_ORIGIN` contains multiple allowed origins, every callback was redirected to the first entry regardless of which frontend started the login. Now `beginOAuth` captures and validates the `Origin` request header (falling back to `Referer`), stores the validated origin in the session, and `handleOAuthCallback` passes it to `buildFrontendRedirect`. Unrecognised origins are silently discarded and the existing fallback is used. (P2 issue — multi-origin / preview-env deployments)
+
+---
+
+## [0.2.13] - 2026-05-07
+
+### Fixed
+
+- **Admin routes inaccessible in no-auth mode** (`middleware/auth-session.middleware.ts`): When `AUTH_MODE=none`, `attachAuthSession` now attaches a synthetic local admin user so `requireAdminAccess` is satisfied without an OAuth flow being configured
+
+---
+
+## [0.2.12] - 2026-05-06
+
+### Added
+
+- **CLV service unit tests** (`tests/clv.service.test.ts`): 21 tests covering calculation accuracy, closing line capture, per-bet CLV, report generation, and edge cases (Issue #3)
+
+---
+
+## [0.2.11] - 2026-04-14
+
+### Added
+- **Data retention policies and cleanup jobs** (Issue #19):
+  - New `cleanup-old-records.job.ts`: Scheduled job to clean up old data records daily at 2 AM UTC
+  - OddsSnapshot records: 30-day retention policy (automatically deleted after 30 days)
+  - ApiKeyUsage records: 90-day retention policy (automatically deleted after 90 days)
+  - Prevents unbounded data growth in database
+
+### Fixed
+- **OddsSnapshot table missing index** (schema.prisma): Added index on capturedAt field
+  - Improves query performance when filtering/deleting by captured timestamp
+  - Supports retention policy cleanup queries
+- **Site config PUT lacks Zod validation** (admin.routes.ts): Added URL validation using Zod schema with `.url()` validator
+  for logoUrl and domainUrl fields to prevent XSS attacks via malicious URLs
+- **Force delete bypass authorization** (bets.routes.ts): Added admin authorization check for force delete query parameter
+  - Force deletes now return 403 Forbidden if non-admin user attempts the operation
+  - Regular users can still cancel their own pending bets without games started
+  - Only admins can use ?force=true to bypass settlement/game-started validation
+- **Admin routes tests missing authentication** (admin.routes.test.ts): Added mock for requireAdminAccess middleware
+  to properly authenticate test requests to protected admin endpoints
+- **Bookmaker null checks in API sync services** (odds-sync.service.ts, futures-sync.service.ts):
+  Added guards against undefined bookmakers that caused "Cannot read properties of undefined" errors
+  - Futures sync now handles missing bookmakers array
+  - Odds sync now handles missing bookmakers array
+  - Error messages safely access bookmaker.key with optional chaining
+
+---
+
+## [0.2.10] - 2026-04-14
+
+### Changed
+- **CI/CD Pipeline**: Enhanced GitHub Actions test.yml to include 'dev' branch in pull_request and push triggers
+  - Tests now run automatically on PRs to dev branch
+  - Tests now run automatically on pushes to dev branch
+  - Maintains existing triggers for main, beta, and develop branches
+
+---
+
+## [0.2.9] - 2026-04-14
+
+### Fixed
+- **Home/away detection by array index** (odds-sync.service.ts): Changed from array position matching to team name
+  matching to correctly identify home/away teams regardless of Odds API outcome order
+- **Teaser sport hardcoded to NFL** (bet.service.ts): Made `calculateBetOdds()` async to resolve teaser sport
+  from first leg's game record instead of hardcoding to 'nfl', fixing incorrect payouts for NBA/other sport teasers
+- **legsSettled counter always returns 0** (outcome-resolver.service.ts): Fixed settlement to return proper leg count
+  instead of unused `const legsSettled = 0` declaration
+
+---
+
+## [0.2.8] - 2026-04-14
+
+### Fixed
+- **Duplicate code in auth-session.middleware.ts**: Removed 246 lines of broken duplicate functions
+  that referenced an undefined `sessions` map instead of the proper `sessionStore` (Redis/in-memory)
+- **Missing `await` in auth.routes.ts**: Added `await` to `ensureAuthSession()`, `createAuthenticatedSession()`,
+  and `destroyAuthSession()` calls to ensure Redis session operations complete correctly
+- Made logout route handler async to properly await session destruction
+
+---
+
+## [0.2.7] - 2026-04-14
+
 ### Added
 - **CLV (Closing Line Value) Tracking**: Complete backend implementation for Phase 1 analytics (Issue #3)
   - Database schema changes: Added `closingOdds`, `clv`, and `clvCategory` fields to BetLeg model
@@ -16,6 +115,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scheduled job to capture closing lines every 5 minutes before games start
   - CLV formula: `((Closing Implied Prob - Opening Implied Prob) / Opening Implied Prob) * 100`
   - Categories: positive (CLV ≥ 2%), neutral (-2% < CLV < 2%), negative (CLV ≤ -2%)
+- **Version Bump System**: Automated semantic versioning for monorepo components (dev branch)
+  - File hashing system (`scripts/bump-version.mjs`) to detect changes in MCP, backend, and frontend
+  - Automatic semantic version bumping on code changes with `npm run bump`
+  - Preserves `package.json` and `package-lock.json` from hash tracking to avoid infinite bumps
+  - Support for forced bumps: `npm run bump:patch|minor|major`
+  - Stores file snapshots in `.bump-hashes.json` for change detection
+  - Documentation: `scripts/BUMP-SYSTEM.md` and `scripts/BUMP-QUICK-START.md`
+
+### Fixed
+- **Critical Correctness Bugs in Odds and Settlement Logic** (Issue #15)
+  - **Home/Away Detection** in `odds-sync.service.ts`: Changed from unreliable array index check (`market.outcomes.indexOf(outcome) === 0`) to team name matching. Prevents home/away odds from being swapped when Odds API doesn't guarantee outcome ordering.
+  - **Teaser Sport Resolution** in `bet.service.ts`: Changed from hardcoded `'nfl'` to dynamic resolution from first leg's game record. Fixes NBA teasers incorrectly using NFL odds tables, which resulted in incorrect payouts.
+  - **legsSettled Counter** in `outcome-resolver.service.ts`: Removed unused const that always returned 0. Now correctly returns `legs.length` for accurate settlement reporting.
+
+### Security
+- **Hardened Authentication and Session Management** (Issue #14)
+  - CRITICAL: Removed insecure secret defaults (JWT_SECRET, SESSION_SECRET). Production startup now fails with clear error message if secrets not set
+  - CRITICAL: Migrated session store from in-memory Map to Redis-backed storage with automatic fallback to in-memory for development
+  - CRITICAL: Protected admin routes with mandatory authentication, even when AUTH_MODE='none' (prevents accidental exposure due to misconfiguration)
+  - PERFORMANCE: Optimized API key authentication from O(n) bcrypt comparisons to O(1) indexed keyPrefix lookup
+    - Added `keyPrefix` index to ApiKey model for fast database lookups
+    - Now performs bcrypt comparison only on single matched key instead of all keys
+    - Eliminates DoS vector from bcrypt-timing attacks when database has many API keys
+  - Sessions now persist across server restarts and support horizontal scaling via Redis
+  - Added proper secret validation with development-only defaults and production requirements
 
 ### Fixed
 - **TypeScript Build Errors**: Resolved all 50 compilation errors in API-Sports services (Issue #13)

@@ -9,7 +9,10 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as any)?.from?.pathname || '/';
+  const fromLocation = (location.state as any)?.from;
+  const from = fromLocation
+    ? `${fromLocation.pathname || '/'}${fromLocation.search || ''}`
+    : '/';
   const errorParam = searchParams.get('error');
 
   useEffect(() => {
@@ -85,7 +88,7 @@ export default function Login() {
           <div className="space-y-3">
             {providers.microsoft && (
               <button
-                onClick={() => login('microsoft')}
+                onClick={() => login('microsoft', from)}
                 className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 23 23" fill="none">
@@ -100,7 +103,7 @@ export default function Login() {
 
             {providers.google && (
               <button
-                onClick={() => login('google')}
+                onClick={() => login('google', from)}
                 className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">

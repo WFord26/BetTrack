@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.11] - 2026-05-07
+
+### Added
+
+- **Admin Data Sync controls** (`pages/AdminSettings.tsx`): New "Data Sync" section with Initialize Sports and Sync Odds buttons, sport selector dropdown, and inline running/success/error feedback for each action
+
+### Fixed
+
+- **Futures sync 401 error** (`pages/Futures.tsx`): Replaced raw `fetch()` calls with `apiClient` so the session cookie is included on cross-origin requests to `/api/admin/sync-futures` and `/api/futures`
+- **MLB sport icon** (`components/filters/GameFilters.tsx`, `public/sports/baseball.svg`): MLB filter button now shows a baseball instead of a basketball; added new `baseball.svg` asset
+
+---
+
+## [0.3.10] - 2026-05-06
+
+### Changed
+
+- **UI consistency and design tokens**: Updated BetHistory, CLVAnalytics, EnhancedDashboard, Stats, and Header components to use Tailwind utility classes and new brand/semantic color tokens; replaced inline styles for better maintainability
+- **Loading and empty states**: Enhanced visual treatment with improved indicators and retro pixel text-shadow utilities (`dashboard/frontend/src/index.css`, `tailwind.config.js`)
+
+---
+
+## [0.3.9] - 2026-04-14
+
+### Fixed
+- **BetSlip.test.tsx missing imports** (components/bets/BetSlip.test.tsx): Added render import from @testing-library/react
+  - Properly imports screen and fireEvent alongside render
+  - Ensures vitest can resolve testing library functions
+- **CLV slice test async thunk typing** (store/clvSlice.test.ts): Fixed Redux async thunk type assertions
+  - Created properly typed AppDispatch variable in beforeEach
+  - Replaced all (store.dispatch as AppDispatch) with dispatch calls
+  - Fixes 'AsyncThunkAction not assignable to Action' errors
+  - Fixes 'Property clv does not exist on unknown' errors
+- **Test utilities Redux store typing** (test/test-utils.tsx): Improved Redux preloadedState typing
+  - Use RootState | undefined instead of loose 'as any' typing
+  - Ensures correct Redux state shape in renderWithProviders and createMockStore
+
+### Changed
+- **CI/CD Pipeline**: Enhanced GitHub Actions test.yml to include 'dev' branch in pull_request and push triggers
+  - Tests now run automatically on PRs to dev branch
+  - Tests now run automatically on pushes to dev branch
+  - Maintains existing triggers for main, beta, and develop branches
+
+---
+
+
+## [0.3.8] - 2026-04-14
+
+### Fixed
+- **CLV test suite TypeScript errors**: Resolved 27 TypeScript compilation errors in `clvSlice.test.ts`
+  and `test/test-utils.tsx` by adding proper `RootState`/`AppDispatch` type imports, type assertions
+  for Redux store state access, and correct dispatch typing for async thunks
+
+---
+
+## [0.3.7] - 2026-04-14
+
 ### Added
 - **CLV (Closing Line Value) Analytics**: Complete frontend implementation for Phase 1 analytics (Issue #3)
   - New Redux slice (`clvSlice.ts`) for CLV state management with async thunks
@@ -28,6 +87,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Separate backend (v0.2.2) and frontend (v0.3.2) version display
   - API requests counter now only visible in development environment
   - Responsible gaming link to National Council on Problem Gambling
+
+### Fixed
+- **CLV Test Suite Type Safety**: Fixed 27 TypeScript errors in `clvSlice.test.ts` and `test-utils.tsx`
+  - Properly typed Redux store access with correct state and dispatch types
+  - Fixed async thunk dispatch type casting for `fetchCLVSummary`, `fetchCLVBySport`, `fetchCLVByBookmaker`, `fetchCLVTrends`, `fetchCLVReport`
+  - Improved `preloadedState` handling in test utilities with proper type assertions
+  - Updated test store creation to use correct Redux Toolkit configuration patterns
   - GitHub repository link
   - Disclaimer section with 1-800-GAMBLER helpline
   - Monospace font matching 8-bit theme

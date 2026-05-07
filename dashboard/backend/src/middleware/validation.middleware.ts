@@ -25,7 +25,7 @@ export const validate = (schema: AnyZodObject) => {
 
         res.status(400).json({
           status: 'error',
-          message: 'Validation failed',
+          message: errors[0]?.message || 'Validation failed',
           errors
         });
         return;
@@ -54,7 +54,7 @@ export const validateBody = (schema: AnyZodObject | ZodEffects<any>) => {
 
         res.status(400).json({
           status: 'error',
-          message: 'Validation failed',
+          message: errors[0]?.message || 'Validation failed',
           errors
         });
         return;
@@ -83,7 +83,7 @@ export const validateQuery = (schema: AnyZodObject) => {
 
         res.status(400).json({
           status: 'error',
-          message: 'Validation failed',
+          message: errors[0]?.message || 'Validation failed',
           errors
         });
         return;
@@ -112,7 +112,7 @@ export const validateParams = (schema: AnyZodObject) => {
 
         res.status(400).json({
           status: 'error',
-          message: 'Validation failed',
+          message: errors[0]?.message || 'Validation failed',
           errors
         });
         return;

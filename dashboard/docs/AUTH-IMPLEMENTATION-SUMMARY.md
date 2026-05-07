@@ -99,8 +99,8 @@ docker-compose restart backend frontend
 ## 🔐 Security Features
 
 ### Already Implemented
-- Secure session management with express-session
-- CSRF protection
+- Secure cookie-based session handling
+- OAuth state validation during login
 - Password-less authentication (OAuth only)
 - Email-based user identification
 - Provider-specific user IDs

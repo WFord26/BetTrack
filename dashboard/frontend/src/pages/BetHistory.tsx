@@ -118,54 +118,19 @@ export default function BetHistory() {
         }}
       />
       
-      {/* CRT Scanlines Effect */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-3"
-        style={{
-          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
-          backgroundSize: '100% 4px'
-        }}
-      />
       
       <div className="max-w-6xl mx-auto relative z-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white"
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
-                letterSpacing: '0.05em'
-              }}>📜 BET HISTORY</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400"
-             style={{
-               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-               letterSpacing: '0.02em'
-             }}>
+          <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white text-shadow-pixel tracking-wide">BET HISTORY</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
             View and filter your betting history
           </p>
         </div>
 
         {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 relative"
-             style={{
-               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-               border: `4px solid ${isDarkMode ? '#e5e7eb' : '#cbd5e1'}`,
-               boxShadow: isDarkMode ? '0 0 0 2px rgba(229,231,235,0.12) inset, 0 8px 16px rgba(0,0,0,0.4)' : '0 0 0 2px rgba(203,213,225,0.3) inset, 0 8px 16px rgba(0,0,0,0.1)',
-               imageRendering: 'pixelated'
-             }}>
-          {/* Pixel grid overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundImage: isDarkMode 
-                ? 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)'
-                : 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)',
-              backgroundSize: '6px 6px',
-              pointerEvents: 'none',
-            }}
-          />
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Status Filter */}
             <div>
               <label htmlFor="status-filter" className="block text-[10px] font-bold tracking-wider uppercase opacity-60 mb-2">
@@ -175,10 +140,7 @@ export default function BetHistory() {
                 id="status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                }}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-brand-600 focus:outline-none text-sm"
               >
                 <option value="all">All</option>
                 <option value="pending">Pending</option>
@@ -198,10 +160,7 @@ export default function BetHistory() {
                 id="sport-filter"
                 value={sportFilter}
                 onChange={(e) => setSportFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                }}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-brand-600 focus:outline-none text-sm"
               >
                 <option value="all">All Sports</option>
                 <option value="basketball_nba">NBA</option>
@@ -223,10 +182,7 @@ export default function BetHistory() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                }}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-brand-600 focus:outline-none text-sm"
               />
             </div>
 
@@ -240,10 +196,7 @@ export default function BetHistory() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-red-600 focus:outline-none text-sm"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                }}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border-2 border-gray-300 dark:border-gray-700 focus:border-brand-600 focus:outline-none text-sm"
               />
             </div>
           </div>
@@ -256,7 +209,7 @@ export default function BetHistory() {
               </p>
               <button
                 onClick={handleResetFilters}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-sm text-brand-600 hover:text-brand-700 font-medium"
               >
                 Reset Filters
               </button>
@@ -305,7 +258,7 @@ export default function BetHistory() {
                 <button
                   onClick={handleLoadMore}
                   disabled={loading}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Loading...' : 'Load More'}
                 </button>
@@ -316,21 +269,20 @@ export default function BetHistory() {
 
         {/* Empty State */}
         {!loading && !error && bets.length === 0 && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-6xl mb-4">🎟️</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          <div className="card p-12 text-center">
+            <svg className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h3 className="font-display font-bold text-xl text-gray-900 dark:text-white text-shadow-pixel mb-2">
               No Bets Found
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
               {hasActiveFilters
                 ? 'Try adjusting your filters to see more results'
-                : 'You haven\'t placed any bets yet'}
+                : "The ledger's empty. Add your first bet to get rolling."}
             </p>
             {hasActiveFilters && (
-              <button
-                onClick={handleResetFilters}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
+              <button onClick={handleResetFilters} className="btn-primary">
                 Clear Filters
               </button>
             )}

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { apiKeyAuth } from '../middleware/api-key-auth';
 import { validateBody, validateQuery } from '../middleware/validation.middleware';
 import {
   getActiveBets,
@@ -13,7 +13,7 @@ import {
 const router = Router();
 
 // All MCP routes require authentication
-router.use(authMiddleware);
+router.use(apiKeyAuth);
 
 // ============================================================================
 // VALIDATION SCHEMAS

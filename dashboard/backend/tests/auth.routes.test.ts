@@ -37,9 +37,48 @@ jest.mock('../src/config/env', () => ({
   env: {
     AUTH_MODE: 'oauth2',
     MICROSOFT_CLIENT_ID: 'test-microsoft-client-id',
-    GOOGLE_CLIENT_ID: 'test-google-client-id'
+    MICROSOFT_CLIENT_SECRET: 'test-microsoft-secret',
+    MICROSOFT_TENANT_ID: 'test-tenant-id',
+    GOOGLE_CLIENT_ID: 'test-google-client-id',
+    GOOGLE_CLIENT_SECRET: 'test-google-secret',
+    BASE_URL: 'http://localhost:3001',
+    CORS_ORIGIN: 'http://localhost:5173',
   }
 }));
+
+jest.mock('../src/services/oauth.service', () => {
+  class OAuthError extends Error {
+    redirectError: string;
+    constructor(redirectError: string, message: string) {
+      super(message);
+      this.name = 'OAuthError';
+      this.redirectError = redirectError;
+    }
+  }
+  return {
+    oauthService: {
+      isProviderConfigured: jest.fn(() => true),
+      getAvailableProviders: jest.fn(() => ({ microsoft: true, google: true })),
+      buildAuthorizationUrl: jest.fn((provider: string, state: string) =>
+        `http://localhost/api/auth/${provider}/callback?state=${state}`
+      ),
+      buildFrontendRedirect: jest.fn((path: string, _origin?: string) => path),
+      validateFrontendOrigin: jest.fn((origin: string | undefined) =>
+        origin === 'http://localhost:5173' ? origin : null
+      ),
+      authenticate: jest.fn().mockResolvedValue({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+        avatarUrl: null,
+        provider: 'microsoft',
+        isAdmin: false,
+        isActive: true,
+      }),
+    },
+    OAuthError,
+  };
+});
 
 jest.mock('../src/config/logger', () => ({
   logger: {
@@ -50,15 +89,19 @@ jest.mock('../src/config/logger', () => ({
   }
 }));
 
-jest.mock('../src/middleware/session.auth', () => ({
-  isAuthEnabled: jest.fn(() => true)
+jest.mock('../src/middleware/auth-session.middleware', () => ({
+  isAuthEnabled: jest.fn(() => true),
+  attachAuthSession: jest.fn((_req: any, _res: any, next: any) => next()),
+  ensureAuthSession: jest.fn(async (_req: any, _res: any) => ({ id: 'mock-session-id', expiresAt: Date.now() + 86400000 })),
+  createAuthenticatedSession: jest.fn(async () => {}),
+  destroyAuthSession: jest.fn(async () => {}),
+  saveAuthSession: jest.fn(async () => {}),
 }));
 
 // Import after mocks
 import authRoutes from '../src/routes/auth.routes';
-import { env } from '../src/config/env';
 import { logger } from '../src/config/logger';
-import { isAuthEnabled } from '../src/middleware/session.auth';
+import { isAuthEnabled } from '../src/middleware/auth-session.middleware';
 
 describe('Auth Routes', () => {
   let app: express.Application;
@@ -157,11 +200,8 @@ describe('Auth Routes', () => {
     });
 
     it('should show providers as false when client IDs missing', async () => {
-      // Temporarily modify env
-      const originalMicrosoftId = env.MICROSOFT_CLIENT_ID;
-      const originalGoogleId = env.GOOGLE_CLIENT_ID;
-      (env as any).MICROSOFT_CLIENT_ID = '';
-      (env as any).GOOGLE_CLIENT_ID = '';
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+      oauthService.getAvailableProviders.mockReturnValueOnce({ microsoft: false, google: false });
 
       const response = await request(app).get('/auth/status');
 
@@ -169,10 +209,6 @@ describe('Auth Routes', () => {
         microsoft: false,
         google: false
       });
-
-      // Restore env
-      (env as any).MICROSOFT_CLIENT_ID = originalMicrosoftId;
-      (env as any).GOOGLE_CLIENT_ID = originalGoogleId;
     });
   });
 
@@ -187,24 +223,53 @@ describe('Auth Routes', () => {
 
   describe('GET /auth/microsoft/callback', () => {
     it('should handle successful Microsoft authentication', async () => {
-      const response = await request(app).get('/auth/microsoft/callback');
+      // Create app with req.authSession pre-populated to match the state
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'test-state-123',
+          oauthProvider: 'microsoft',
+          redirectPath: '/'
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      const response = await request(callbackApp)
+        .get('/auth/microsoft/callback?code=test-auth-code&state=test-state-123');
 
       expect(response.status).toBe(302);
       expect(response.header.location).toBe('/');
       expect(mockLoggerInfo).toHaveBeenCalledWith(
-        expect.stringContaining('User logged in via Microsoft: test@example.com')
+        expect.stringContaining('User logged in via microsoft: test@example.com')
       );
     });
 
     it('should redirect to login with error on auth failure', async () => {
-      // Skip this test - mocking passport failure is complex with the current setup
-      // The actual failure redirect logic is handled by Passport, not our code
-      expect(true).toBe(true);
+      const response = await request(app)
+        .get('/auth/microsoft/callback?error=access_denied');
+
+      expect(response.status).toBe(302);
+      expect(response.header.location).toContain('microsoft_auth_failed');
     });
   });
 
   describe('GET /auth/google', () => {
     it('should initiate Google OAuth flow', async () => {
+      // Mock authenticate for google
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+      oauthService.authenticate.mockResolvedValueOnce({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+        avatarUrl: null,
+        provider: 'google',
+        isAdmin: false,
+        isActive: true,
+      });
+
       const response = await request(app).get('/auth/google');
 
       expect(response.status).toBe(302); // Redirect
@@ -214,19 +279,47 @@ describe('Auth Routes', () => {
 
   describe('GET /auth/google/callback', () => {
     it('should handle successful Google authentication', async () => {
-      const response = await request(app).get('/auth/google/callback');
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+      oauthService.authenticate.mockResolvedValueOnce({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+        avatarUrl: null,
+        provider: 'google',
+        isAdmin: false,
+        isActive: true,
+      });
+
+      // Create app with req.authSession pre-populated
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'test-state-456',
+          oauthProvider: 'google',
+          redirectPath: '/'
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      const response = await request(callbackApp)
+        .get('/auth/google/callback?code=test-auth-code&state=test-state-456');
 
       expect(response.status).toBe(302);
       expect(response.header.location).toBe('/');
       expect(mockLoggerInfo).toHaveBeenCalledWith(
-        expect.stringContaining('User logged in via Google: test@example.com')
+        expect.stringContaining('User logged in via google: test@example.com')
       );
     });
 
     it('should redirect to login with error on auth failure', async () => {
-      // Skip this test - mocking passport failure is complex with the current setup
-      // The actual failure redirect logic is handled by Passport, not our code
-      expect(true).toBe(true);
+      const response = await request(app)
+        .get('/auth/google/callback?error=access_denied');
+
+      expect(response.status).toBe(302);
+      expect(response.header.location).toContain('google_auth_failed');
     });
   });
 
@@ -266,15 +359,19 @@ describe('Auth Routes', () => {
       expect(response.body).toEqual({ success: true, message: 'Auth not enabled' });
     });
 
-    it('should handle logout errors gracefully', async () => {
-      // Setup user with failing logout
+    it('should return 500 when destroyAuthSession rejects', async () => {
+      // The legacy req.session.destroy / req.logout branches were removed
+      // when Passport + express-session were ripped out. The single
+      // failure path now is destroyAuthSession itself rejecting (e.g.
+      // Redis is down at logout time).
+      const { destroyAuthSession } = await import('../src/middleware/auth-session.middleware');
+      (destroyAuthSession as jest.MockedFunction<typeof destroyAuthSession>)
+        .mockRejectedValueOnce(new Error('Session store unavailable'));
+
       app = express();
       app.use(express.json());
-      app.use((req: any, res, next) => {
+      app.use((req: any, _res, next) => {
         req.user = { id: 'user123', email: 'test@example.com' };
-        req.logout = (callback: (err?: any) => void) => {
-          callback(new Error('Logout failed'));
-        };
         next();
       });
       app.use('/auth', authRoutes);
@@ -284,36 +381,6 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: 'Logout failed' });
       expect(mockLoggerError).toHaveBeenCalledWith('Logout error:', expect.any(Error));
-    });
-
-    it('should handle session destruction errors gracefully', async () => {
-      // Setup user with failing session destroy
-      app = express();
-      app.use(express.json());
-      app.use((req: any, res, next) => {
-        req.user = { id: 'user123', email: 'test@example.com' };
-        req.session = {
-          destroy: (callback: (err?: any) => void) => {
-            callback(new Error('Session destroy failed'));
-          }
-        };
-        req.logout = (callback: (err?: any) => void) => {
-          req.user = undefined;
-          callback();
-        };
-        next();
-      });
-      app.use('/auth', authRoutes);
-
-      const response = await request(app).post('/auth/logout');
-
-      expect(response.status).toBe(200); // Still returns success
-      expect(response.body).toEqual({ success: true });
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        'Session destruction error:',
-        expect.any(Error)
-      );
-      expect(mockLoggerInfo).toHaveBeenCalledWith('User logged out: test@example.com');
     });
 
     it('should logout user without email', async () => {
@@ -421,15 +488,16 @@ describe('Auth Routes', () => {
           req.user = undefined;
           callback();
         };
-        // No req.session - this causes an error in the code
+        // No req.session - falls back to destroyAuthSession
         next();
       });
       app.use('/auth', authRoutes);
 
       const response = await request(app).post('/auth/logout');
 
-      // Without session.destroy, the code tries to call it and fails
-      expect(response.status).toBe(500);
+      // Falls back to destroyAuthSession when req.session is unavailable
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ success: true });
     });
 
     it('should handle undefined user in logout', async () => {
@@ -453,6 +521,121 @@ describe('Auth Routes', () => {
 
       expect(response.status).toBe(200);
       expect(mockLoggerInfo).toHaveBeenCalledWith('User logged out: undefined');
+    });
+  });
+
+  describe('Multi-origin OAuth redirect', () => {
+    it('stores a validated Origin header in the session during beginOAuth', async () => {
+      const { ensureAuthSession, saveAuthSession } = jest.requireMock(
+        '../src/middleware/auth-session.middleware'
+      );
+
+      const capturedSession: any = {};
+      (ensureAuthSession as jest.MockedFunction<any>).mockImplementationOnce(
+        async (_req: any, _res: any) => capturedSession
+      );
+
+      await request(app)
+        .get('/auth/google')
+        .set('Origin', 'http://localhost:5173');
+
+      expect(capturedSession.frontendOrigin).toBe('http://localhost:5173');
+      expect(saveAuthSession).toHaveBeenCalled();
+    });
+
+    it('does not store an unrecognised Origin header in the session', async () => {
+      const { ensureAuthSession } = jest.requireMock(
+        '../src/middleware/auth-session.middleware'
+      );
+
+      const capturedSession: any = {};
+      (ensureAuthSession as jest.MockedFunction<any>).mockImplementationOnce(
+        async (_req: any, _res: any) => capturedSession
+      );
+
+      await request(app)
+        .get('/auth/google')
+        .set('Origin', 'https://evil.example.com');
+
+      expect(capturedSession.frontendOrigin).toBeUndefined();
+    });
+
+    it('passes frontendOrigin from session to buildFrontendRedirect on success', async () => {
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'state-abc',
+          oauthProvider: 'google',
+          redirectPath: '/dashboard',
+          frontendOrigin: 'http://localhost:5173',
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      await request(callbackApp)
+        .get('/auth/google/callback?code=test-code&state=state-abc');
+
+      expect(oauthService.buildFrontendRedirect).toHaveBeenCalledWith(
+        '/dashboard',
+        'http://localhost:5173'
+      );
+    });
+
+    it('passes frontendOrigin to buildFrontendRedirect on IdP error', async () => {
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'state-abc',
+          oauthProvider: 'google',
+          frontendOrigin: 'http://localhost:5173',
+          expiresAt: Date.now() + 86400000,
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      await request(callbackApp)
+        .get('/auth/google/callback?error=access_denied');
+
+      expect(oauthService.buildFrontendRedirect).toHaveBeenCalledWith(
+        expect.stringContaining('google_auth_failed'),
+        'http://localhost:5173'
+      );
+    });
+
+    it('falls back to undefined origin when session has no frontendOrigin', async () => {
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'state-xyz',
+          oauthProvider: 'microsoft',
+          redirectPath: '/',
+          // no frontendOrigin
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      await request(callbackApp)
+        .get('/auth/microsoft/callback?code=test-code&state=state-xyz');
+
+      expect(oauthService.buildFrontendRedirect).toHaveBeenCalledWith(
+        '/',
+        undefined
+      );
     });
   });
 });

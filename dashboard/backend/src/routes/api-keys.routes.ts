@@ -1,19 +1,65 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+import { z } from 'zod';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { generateApiKey, hashApiKey, getKeyPrefix } from '../utils/api-key-generator';
+import {
+  AuthenticatedRequest,
+  getScopedUserId,
+  requireSessionAuth
+} from '../middleware/auth-session.middleware';
+import { validateBody } from '../middleware/validation.middleware';
 
 const router = Router();
+
+router.use(requireSessionAuth);
+
+// ============================================================================
+// VALIDATION SCHEMAS
+// ============================================================================
+
+// SECURITY: An API key's `permissions` blob is consulted by `requirePermission`
+// at request time, so we must reject any keys the caller invents (otherwise a
+// user could mint a key with `{ admin: true }` etc. and exploit it the moment
+// any future code-path checks for that flag). `.strict()` rejects unknown
+// keys.
+const apiKeyPermissionsSchema = z
+  .object({
+    read: z.boolean().optional(),
+    write: z.boolean().optional(),
+    bets: z.boolean().optional(),
+    stats: z.boolean().optional(),
+  })
+  .strict();
+
+const createApiKeyBodySchema = z.object({
+  // `required_error` covers the missing-key case so both "no name" and
+  // "empty/whitespace name" surface the same message.
+  name: z
+    .string({ required_error: 'Name is required', invalid_type_error: 'Name must be a string' })
+    .trim()
+    .min(1, 'Name is required')
+    .max(100),
+  permissions: apiKeyPermissionsSchema.optional(),
+  expiresAt: z.string().datetime({ message: 'Invalid expiration date' }).optional(),
+});
+
+const updateApiKeyBodySchema = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    permissions: apiKeyPermissionsSchema.optional(),
+  })
+  .refine((data) => data.name !== undefined || data.permissions !== undefined, {
+    message: 'At least one of name or permissions must be provided',
+  });
 
 /**
  * GET /api/keys
  * List all API keys for current user (or all in standalone mode)
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // In standalone mode (no auth), show all keys
-    // In auth mode, filter by userId from session
-    const userId = (req as any).session?.user?.id || null;
+    const userId = getScopedUserId(req);
     
     const apiKeys = await prisma.apiKey.findMany({
       where: userId ? { userId } : {},
@@ -50,20 +96,13 @@ router.get('/', async (req: Request, res: Response) => {
  * POST /api/keys
  * Create a new API key
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validateBody(createApiKeyBodySchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { name, permissions, expiresAt } = req.body;
+    // `validateBody` has parsed and trimmed `name`, validated `permissions`
+    // against the strict schema, and confirmed `expiresAt` is ISO-8601.
+    const { name, permissions, expiresAt } = req.body as z.infer<typeof createApiKeyBodySchema>;
 
-    // Validation
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Name is required'
-      });
-    }
-
-    // Get userId from session if in auth mode
-    const userId = (req as any).session?.user?.id || null;
+    const userId = getScopedUserId(req) || null;
 
     // Generate API key
     const plainKey = generateApiKey();
@@ -80,28 +119,15 @@ router.post('/', async (req: Request, res: Response) => {
 
     const keyPermissions = permissions || defaultPermissions;
 
-    // Parse expiration date if provided
-    let expirationDate: Date | null = null;
-    if (expiresAt) {
-      const parsedDate = new Date(expiresAt);
-      if (isNaN(parsedDate.getTime())) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid expiration date'
-        });
-      }
-      expirationDate = parsedDate;
-    }
-
     // Create API key in database
     const apiKey = await prisma.apiKey.create({
       data: {
         userId,
-        name: name.trim(),
+        name,
         keyHash,
         keyPrefix,
         permissions: keyPermissions,
-        expiresAt: expirationDate
+        expiresAt: expiresAt ? new Date(expiresAt) : null
       }
     });
 
@@ -139,13 +165,12 @@ router.post('/', async (req: Request, res: Response) => {
  * PUT /api/keys/:id
  * Update an API key's name or permissions
  */
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', validateBody(updateApiKeyBodySchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, permissions } = req.body;
+    const { name, permissions } = req.body as z.infer<typeof updateApiKeyBodySchema>;
 
-    // Get userId from session if in auth mode
-    const userId = (req as any).session?.user?.id || null;
+    const userId = getScopedUserId(req) || null;
 
     // Find existing key
     const existingKey = await prisma.apiKey.findUnique({
@@ -167,14 +192,11 @@ router.put('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    // Build update data
-    const updateData: any = {};
-    if (name && typeof name === 'string' && name.trim().length > 0) {
-      updateData.name = name.trim();
-    }
-    if (permissions && typeof permissions === 'object') {
-      updateData.permissions = permissions;
-    }
+    // Build update data — `name` is already trimmed by Zod, `permissions`
+    // already validated against the strict schema.
+    const updateData: { name?: string; permissions?: typeof permissions } = {};
+    if (name !== undefined) updateData.name = name;
+    if (permissions !== undefined) updateData.permissions = permissions;
 
     // Update key
     const updatedKey = await prisma.apiKey.update({
@@ -215,12 +237,11 @@ router.put('/:id', async (req: Request, res: Response) => {
  * DELETE /api/keys/:id
  * Revoke (soft delete) an API key
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Get userId from session if in auth mode
-    const userId = (req as any).session?.user?.id || null;
+    const userId = getScopedUserId(req) || null;
 
     // Find existing key
     const existingKey = await prisma.apiKey.findUnique({
@@ -271,13 +292,15 @@ router.delete('/:id', async (req: Request, res: Response) => {
  * GET /api/keys/:id/usage
  * Get usage statistics for an API key
  */
-router.get('/:id/usage', async (req: Request, res: Response) => {
+router.get('/:id/usage', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { limit = '100' } = req.query;
 
-    // Get userId from session if in auth mode
-    const userId = (req as any).session?.user?.id || null;
+    // SECURITY: Use the canonical session helper (the legacy
+    // `req.session.user.id` was removed in the auth refactor and would
+    // always evaluate to null here, bypassing the ownership check below).
+    const userId = getScopedUserId(req) || null;
 
     // Find existing key
     const existingKey = await prisma.apiKey.findUnique({
@@ -299,11 +322,17 @@ router.get('/:id/usage', async (req: Request, res: Response) => {
       });
     }
 
+    // Clamp limit to a safe range and reject non-numeric input
+    const parsedLimit = parseInt(limit as string, 10);
+    const safeLimit = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), 500)
+      : 100;
+
     // Get usage logs
     const usage = await prisma.apiKeyUsage.findMany({
       where: { apiKeyId: id },
       orderBy: { createdAt: 'desc' },
-      take: parseInt(limit as string),
+      take: safeLimit,
       select: {
         id: true,
         endpoint: true,

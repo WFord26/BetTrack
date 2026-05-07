@@ -191,8 +191,13 @@ export class FuturesSyncService {
           result.futuresProcessed++;
 
           // Process bookmakers
-          for (const bookmaker of event.bookmakers) {
+          for (const bookmaker of event.bookmakers || []) {
             try {
+              // Guard against undefined bookmaker
+              if (!bookmaker || !bookmaker.markets) {
+                continue;
+              }
+
               // Get outrights market
               const outrightsMarket = bookmaker.markets.find(m => m.key === 'outrights');
               if (!outrightsMarket) continue;

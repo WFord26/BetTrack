@@ -26,6 +26,13 @@ jest.mock('../src/config/logger', () => ({
   }
 }));
 
+jest.mock('../src/middleware/auth-session.middleware', () => ({
+  requireSessionAuth: jest.fn((_req: any, _res: any, next: any) => next()),
+  optionalAuth: jest.fn((_req: any, _res: any, next: any) => next()),
+  isAuthEnabled: jest.fn(() => false),
+  attachAuthSession: jest.fn((_req: any, _res: any, next: any) => next()),
+}));
+
 describe('Futures Routes', () => {
   let app: express.Application;
 

@@ -11,9 +11,11 @@ import clvReducer, {
   fetchCLVBySport,
   fetchCLVByBookmaker,
   fetchCLVTrends,
-  fetchCLVReport
+  fetchCLVReport,
+  type CLVState
 } from './clvSlice';
 import { clvService } from '../services/clv.service';
+import type { RootState, AppDispatch } from './index';
 
 // Mock the clvService
 vi.mock('../services/clv.service', () => ({
@@ -30,6 +32,7 @@ vi.mock('../services/clv.service', () => ({
 
 describe('clvSlice', () => {
   let store: ReturnType<typeof configureStore>;
+  let dispatch: AppDispatch;
 
   beforeEach(() => {
     store = configureStore({
@@ -37,12 +40,13 @@ describe('clvSlice', () => {
         clv: clvReducer
       }
     });
+    dispatch = store.dispatch as unknown as AppDispatch;
     vi.clearAllMocks();
   });
 
   describe('initial state', () => {
     it('should have correct initial state', () => {
-      const state = store.getState().clv;
+      const state = (store.getState() as any).clv;
       expect(state.summary).toBeNull();
       expect(state.bySport).toEqual([]);
       expect(state.byBookmaker).toEqual([]);
@@ -57,14 +61,14 @@ describe('clvSlice', () => {
   describe('setFilters', () => {
     it('should update filters', () => {
       store.dispatch(setFilters({ sportKey: 'basketball_nba', period: 'month' }));
-      const state = store.getState().clv;
+      const state = (store.getState() as any).clv;
       expect(state.filters).toEqual({ sportKey: 'basketball_nba', period: 'month' });
     });
 
     it('should merge filters with existing ones', () => {
       store.dispatch(setFilters({ period: 'week' }));
       store.dispatch(setFilters({ sportKey: 'americanfootball_nfl' }));
-      const state = store.getState().clv;
+      const state = (store.getState() as any).clv;
       expect(state.filters).toEqual({ period: 'week', sportKey: 'americanfootball_nfl' });
     });
   });
@@ -73,7 +77,7 @@ describe('clvSlice', () => {
     it('should reset filters to default', () => {
       store.dispatch(setFilters({ sportKey: 'basketball_nba', betType: 'spread' }));
       store.dispatch(clearFilters());
-      const state = store.getState().clv;
+      const state = (store.getState() as any).clv;
       expect(state.filters).toEqual({ period: 'all-time' });
     });
   });
@@ -81,19 +85,19 @@ describe('clvSlice', () => {
   describe('clearError', () => {
     it('should clear error state', () => {
       // Manually set error state for testing
-      store.dispatch({ type: 'clv/fetchSummary/rejected', payload: 'Test error' });
-      expect(store.getState().clv.error).toBe('Test error');
+      (store.dispatch as any)({ type: 'clv/fetchSummary/rejected', payload: 'Test error' });
+      expect((store.getState() as any).clv.error).toBe('Test error');
       
       store.dispatch(clearError());
-      expect(store.getState().clv.error).toBeNull();
+      expect((store.getState() as any).clv.error).toBeNull();
     });
   });
 
   describe('fetchCLVSummary', () => {
     it('should set loading state when pending', async () => {
-      const promise = store.dispatch(fetchCLVSummary());
-      expect(store.getState().clv.loading).toBe(true);
-      promise.abort(); // Cancel the async action
+      const promise = dispatch(fetchCLVSummary());
+      expect((store.getState() as any).clv.loading).toBe(true);
+      (promise as any).abort(); // Cancel the async action
     });
 
     it('should set summary data when fulfilled', async () => {
@@ -110,8 +114,8 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getSummary).mockResolvedValue(mockSummary);
 
-      await store.dispatch(fetchCLVSummary());
-      const state = store.getState().clv;
+      await dispatch(fetchCLVSummary());
+      const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
       expect(state.summary).toEqual(mockSummary);
@@ -123,8 +127,8 @@ describe('clvSlice', () => {
         response: { data: { message: 'API Error' } }
       });
 
-      await store.dispatch(fetchCLVSummary());
-      const state = store.getState().clv;
+      await dispatch(fetchCLVSummary());
+      const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
       expect(state.error).toBe('API Error');
@@ -141,8 +145,8 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getBySport).mockResolvedValue(mockBySport);
 
-      await store.dispatch(fetchCLVBySport());
-      const state = store.getState().clv;
+      await dispatch(fetchCLVBySport());
+      const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
       expect(state.bySport).toEqual(mockBySport);
@@ -159,8 +163,8 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getByBookmaker).mockResolvedValue(mockByBookmaker);
 
-      await store.dispatch(fetchCLVByBookmaker());
-      const state = store.getState().clv;
+      await dispatch(fetchCLVByBookmaker());
+      const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
       expect(state.byBookmaker).toEqual(mockByBookmaker);
@@ -178,8 +182,8 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getTrends).mockResolvedValue(mockTrends);
 
-      await store.dispatch(fetchCLVTrends({ period: 'week' }));
-      const state = store.getState().clv;
+      await dispatch(fetchCLVTrends({ period: 'week' }));
+      const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
       expect(state.trends).toEqual(mockTrends);
@@ -209,8 +213,8 @@ describe('clvSlice', () => {
 
       vi.mocked(clvService.getReport).mockResolvedValue(mockReport);
 
-      await store.dispatch(fetchCLVReport());
-      const state = store.getState().clv;
+      await dispatch(fetchCLVReport({}));
+      const state = (store.getState() as any).clv;
       
       expect(state.loading).toBe(false);
       expect(state.report).toEqual(mockReport);
@@ -221,7 +225,7 @@ describe('clvSlice', () => {
       const filters = { sportKey: 'basketball_nba', period: 'month' as const };
       vi.mocked(clvService.getReport).mockResolvedValue({} as any);
 
-      await store.dispatch(fetchCLVReport(filters));
+      await (store.dispatch as AppDispatch)(fetchCLVReport(filters));
       
       expect(clvService.getReport).toHaveBeenCalledWith(filters);
     });

@@ -16,6 +16,7 @@ Comprehensive API reference for MCP tools, Backend HTTP endpoints, and Frontend 
    - [AI Bets API](#ai-bets-api-apiaibets)
    - [MCP Integration API](#mcp-integration-api-apimcp)
    - [Stats API](#stats-api-apistats)
+   - [Analytics CLV API](#analytics-clv-api-apianalyticsclv)
    - [Admin API](#admin-api-apiadmin)
 3. [Frontend Architecture](#frontend-architecture)
 
@@ -1248,6 +1249,122 @@ Get individual player statistics and game log.
 - Requires `API_SPORTS_KEY` environment variable to be configured
 - Free tier API-Sports accounts limited to 10 requests/day
 - Rate limiting: 5 requests/second for Pro tier
+
+---
+
+### Analytics CLV API (`/api/analytics/clv`)
+
+Closing Line Value (CLV) analytics endpoints. CLV measures the difference between odds at bet placement vs odds at game start — the #1 indicator of long-term betting profitability.
+
+All endpoints require session authentication (or bypass in standalone mode with `AUTH_MODE=none`).
+
+#### `GET /api/analytics/clv/summary`
+Get user's overall CLV summary statistics.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalBets": 142,
+    "averageCLV": 1.85,
+    "positiveCLVCount": 78,
+    "negativeCLVCount": 52,
+    "neutralCLVCount": 12,
+    "clvWinRate": 58.3
+  }
+}
+```
+
+#### `GET /api/analytics/clv/by-sport`
+Get CLV breakdown by sport.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    { "sportKey": "americanfootball_nfl", "averageCLV": 2.3, "count": 65 },
+    { "sportKey": "basketball_nba", "averageCLV": 1.1, "count": 44 }
+  ]
+}
+```
+
+#### `GET /api/analytics/clv/by-bookmaker`
+Get CLV breakdown by bookmaker (extracted from bet names).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    { "bookmaker": "DraftKings", "averageCLV": 2.1, "count": 50 },
+    { "bookmaker": "FanDuel", "averageCLV": 1.5, "count": 38 }
+  ]
+}
+```
+
+#### `GET /api/analytics/clv/trends`
+Get CLV trends over time with optional filtering.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `sportKey` | string | Filter by sport (e.g., `basketball_nba`) |
+| `betType` | string | Filter by bet type (`single`, `parlay`, `teaser`) |
+| `startDate` | ISO date | Start of date range |
+| `endDate` | ISO date | End of date range |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "summary": { "totalBets": 42, "averageCLV": 1.5, "..." : "..." },
+    "topBets": [{ "betId": "uuid", "betName": "NFL ML", "clv": 12.5, "createdAt": "..." }],
+    "worstBets": [{ "betId": "uuid", "betName": "NBA Spread", "clv": -8.2, "createdAt": "..." }],
+    "bySport": [{ "sportKey": "...", "averageCLV": 2.1, "count": 20 }],
+    "byBookmaker": [{ "bookmaker": "...", "averageCLV": 1.8, "count": 15 }]
+  }
+}
+```
+
+#### `GET /api/analytics/clv/report`
+Get full CLV report with all breakdowns. Accepts same query parameters as `/trends`.
+
+**Response:** Same structure as `/trends` but as a flat report object.
+
+#### `POST /api/analytics/clv/calculate/:betId`
+Calculate CLV for a specific bet's legs.
+
+**Parameters:**
+- `betId` (path): UUID of the bet
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "CLV calculated successfully"
+}
+```
+
+#### `POST /api/analytics/clv/update-stats`
+Update aggregated CLV stats for the current user. Recalculates `UserCLVStats` records.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "CLV stats updated"
+}
+```
+
+**Notes:**
+- CLV is captured automatically via a cron job running every 5 minutes
+- Closing lines are captured ~5 minutes before game start
+- Requires `ENABLE_CLOSING_LINE_CAPTURE=true` environment variable
+- CLV formula: `((Closing Implied Prob - Opening Implied Prob) / Opening Implied Prob) × 100`
+- Categories: positive (>1%), negative (<-1%), neutral (between)
 
 ---
 

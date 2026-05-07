@@ -7,6 +7,35 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import request from 'supertest';
 
+// Mock session-store before any imports that trigger redis
+jest.mock('../src/services/session-store.service', () => ({
+  initializeSessionStore: jest.fn(),
+  shutdownSessionStore: jest.fn(),
+  getSessionStore: jest.fn(() => ({
+    get: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
+    clear: jest.fn()
+  })),
+  sessionStore: {
+    get: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
+    clear: jest.fn()
+  }
+}));
+
+// Mock auth-session middleware to bypass auth checks
+jest.mock('../src/middleware/auth-session.middleware', () => ({
+  requireSessionAuth: jest.fn((_req: any, _res: any, next: any) => next()),
+  optionalAuth: jest.fn((_req: any, _res: any, next: any) => next()),
+  isAuthEnabled: jest.fn(() => false),
+  getScopedUserId: jest.fn(() => undefined),
+  getUserId: jest.fn(() => null),
+  requireAdminAccess: jest.fn((_req: any, _res: any, next: any) => next()),
+  attachAuthSession: jest.fn((_req: any, _res: any, next: any) => next()),
+}));
+
 // Mock Prisma FIRST - before any imports that use database
 jest.mock('../src/config/database', () => ({
   prisma: {

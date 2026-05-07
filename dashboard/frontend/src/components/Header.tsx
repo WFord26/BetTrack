@@ -4,6 +4,8 @@ import { useDarkMode } from '../contexts/DarkModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface SiteConfig {
   siteName: string;
   logoUrl: string | null;
@@ -12,9 +14,146 @@ interface SiteConfig {
 interface NavItem {
   path: string;
   label: string;
-  icon: string;
-  badge?: string;
+  icon: React.ReactNode;
 }
+
+// ─── SVG Icon components ──────────────────────────────────────────────────────
+// Heroicons (outline, 18px) — consistent stroke weight and style throughout.
+// Sized at w-[18px] h-[18px] so they sit flush with the 14px nav label text.
+
+const IconDashboard = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+
+const IconHistory = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="12 7 12 12 15 15" />
+  </svg>
+);
+
+const IconFutures = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  </svg>
+);
+
+const IconStats = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </svg>
+);
+
+const IconCLV = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </svg>
+);
+
+const IconSun = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+);
+
+const IconMoon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+);
+
+const IconSettings = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
+const IconPreferences = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <line x1="4" y1="6" x2="20" y2="6" />
+    <line x1="4" y1="12" x2="20" y2="12" />
+    <line x1="4" y1="18" x2="20" y2="18" />
+    <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none" />
+    <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none" />
+    <circle cx="10" cy="18" r="2" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const IconKey = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+  </svg>
+);
+
+const IconBell = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+
+const IconShield = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <polyline points="9 12 11 14 15 10" />
+  </svg>
+);
+
+const IconUser = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const IconLogOut = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+const IconChevronDown = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+const IconTrendUp = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
+  </svg>
+);
+
+// ─── Shared dropdown item styling ────────────────────────────────────────────
+
+const dropdownItemClass =
+  'flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 ' +
+  'hover:bg-gray-100 dark:hover:bg-surface-700 transition-colors w-full text-left';
+
+const dropdownPanelClass =
+  'absolute right-0 mt-2 bg-white dark:bg-surface-800 rounded-lg shadow-lg ' +
+  'border border-gray-200 dark:border-surface-700 py-1 z-50';
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Header() {
   const location = useLocation();
@@ -23,32 +162,28 @@ export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({
-    siteName: 'BetTrack Dashboard',
-    logoUrl: '/logo.svg'
+    siteName: 'BetTrack',
+    logoUrl: '/logo.svg',
   });
   const userMenuRef = useRef<HTMLDivElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
-  // Fetch site configuration (optional override)
+  // Fetch optional site config override from admin
   useEffect(() => {
-    const fetchSiteConfig = async () => {
-      try {
-        const response = await api.get('/admin/site-config');
-        const config = response.data.data;
+    api.get('/admin/site-config')
+      .then(res => {
+        const config = res.data.data;
         setSiteConfig({
-          siteName: config.siteName || 'BetTrack Dashboard',
-          logoUrl: config.logoUrl || '/logo.svg'
+          siteName: config.siteName || 'BetTrack',
+          logoUrl: config.logoUrl || '/logo.svg',
         });
-      } catch (error) {
-        console.error('Failed to fetch site config:', error);
-        // Use defaults (logo.svg) on error
-      }
-    };
-
-    fetchSiteConfig();
+      })
+      .catch(() => {
+        // Silently fall back to defaults — not a user-facing error
+      });
   }, []);
 
-  // Close dropdowns when clicking outside
+  // Close both dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -58,156 +193,155 @@ export default function Header() {
         setShowSettingsMenu(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
+  // Exact path match — sub-routes (e.g. /game/:id) don't light up a nav item
+  const isActive = (path: string) => location.pathname === path;
 
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: '📊' },
-    { path: '/v2', label: 'Dashboard V2', icon: '🎮', badge: 'NEW' },
-    { path: '/history', label: 'Bet History', icon: '📜' },
-    { path: '/futures', label: 'Futures', icon: '🏆' },
-    { path: '/stats', label: 'Statistics', icon: '📈' }
+  // ── Nav items ──────────────────────────────────────────────────────────────
+  // '/' is the marketing landing page — not a nav destination for logged-in users.
+  // '/v2' is the canonical dashboard (EnhancedDashboard). The "V2" label and
+  // "NEW" badge were internal migration artifacts — removed here.
+  const navItems: NavItem[] = [
+    { path: '/v2',           label: 'Dashboard',  icon: <IconDashboard /> },
+    { path: '/history',      label: 'Bet History', icon: <IconHistory />  },
+    { path: '/futures',      label: 'Futures',     icon: <IconFutures />  },
+    { path: '/stats',        label: 'Statistics',  icon: <IconStats />    },
+    { path: '/analytics/clv', label: 'CLV',        icon: <IconCLV />      },
   ];
 
+  // User initials for avatar fallback
+  const userInitial = user
+    ? (user.name?.[0] ?? user.email[0])?.toUpperCase()
+    : '';
+
   return (
-    <header className="bg-white dark:bg-gray-900 shadow-md sticky top-0 z-40 transition-colors">
+    <header className="bg-white dark:bg-surface-900 border-b border-gray-200 dark:border-surface-700 sticky top-0 z-40 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo Section */}
-          <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+
+          {/* ── Logo ────────────────────────────────────────────────────── */}
+          <Link
+            to="/"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-shrink-0"
+            aria-label={`${siteConfig.siteName} — home`}
+          >
             {siteConfig.logoUrl ? (
-              <img 
-                src={siteConfig.logoUrl} 
-                alt={siteConfig.siteName}
-                className="h-28 w-auto object-contain"
-                onError={(e) => {
-                  // Fallback to default icon on error
+              <img
+                src={siteConfig.logoUrl}
+                alt=""
+                aria-hidden="true"
+                className="h-8 w-auto object-contain"
+                onError={e => {
                   (e.target as HTMLImageElement).style.display = 'none';
                   (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                 }}
               />
             ) : null}
-            <div className={siteConfig.logoUrl ? 'hidden' : 'w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg'}>
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
+            {/* Fallback icon — brand-red, no blue gradient */}
+            <div className={
+              siteConfig.logoUrl
+                ? 'hidden'
+                : 'w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center flex-shrink-0'
+            }>
+              <IconTrendUp />
             </div>
+            {/* Site name — display (monospace) font, brand identity in the app shell */}
+            <span className="font-display font-bold text-sm text-gray-900 dark:text-white hidden md:block tracking-wide">
+              {siteConfig.siteName}
+            </span>
           </Link>
 
-          {/* Navigation Menu */}
-          <nav className="flex items-center space-x-1">
-            {navItems.map((item) => (
+          {/* ── Primary navigation ──────────────────────────────────────── */}
+          <nav className="flex items-center gap-1" aria-label="Main navigation">
+            {navItems.map(item => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                aria-current={isActive(item.path) ? 'page' : undefined}
+                className={[
+                  'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all',
                   isActive(item.path)
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
-                }`}
+                    ? 'bg-brand-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-surface-800 hover:text-gray-900 dark:hover:text-white',
+                ].join(' ')}
               >
-                <span className="text-lg">{item.icon}</span>
+                <span className="flex-shrink-0">{item.icon}</span>
                 <span className="hidden sm:inline">{item.label}</span>
-                {item.badge && (
-                  <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full animate-pulse">
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             ))}
           </nav>
 
-          {/* Dark Mode Toggle & Settings */}
-          <div className="flex items-center space-x-2">
+          {/* ── Right controls ───────────────────────────────────────────── */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+
+            {/* Dark mode toggle */}
             <button
               onClick={toggleDarkMode}
-              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-800 rounded-lg transition-colors"
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {isDarkMode ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
+              {isDarkMode ? <IconSun /> : <IconMoon />}
             </button>
 
-            {/* Settings Menu */}
+            {/* Settings dropdown */}
             <div className="relative" ref={settingsMenuRef}>
               <button
-                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                onClick={() => setShowSettingsMenu(v => !v)}
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-800 rounded-lg transition-colors"
                 title="Settings"
+                aria-label="Settings"
+                aria-expanded={showSettingsMenu}
+                aria-haspopup="menu"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+                <IconSettings />
               </button>
 
               {showSettingsMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                <div className={`${dropdownPanelClass} w-52`} role="menu">
                   <Link
                     to="/settings/preferences"
-                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className={dropdownItemClass}
                     onClick={() => setShowSettingsMenu(false)}
+                    role="menuitem"
                   >
-                    <div className="flex items-center">
-                      <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                      </svg>
-                      Preferences
-                    </div>
+                    <IconPreferences />
+                    Preferences
                   </Link>
                   <Link
                     to="/settings/api-keys"
-                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className={dropdownItemClass}
                     onClick={() => setShowSettingsMenu(false)}
+                    role="menuitem"
                   >
-                    <div className="flex items-center">
-                      <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                      </svg>
-                      API Keys
-                    </div>
+                    <IconKey />
+                    API keys
                   </Link>
                   <Link
                     to="/settings/notifications"
-                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className={dropdownItemClass}
                     onClick={() => setShowSettingsMenu(false)}
+                    role="menuitem"
                   >
-                    <div className="flex items-center">
-                      <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                      </svg>
-                      Notifications
-                    </div>
+                    <IconBell />
+                    Notifications
                   </Link>
-                  
-                  {/* Admin Section - Show in single-user mode or for admin users */}
+
+                  {/* Admin — single-user mode or admin role */}
                   {(!authEnabled || (user && (user as any).isAdmin)) && (
                     <>
-                      <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                      <div className="border-t border-gray-200 dark:border-surface-700 my-1" />
                       <Link
                         to="/settings/admin"
-                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className={dropdownItemClass}
                         onClick={() => setShowSettingsMenu(false)}
+                        role="menuitem"
                       >
-                        <div className="flex items-center">
-                          <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                          </svg>
-                          Admin
-                        </div>
+                        <IconShield />
+                        Admin
                       </Link>
                     </>
                   )}
@@ -215,54 +349,57 @@ export default function Header() {
               )}
             </div>
 
-            {/* User Menu (only show if auth is enabled) */}
+            {/* User menu — only when auth is enabled and user is logged in */}
             {authEnabled && user && (
               <div className="relative" ref={userMenuRef}>
                 <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                  onClick={() => setShowUserMenu(v => !v)}
+                  className="flex items-center gap-2 p-1.5 pl-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-800 rounded-lg transition-colors"
+                  aria-expanded={showUserMenu}
+                  aria-haspopup="menu"
+                  aria-label="User menu"
                 >
                   {user.avatarUrl ? (
                     <img
                       src={user.avatarUrl}
                       alt={user.name || user.email}
-                      className="w-8 h-8 rounded-full"
+                      className="w-7 h-7 rounded-full"
                     />
                   ) : (
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-medium text-sm">
-                        {user.name?.[0]?.toUpperCase() || user.email[0]?.toUpperCase()}
+                    // Avatar fallback — brand-red, not blue
+                    <div className="w-7 h-7 bg-brand-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-display font-bold text-xs leading-none">
+                        {userInitial}
                       </span>
                     </div>
                   )}
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <IconChevronDown />
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-                    {/* User Info */}
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{user.name || 'User'}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
-                      <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                  <div className={`${dropdownPanelClass} w-60`} role="menu">
+                    {/* User info header */}
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-surface-700">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {user.name || 'User'}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                        {user.email}
+                      </p>
+                      {/* Provider badge — info color (not brand) since it's informational */}
+                      <span className="inline-block mt-1.5 px-2 py-0.5 text-xs rounded-full bg-info-100 dark:bg-info-900 text-info-800 dark:text-info-200">
                         {user.provider}
                       </span>
                     </div>
 
-                    {/* Menu Items */}
                     <Link
                       to="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className={dropdownItemClass}
                       onClick={() => setShowUserMenu(false)}
+                      role="menuitem"
                     >
-                      <div className="flex items-center">
-                        <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        Profile
-                      </div>
+                      <IconUser />
+                      Profile
                     </Link>
 
                     <button
@@ -270,14 +407,11 @@ export default function Header() {
                         setShowUserMenu(false);
                         await logout();
                       }}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className={`${dropdownItemClass} text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300`}
+                      role="menuitem"
                     >
-                      <div className="flex items-center">
-                        <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        Sign Out
-                      </div>
+                      <IconLogOut />
+                      Sign out
                     </button>
                   </div>
                 )}

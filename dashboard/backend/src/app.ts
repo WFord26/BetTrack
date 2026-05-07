@@ -5,14 +5,58 @@ import { env } from './config/env';
 import compression from 'compression';
 import { errorMiddleware } from './middleware/error.middleware';
 import { logger } from './config/logger';
+import { attachAuthSession } from './middleware/auth-session.middleware';
 import routes from './routes';
 
 const app = express();
 
+// SECURITY: Behind nginx (see dashboard/docker-compose.prod.yml), the
+// real client IP arrives in `X-Forwarded-For`. Without `trust proxy`,
+// `req.ip` is always the proxy and any IP-based logic (rate limit,
+// audit log, abuse heuristics) becomes useless. `1` = trust the
+// single proxy hop in front of us.
+app.set('trust proxy', 1);
+
+const allowedOrigins = (env.CORS_ORIGIN || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+// SECURITY: With `credentials: true`, allowing all origins is a CSRF risk.
+// Fail closed in production when CORS_ORIGIN is unset; in non-production,
+// fall back to permissive (and warn loudly) to keep local dev workflows
+// — Vite, Storybook, etc. — working without ceremony.
+if (allowedOrigins.length === 0) {
+  if (env.NODE_ENV === 'production') {
+    logger.error('❌ CORS_ORIGIN is not set in production — refusing to start with an open CORS policy.');
+    throw new Error('CORS_ORIGIN must be configured in production');
+  }
+  logger.warn('⚠️  CORS_ORIGIN not set — allowing all origins (development only, NOT PRODUCTION SAFE).');
+}
+
 // Security & Performance Middleware
 app.use(helmet());
 app.use(cors({
-  origin: env.CORS_ORIGIN || '*',
+  origin(origin, callback) {
+    // Same-origin / non-browser requests (no Origin header) are always allowed.
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    // Dev fallback: when no allow-list is configured we already warned above.
+    if (allowedOrigins.length === 0 && env.NODE_ENV !== 'production') {
+      callback(null, true);
+      return;
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Origin not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(compression());
@@ -20,6 +64,7 @@ app.use(compression());
 // Body Parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(attachAuthSession);
 
 // Request Logging
 app.use((req: Request, res: Response, next) => {

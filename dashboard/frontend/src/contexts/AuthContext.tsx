@@ -8,6 +8,7 @@ interface User {
   avatarUrl?: string;
   provider: string;
   isAdmin?: boolean;
+  isActive?: boolean;
 }
 
 interface AuthStatus {
@@ -29,7 +30,7 @@ interface AuthContextType {
     google: boolean;
   };
   loading: boolean;
-  login: (provider: 'microsoft' | 'google') => void;
+  login: (provider: 'microsoft' | 'google', redirectTo?: string) => void;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -44,17 +45,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchAuthStatus = async () => {
+    setLoading(true);
+
     try {
-      // Auth disabled in standalone mode
+      const response = await api.get<AuthStatus>('/auth/status');
+      const status = response.data;
+
+      setAuthEnabled(status.authEnabled);
+      setAuthMode(status.authMode);
+      setUser(status.user);
+      setProviders(status.providers);
+    } catch (error) {
+      console.error('Failed to fetch auth status:', error);
       setAuthEnabled(false);
       setAuthMode('none');
       setUser(null);
       setProviders({ microsoft: false, google: false });
-    } catch (error) {
-      console.error('Failed to fetch auth status:', error);
-      // Default to no auth
-      setAuthEnabled(false);
-      setAuthMode('none');
     } finally {
       setLoading(false);
     }
@@ -64,9 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchAuthStatus();
   }, []);
 
-  const login = (provider: 'microsoft' | 'google') => {
-    // Redirect to OAuth provider
-    window.location.href = `${api.defaults.baseURL}/auth/${provider}`;
+  const login = (provider: 'microsoft' | 'google', redirectTo: string = '/') => {
+    const query = new URLSearchParams({
+      redirectTo
+    });
+
+    window.location.href = `${api.defaults.baseURL}/auth/${provider}?${query.toString()}`;
   };
 
   const logout = async () => {
