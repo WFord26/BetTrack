@@ -268,10 +268,7 @@ router.delete(
 
       await betService.cancelBet(req.params.id, force, getScopedUserId(req));
 
-      res.json({
-        status: 'success',
-        message: 'Bet deleted'
-      });
+      res.status(204).send();
     } catch (error) {
       logger.error('Error deleting bet:', error);
       next(error);

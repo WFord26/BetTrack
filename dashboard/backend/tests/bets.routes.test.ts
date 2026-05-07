@@ -72,7 +72,7 @@ jest.mock('../src/services/bet.service', () => ({
     getBetById: jest.fn(),
     updateBet: jest.fn(),
     settleBet: jest.fn(),
-    deleteBet: jest.fn(),
+    cancelBet: jest.fn(),
     getStats: jest.fn(),
   },
 }));
@@ -188,7 +188,7 @@ describe('GET /api/bets/:id', () => {
   it('returns 200 with bet by id', async () => {
     mockBetService.getBetById.mockResolvedValue(sampleBet as any);
 
-    const res = await request(app).get('/api/bets/bet-uuid-1');
+    const res = await request(app).get('/api/bets/00000000-0000-0000-0000-000000000001');
 
     expect(res.status).toBe(200);
   });
@@ -271,7 +271,7 @@ describe('DELETE /api/bets/:id', () => {
   });
 
   it('deletes a bet and returns 204', async () => {
-    mockBetService.deleteBet.mockResolvedValue(undefined as any);
+    mockBetService.cancelBet.mockResolvedValue(undefined as any);
 
     const res = await request(app).delete('/api/bets/00000000-0000-0000-0000-000000000001');
 
