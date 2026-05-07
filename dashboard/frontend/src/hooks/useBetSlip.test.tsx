@@ -22,7 +22,7 @@ vi.mock('../services/api', () => ({
 }));
 
 import api from '../services/api';
-const mockedApi = vi.mocked(api);
+const mockedApi = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn>; defaults: { baseURL: string } };
 
 function createWrapper() {
   const store = configureStore({

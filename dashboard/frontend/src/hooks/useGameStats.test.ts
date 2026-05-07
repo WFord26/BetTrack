@@ -15,7 +15,7 @@ vi.mock('../services/api', () => ({
 }));
 
 import api from '../services/api';
-const mockedApi = vi.mocked(api);
+const mockedApi = api as unknown as { get: ReturnType<typeof vi.fn>; defaults: { baseURL: string } };
 
 const mockStatsData = {
   teamStats: [
