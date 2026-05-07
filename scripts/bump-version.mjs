@@ -610,24 +610,20 @@ async function main() {
     }
   }
 
-  let changelogUpdates = new Map();
+  // Determine which changelogs would be touched (check file existence only —
+  // no writes yet) so the dry-run report can show accurate output.
+  const changelogUpdates = new Map();
   if (bumpedByKey.size > 0) {
-    console.log(`\n🔗 Updating internal dependencies...`);
-    updateLocalDependencies(packages, bumpedByKey);
-
-    for (const [key, newVersion] of bumpedByKey) {
+    for (const [key] of bumpedByKey) {
       const pkg = packages.find((p) => p.key === key);
       if (pkg) {
-        pkg.manifest.version = newVersion;
-        writeJson(pkg.manifestPathAbs, pkg.manifest);
-
-        // Try to update CHANGELOG.md
         const changelogPath = path.join(path.dirname(pkg.manifestPathAbs), "CHANGELOG.md");
-        const updated = updateChangelog(changelogPath, newVersion);
-        changelogUpdates.set(key, updated);
+        const hasUnreleased =
+          existsSync(changelogPath) &&
+          /^## \[Unreleased\]\n/m.test(readFileSync(changelogPath, "utf8"));
+        changelogUpdates.set(key, hasUnreleased);
       }
     }
-
   }
 
   const newSnapshot = { schemaVersion: HASH_STATE_VERSION, packages: currentSnapshot };
@@ -639,7 +635,7 @@ async function main() {
       console.log("Would update versions in package.json files:");
       for (const [key, newVersion] of bumpedByKey) {
         const pkg = packages.find((p) => p.key === key);
-        console.log(`   ${pkg?.manifestPath}: ${pkg?.manifest.version}`);
+        console.log(`   ${pkg?.manifestPath}: ${pkg?.manifest.version} → ${newVersion}`);
       }
       console.log("\nWould update CHANGELOG.md files:");
       const today = getTodayDate();
@@ -649,11 +645,28 @@ async function main() {
             `   ${key}/CHANGELOG.md: [Unreleased] → [${newVersion}] - ${today}`
           );
         } else {
-          console.log(`   ${key}/CHANGELOG.md: (not found, skipped)`);
+          console.log(`   ${key}/CHANGELOG.md: (not found or no [Unreleased] section, skipped)`);
         }
       }
     }
   } else {
+    if (bumpedByKey.size > 0) {
+      console.log(`\n🔗 Updating internal dependencies...`);
+      updateLocalDependencies(packages, bumpedByKey);
+
+      for (const [key, newVersion] of bumpedByKey) {
+        const pkg = packages.find((p) => p.key === key);
+        if (pkg) {
+          pkg.manifest.version = newVersion;
+          writeJson(pkg.manifestPathAbs, pkg.manifest);
+
+          // Update CHANGELOG.md now that we are confirmed not in dry-run
+          const changelogPath = path.join(path.dirname(pkg.manifestPathAbs), "CHANGELOG.md");
+          updateChangelog(changelogPath, newVersion);
+        }
+      }
+    }
+
     writeJson(HASH_STATE_PATH, newSnapshot);
     console.log("\n✅ Updated .bump-hashes.json");
     if (bumpedByKey.size > 0) {
