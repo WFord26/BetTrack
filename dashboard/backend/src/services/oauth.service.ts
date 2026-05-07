@@ -108,8 +108,31 @@ export class OAuthService {
     return firstAllowedOrigin() || deriveFrontendOriginFromBaseUrl();
   }
 
-  buildFrontendRedirect(path: string): string {
-    return new URL(path, this.getFrontendOrigin()).toString();
+  /**
+   * Validate that `origin` is one of the explicitly allowed CORS origins.
+   * Returns the normalised origin (scheme + host) if valid, null otherwise.
+   * Callers MUST NOT trust this value for anything security-critical beyond
+   * choosing where to redirect an already-authenticated session.
+   */
+  validateFrontendOrigin(origin: string | undefined): string | null {
+    if (!origin) return null;
+
+    let normalised: string;
+    try {
+      const url = new URL(origin);
+      // Keep only scheme + host (drop path/query/fragment if accidentally included)
+      normalised = `${url.protocol}//${url.host}`;
+    } catch {
+      return null;
+    }
+
+    const allowed = allowedOrigins();
+    return allowed.includes(normalised) ? normalised : null;
+  }
+
+  buildFrontendRedirect(path: string, frontendOrigin?: string): string {
+    const origin = frontendOrigin ?? this.getFrontendOrigin();
+    return new URL(path, origin).toString();
   }
 
   buildAuthorizationUrl(provider: AuthProvider, state: string): string {

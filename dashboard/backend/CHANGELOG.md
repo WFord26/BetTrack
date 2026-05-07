@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.14] - 2026-05-07
+
+### Fixed
+
+- **OAuth callback redirects to initiating frontend** (`routes/auth.routes.ts`, `services/oauth.service.ts`, `types/auth.types.ts`): When `CORS_ORIGIN` contains multiple allowed origins, every callback was redirected to the first entry regardless of which frontend started the login. Now `beginOAuth` captures and validates the `Origin` request header (falling back to `Referer`), stores the validated origin in the session, and `handleOAuthCallback` passes it to `buildFrontendRedirect`. Unrecognised origins are silently discarded and the existing fallback is used. (P2 issue — multi-origin / preview-env deployments)
+
+---
+
 ## [0.2.13] - 2026-05-07
 
 ### Fixed

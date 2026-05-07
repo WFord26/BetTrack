@@ -62,7 +62,10 @@ jest.mock('../src/services/oauth.service', () => {
       buildAuthorizationUrl: jest.fn((provider: string, state: string) =>
         `http://localhost/api/auth/${provider}/callback?state=${state}`
       ),
-      buildFrontendRedirect: jest.fn((path: string) => path),
+      buildFrontendRedirect: jest.fn((path: string, _origin?: string) => path),
+      validateFrontendOrigin: jest.fn((origin: string | undefined) =>
+        origin === 'http://localhost:5173' ? origin : null
+      ),
       authenticate: jest.fn().mockResolvedValue({
         id: 'test-user-id',
         email: 'test@example.com',
@@ -518,6 +521,121 @@ describe('Auth Routes', () => {
 
       expect(response.status).toBe(200);
       expect(mockLoggerInfo).toHaveBeenCalledWith('User logged out: undefined');
+    });
+  });
+
+  describe('Multi-origin OAuth redirect', () => {
+    it('stores a validated Origin header in the session during beginOAuth', async () => {
+      const { ensureAuthSession, saveAuthSession } = jest.requireMock(
+        '../src/middleware/auth-session.middleware'
+      );
+
+      const capturedSession: any = {};
+      (ensureAuthSession as jest.MockedFunction<any>).mockImplementationOnce(
+        async (_req: any, _res: any) => capturedSession
+      );
+
+      await request(app)
+        .get('/auth/google')
+        .set('Origin', 'http://localhost:5173');
+
+      expect(capturedSession.frontendOrigin).toBe('http://localhost:5173');
+      expect(saveAuthSession).toHaveBeenCalled();
+    });
+
+    it('does not store an unrecognised Origin header in the session', async () => {
+      const { ensureAuthSession } = jest.requireMock(
+        '../src/middleware/auth-session.middleware'
+      );
+
+      const capturedSession: any = {};
+      (ensureAuthSession as jest.MockedFunction<any>).mockImplementationOnce(
+        async (_req: any, _res: any) => capturedSession
+      );
+
+      await request(app)
+        .get('/auth/google')
+        .set('Origin', 'https://evil.example.com');
+
+      expect(capturedSession.frontendOrigin).toBeUndefined();
+    });
+
+    it('passes frontendOrigin from session to buildFrontendRedirect on success', async () => {
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'state-abc',
+          oauthProvider: 'google',
+          redirectPath: '/dashboard',
+          frontendOrigin: 'http://localhost:5173',
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      await request(callbackApp)
+        .get('/auth/google/callback?code=test-code&state=state-abc');
+
+      expect(oauthService.buildFrontendRedirect).toHaveBeenCalledWith(
+        '/dashboard',
+        'http://localhost:5173'
+      );
+    });
+
+    it('passes frontendOrigin to buildFrontendRedirect on IdP error', async () => {
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'state-abc',
+          oauthProvider: 'google',
+          frontendOrigin: 'http://localhost:5173',
+          expiresAt: Date.now() + 86400000,
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      await request(callbackApp)
+        .get('/auth/google/callback?error=access_denied');
+
+      expect(oauthService.buildFrontendRedirect).toHaveBeenCalledWith(
+        expect.stringContaining('google_auth_failed'),
+        'http://localhost:5173'
+      );
+    });
+
+    it('falls back to undefined origin when session has no frontendOrigin', async () => {
+      const { oauthService } = jest.requireMock('../src/services/oauth.service');
+
+      const callbackApp = express();
+      callbackApp.use(express.json());
+      callbackApp.use((req: any, _res, next) => {
+        req.authSession = {
+          id: 'mock-session-id',
+          oauthState: 'state-xyz',
+          oauthProvider: 'microsoft',
+          redirectPath: '/',
+          // no frontendOrigin
+        };
+        next();
+      });
+      callbackApp.use('/auth', authRoutes);
+
+      await request(callbackApp)
+        .get('/auth/microsoft/callback?code=test-code&state=state-xyz');
+
+      expect(oauthService.buildFrontendRedirect).toHaveBeenCalledWith(
+        '/',
+        undefined
+      );
     });
   });
 });

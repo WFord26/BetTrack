@@ -48,8 +48,8 @@ function getProviderError(provider: AuthProvider): string {
   return provider === 'google' ? 'google_auth_failed' : 'microsoft_auth_failed';
 }
 
-function redirectToFrontend(res: Response, path: string) {
-  res.redirect(oauthService.buildFrontendRedirect(path));
+function redirectToFrontend(res: Response, path: string, frontendOrigin?: string) {
+  res.redirect(oauthService.buildFrontendRedirect(path, frontendOrigin));
 }
 
 function ensureOAuthProvider(req: Request, res: Response, provider: AuthProvider): boolean {
@@ -79,9 +79,20 @@ async function beginOAuth(req: Request, res: Response, provider: AuthProvider) {
   const redirectPath = sanitizeRedirectPath(req.query.redirectTo);
   const state = crypto.randomBytes(24).toString('hex');
 
+  // Capture the frontend origin that started the login flow so the callback
+  // can redirect back to the correct host in multi-origin deployments.
+  // The Origin header is the most reliable signal (present on XHR/fetch and
+  // on the navigation request the frontend generates to /api/auth/<provider>).
+  // Referer is used as a fallback for browsers that omit Origin on same-site
+  // top-level navigations.
+  const rawOrigin = req.headers['origin'] as string | undefined
+    ?? (req.headers['referer'] ? new URL(req.headers['referer'] as string).origin : undefined);
+  const validatedOrigin = oauthService.validateFrontendOrigin(rawOrigin) ?? undefined;
+
   session.oauthState = state;
   session.oauthProvider = provider;
   session.redirectPath = redirectPath;
+  session.frontendOrigin = validatedOrigin;
 
   // SECURITY: Persist the mutated session BEFORE redirecting to the IdP.
   // RedisSessionStore JSON-serializes on write, so without this save the
@@ -104,8 +115,10 @@ async function handleOAuthCallback(req: Request, res: Response, provider: AuthPr
   const code = typeof req.query.code === 'string' ? req.query.code : null;
   const state = typeof req.query.state === 'string' ? req.query.state : null;
 
+  const frontendOrigin = session?.frontendOrigin;
+
   if (typeof req.query.error === 'string') {
-    redirectToFrontend(res, `/login?error=${providerError}`);
+    redirectToFrontend(res, `/login?error=${providerError}`, frontendOrigin);
     return;
   }
 
@@ -117,7 +130,7 @@ async function handleOAuthCallback(req: Request, res: Response, provider: AuthPr
     session.oauthProvider !== provider
   ) {
     await destroyAuthSession(req, res);
-    redirectToFrontend(res, `/login?error=${providerError}`);
+    redirectToFrontend(res, `/login?error=${providerError}`, frontendOrigin);
     return;
   }
 
@@ -128,7 +141,7 @@ async function handleOAuthCallback(req: Request, res: Response, provider: AuthPr
     await createAuthenticatedSession(req, res, user, redirectPath);
     logger.info(`User logged in via ${provider}: ${user.email}`);
 
-    redirectToFrontend(res, redirectPath);
+    redirectToFrontend(res, redirectPath, frontendOrigin);
   } catch (error) {
     const redirectError = error instanceof OAuthError
       ? error.redirectError
@@ -136,7 +149,7 @@ async function handleOAuthCallback(req: Request, res: Response, provider: AuthPr
 
     logger.error(`OAuth callback failed for ${provider}:`, error);
     await destroyAuthSession(req, res);
-    redirectToFrontend(res, `/login?error=${redirectError}`);
+    redirectToFrontend(res, `/login?error=${redirectError}`, frontendOrigin);
   }
 }
 
