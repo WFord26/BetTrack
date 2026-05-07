@@ -872,6 +872,6 @@ npm run test:coverage
 
 ## Next Steps
 
-- [Database Schema Guide](Database-Guide)
-- [Frontend Guide](Frontend-Guide)
-- [MCP Server Guide](MCP-Server-Guide)
+- [Database Schema Guide](Database-Guide.md)
+- [Frontend Guide](Frontend-Guide.md)
+- [MCP Server Guide](MCP-Server-Guide.md)

@@ -301,7 +301,7 @@ const betSlipSlice = createSlice({
 </div>
 ```
 
-**Full Guide**: [Frontend Guide](Frontend-Guide)
+**Full Guide**: [Frontend Guide](Frontend-Guide.md)
 
 ---
 
@@ -433,7 +433,7 @@ const games = await prisma.game.findMany({
 });
 ```
 
-**Full Guide**: [Backend Guide](Backend-Guide)
+**Full Guide**: [Backend Guide](Backend-Guide.md)
 
 ---
 
@@ -503,7 +503,7 @@ npm run prisma:studio
 # Opens at http://localhost:5555
 ```
 
-**Full Guide**: [Database Guide](Database-Guide)
+**Full Guide**: [Database Guide](Database-Guide.md)
 
 ---
 
@@ -790,7 +790,7 @@ curl https://api.yourdomain.com/api/admin/stats
 - `GET /api/admin/stats` - Database statistics
 - `GET /api/admin/health` - Health check
 
-**Full Documentation**: [API Documentation](API-DOCUMENTATION)
+**Full Documentation**: [API Documentation](API-DOCUMENTATION.md)
 
 ---
 
@@ -798,15 +798,15 @@ curl https://api.yourdomain.com/api/admin/stats
 
 ### Component-Specific
 
-- **[Frontend Guide](Frontend-Guide)** - Detailed React architecture
-- **[Backend Guide](Backend-Guide)** - Node.js API deep dive
-- **[Database Guide](Database-Guide)** - Schema and queries
+- **[Frontend Guide](Frontend-Guide.md)** - Detailed React architecture
+- **[Backend Guide](Backend-Guide.md)** - Node.js API deep dive
+- **[Database Guide](Database-Guide.md)** - Schema and queries
 
 ### General
 
-- **[Quick Start](Quick-Start)** - Setup in 15 minutes
-- **[Developer Guide](Developer-Guide)** - Contributing workflow
-- **[MCP Server Guide](MCP-Server-Guide)** - Claude Desktop integration
+- **[Quick Start](Quick-Start.md)** - Setup in 15 minutes
+- **[Developer Guide](Developer-Guide.md)** - Contributing workflow
+- **[MCP Server Guide](MCP-Server-Guide.md)** - Claude Desktop integration
 
 ---
 

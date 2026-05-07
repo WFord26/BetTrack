@@ -4,13 +4,13 @@
   "version": "0.2.1",
   "description": "MCP server providing sports data from The Odds API and ESPN API with natural language query support",
   "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com"
+    "name": "BetTrack Contributors",
+    "email": "info@bettrack.dev"
   },
-  "homepage": "https://github.com/yourusername/sports-odds-mcp",
+  "homepage": "https://github.com/WFord26/BetTrack",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/sports-odds-mcp.git"
+    "url": "https://github.com/WFord26/BetTrack.git"
   },
   "icon": "icon.png",
   "server": {

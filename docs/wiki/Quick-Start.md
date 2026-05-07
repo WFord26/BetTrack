@@ -26,8 +26,8 @@ Get BetTrack up and running in minutes! Choose your path based on what you want 
 
 ### Step 2: Download & Install
 
-1. Go to [Releases](https://github.com/yourusername/BetTrack/releases)
-2. Download latest `.mcpb` file (e.g., `sports-data-mcp-v0.1.13.mcpb`)
+1. Go to [Releases](https://github.com/WFord26/BetTrack/releases)
+2. Download latest `.mcpb` file (e.g., `sports-data-mcp-v0.2.1.mcpb`)
 3. Open **Claude Desktop**
 4. Go to **Settings** → **Developer**
 5. Click **"Install MCP Package"**
@@ -82,7 +82,7 @@ Claude should respond with game information and betting lines!
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/BetTrack.git
+git clone https://github.com/WFord26/BetTrack.git
 cd BetTrack/dashboard
 ```
 
@@ -316,7 +316,7 @@ cat > .env << EOF
 DATABASE_URL=postgresql://postgres:password@postgres:5432/bettrack
 ODDS_API_KEY=your_api_key
 SESSION_SECRET=$(openssl rand -hex 32)
-GITHUB_OWNER=yourusername
+GITHUB_OWNER=WFord26
 VERSION=latest
 EOF
 ```
@@ -361,8 +361,8 @@ docker-compose exec backend npm run sync:odds
 
 ```bash
 # Pull images from GitHub Container Registry
-docker pull ghcr.io/yourusername/bettrack-backend:latest
-docker pull ghcr.io/yourusername/bettrack-frontend:latest
+docker pull ghcr.io/WFord26/bettrack-backend:latest
+docker pull ghcr.io/WFord26/bettrack-frontend:latest
 
 # Run with docker-compose
 cd dashboard
@@ -400,11 +400,11 @@ curl https://api.yourdomain.com/api/admin/stats
 
 ### Learn More
 
-- [MCP Server Guide](MCP-Server-Guide) - Deep dive into MCP tools and architecture
-- [Frontend Guide](Frontend-Guide) - React components and state management
-- [Backend Guide](Backend-Guide) - API routes and services
-- [Database Guide](Database-Guide) - Schema and queries
-- [API Documentation](API-DOCUMENTATION) - Complete API reference
+- [MCP Server Guide](MCP-Server-Guide.md) - Deep dive into MCP tools and architecture
+- [Frontend Guide](Frontend-Guide.md) - React components and state management
+- [Backend Guide](Backend-Guide.md) - API routes and services
+- [Database Guide](Database-Guide.md) - Schema and queries
+- [API Documentation](API-DOCUMENTATION.md) - Complete API reference
 
 ### Customize
 
@@ -415,9 +415,9 @@ curl https://api.yourdomain.com/api/admin/stats
 
 ### Get Help
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/BetTrack/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/BetTrack/discussions)
-- **Documentation**: [Wiki Home](home)
+- **Issues**: [GitHub Issues](https://github.com/WFord26/BetTrack/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/WFord26/BetTrack/discussions)
+- **Documentation**: [Wiki Home](home.md)
 
 ---
 
