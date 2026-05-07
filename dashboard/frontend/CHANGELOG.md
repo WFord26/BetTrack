@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.11] - 2026-05-07
+
 ### Added
 
 - **Admin Data Sync controls** (`pages/AdminSettings.tsx`): New "Data Sync" section with Initialize Sports and Sync Odds buttons, sport selector dropdown, and inline running/success/error feedback for each action
