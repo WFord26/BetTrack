@@ -264,8 +264,10 @@ export default function BetCard({ bet }: BetCardProps) {
             className="absolute inset-0 rounded-lg overflow-hidden"
             style={{
               backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
               boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
               imageRendering: 'pixelated',
+              backgroundColor: isDarkMode ? '#374151' : '#ffffff',
               backgroundImage: `url(${isDarkMode ? '/cards/spade-dark.svg' : '/cards/spade-light.svg'})`,
               backgroundSize: '150%',
               backgroundPosition: 'center',
@@ -408,9 +410,11 @@ export default function BetCard({ bet }: BetCardProps) {
           className="absolute inset-0 rounded-lg overflow-hidden"
           style={{
             backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
             boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
             imageRendering: 'pixelated',
+            backgroundColor: isDarkMode ? '#374151' : '#ffffff',
             backgroundImage: `url(${isDarkMode ? '/cards/spade-dark.svg' : '/cards/spade-light.svg'})`,
             backgroundSize: '150%',
             backgroundPosition: 'center',
@@ -423,9 +427,9 @@ export default function BetCard({ bet }: BetCardProps) {
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#dc2626 rgba(0,0,0,0.1)',
                 boxSizing: 'border-box',
-                padding: '50px 60px 60px 60px',
+                padding: '24px 24px 24px 24px',
                 height: '100%',
-                maxHeight: '320px'
+                maxHeight: '430px'
               }}
             >
               <style>{`
