@@ -65,8 +65,8 @@ const SPORT_CONFIG: Record<string, {
     category: 'professional',
     baseKey: 'soccer'
   },
-  'baseball_mlb': { 
-    image: '/sports/basketball.svg', // fallback
+  'baseball_mlb': {
+    image: '/sports/baseball.svg',
     displayName: 'MLB',
     category: 'professional',
     baseKey: 'baseball'

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Futures sync 401 error** (`pages/Futures.tsx`): Replaced raw `fetch()` calls with `apiClient` so the session cookie is included on cross-origin requests to `/api/admin/sync-futures` and `/api/futures`
+- **MLB sport icon** (`components/filters/GameFilters.tsx`, `public/sports/baseball.svg`): MLB filter button now shows a baseball instead of a basketball; added new `baseball.svg` asset
 
 ---
 
