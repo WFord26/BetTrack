@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.15] - 2026-05-07
+
+---
+
+## [0.2.15] - 2026-05-07
+
+### Fixed
+
+- **Missing Prisma migration for three schema indexes** (`prisma/migrations/20260507000001_add_missing_indexes/migration.sql`): Three indexes present in `schema.prisma` had no corresponding migration SQL, so `prisma migrate deploy` (used by CI and the production Dockerfile) never created them in deployed databases: `api_keys_key_prefix_idx` (O(1) API-key auth lookup, P2 infra hardening), `odds_snapshots_game_id_idx`, and `odds_snapshots_captured_at_idx` (line-movement and CLV-capture queries). All three `CREATE INDEX IF NOT EXISTS` statements are safe to apply on a live database.
+
+---
+
 ## [0.2.14] - 2026-05-07
 
 ### Fixed

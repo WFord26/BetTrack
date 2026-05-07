@@ -27,7 +27,7 @@
     },
     "dashboard/backend": {
       "name": "@wford26/bettrack-backend",
-      "hash": "8c641092c27c5af52ec09b33e349ecb533a4ee1af5c96367d0b7a501beb2ba09",
+      "hash": "0aad8cc7de1b101168391a096c82163592a0a7d327049a19a159d204b39a5626",
       "files": {
         "dashboard/backend/.dockerignore": "3e9dfe9f05211b9b2cb2775e9861b5f4e2fa614a0773a6c71283404498391d8e",
         "dashboard/backend/.env": "77d8f9c4b77c705eec7aa7b226f41e7007b8c18e7c2adfcba337975ee87df79b",
@@ -49,6 +49,7 @@
         "dashboard/backend/prisma/migrations/20260129012719_v_2_0_0/migration.sql": "636f6d18c7bd3103fd466174bd9f9af3511357e30faf7be1029337f7f00784df",
         "dashboard/backend/prisma/migrations/20260203184631_add_api_sports_ids/migration.sql": "83762ea786416bafeb74064445903ab574142d7852164c029b4cd02fb769888c",
         "dashboard/backend/prisma/migrations/20260204054212_add_clv_tracking/migration.sql": "9d26437aa1463c2ca897273a08bc8444847c79138cded8d9b427320054ea94e6",
+        "dashboard/backend/prisma/migrations/20260507000001_add_missing_indexes/migration.sql": "33eac64361e89f2a8e5ee82c91834a2bac0eebd428d2b6071e869d872681404b",
         "dashboard/backend/prisma/migrations/manual_api_keys.sql": "e911b025f48cd84edc9921a28fbf0217406d94cdac7570e4585a07b474af5b96",
         "dashboard/backend/prisma/migrations/migration_lock.toml": "693566b52c49db47a2b0901d12400aa3d710d13a49f4a2a154b80c0505ed737c",
         "dashboard/backend/prisma/schema.prisma": "0bdc378daa9da3ac7f7562a6910cbda3280994848987fa88a2183a5827b13025",
