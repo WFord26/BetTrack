@@ -216,12 +216,27 @@ function normalizeUser(user: {
  * Loads session from Redis (or in-memory fallback)
  */
 export async function attachAuthSession(req: Request, res: Response, next: NextFunction) {
+  req.isAuthenticated = () => Boolean(req.user);
+
+  // In no-auth mode, attach a synthetic admin user so admin routes remain
+  // accessible without requiring an OAuth flow to be configured.
+  if (env.AUTH_MODE === 'none') {
+    req.user = {
+      id: 'local-admin',
+      email: 'admin@local',
+      name: 'Local Admin',
+      avatarUrl: null,
+      provider: 'none',
+      isAdmin: true,
+      isActive: true,
+    };
+    return next();
+  }
+
   try {
     const sessionStore = getSessionStore();
     const cookies = parseCookies(req.headers.cookie);
     const rawSessionCookie = cookies[SESSION_COOKIE_NAME];
-
-    req.isAuthenticated = () => Boolean(req.user);
 
     if (!rawSessionCookie) {
       return next();

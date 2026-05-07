@@ -4,6 +4,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useDarkMode } from '../contexts/DarkModeContext';
 import { formatOdds } from '../utils/format';
 import { addFutureLeg } from '../store/betSlipSlice';
+import apiClient from '../services/api';
 
 interface Outcome {
   outcome: string;
@@ -43,19 +44,13 @@ export default function Futures() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams();
       if (selectedSport !== 'all') {
         params.append('sportKey', selectedSport);
       }
 
-      const response = await fetch(`http://localhost:3001/api/futures?${params}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch futures');
-      }
-
-      const data = await response.json();
+      const { data } = await apiClient.get(`/futures?${params}`);
       setFutures(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -66,16 +61,10 @@ export default function Futures() {
 
   const handleSync = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/admin/sync-futures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sportKey: selectedSport === 'all' ? null : selectedSport })
+      await apiClient.post('/admin/sync-futures', {
+        sportKey: selectedSport === 'all' ? null : selectedSport
       });
-
-      if (response.ok) {
-        // Wait a few seconds for sync to complete, then refresh
-        setTimeout(() => fetchFutures(), 3000);
-      }
+      setTimeout(() => fetchFutures(), 3000);
     } catch (err) {
       console.error('Sync failed:', err);
     }

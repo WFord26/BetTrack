@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Admin routes inaccessible in no-auth mode** (`middleware/auth-session.middleware.ts`): When `AUTH_MODE=none`, `attachAuthSession` now attaches a synthetic local admin user so `requireAdminAccess` is satisfied without an OAuth flow being configured
+
 ---
 
 ## [0.2.12] - 2026-05-06

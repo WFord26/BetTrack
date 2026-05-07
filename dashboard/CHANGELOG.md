@@ -1,3 +1,4 @@
+
 # Dashboard Changelog
 
 All notable changes to the Sports Odds Dashboard will be documented in this file.

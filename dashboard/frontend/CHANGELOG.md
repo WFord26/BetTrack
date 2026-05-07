@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Admin Data Sync controls** (`pages/AdminSettings.tsx`): New "Data Sync" section with Initialize Sports and Sync Odds buttons, sport selector dropdown, and inline running/success/error feedback for each action
+
+### Fixed
+
+- **Futures sync 401 error** (`pages/Futures.tsx`): Replaced raw `fetch()` calls with `apiClient` so the session cookie is included on cross-origin requests to `/api/admin/sync-futures` and `/api/futures`
+
 ---
 
 ## [0.3.10] - 2026-05-06
