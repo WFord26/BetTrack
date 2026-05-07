@@ -166,7 +166,7 @@ function App() {
             <AuthProvider>
               <div className="app h-full flex flex-col">
                 <Header />
-              <main className="flex-1 overflow-hidden">
+              <main className="flex-1 overflow-y-auto">
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/" element={<Home />} />

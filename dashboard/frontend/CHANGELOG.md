@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.12] - 2026-05-07
+
+### Fixed
+
+- **BetCard front/back bleed-through** (`components/bets/BetCard.tsx`): Replaced broken CSS 3D `rotateY` flip with opacity/visibility toggle so the front-face text no longer renders through the back face
+- **Header logo too small** (`components/Header.tsx`): Increased logo from `h-8` (32px) to `h-16` (64px) for better visibility
+- **Page scroll blocked** (`App.tsx`): Changed `<main>` wrapper from `overflow-hidden` to `overflow-y-auto` so all pages can scroll
+
+---
+
 ## [0.3.11] - 2026-05-07
 
 ### Added

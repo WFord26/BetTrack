@@ -143,7 +143,7 @@
     },
     "dashboard/frontend": {
       "name": "@wford26/bettrack-frontend",
-      "hash": "ce00697e59d538255e41bc964877b72f455f67d30c6f2ae744b83ba8b98379e5",
+      "hash": "43a9bf0e511b9657b7a063288f4f550e4dfd4b5cf927a470de6b85a7a172510f",
       "files": {
         "dashboard/frontend/.env": "7179baa64d195ca406e46380eb2cbcb93dd995ad0e77e0e13cef7eb464e2dd91",
         "dashboard/frontend/.env.example": "eebfc913c8d4337cbbbca6032303d52f89e6101b806c08e44e0db27b10539bee",
@@ -209,8 +209,8 @@
         "dashboard/frontend/public/yeehaw_badge.gif": "65e1ce846e0a5f1dc5dc33e8b8c021a4dc362750fbe3d8f70c789caf18f2e6f5",
         "dashboard/frontend/public/yeehaw_speech_bubble_ultimate.gif": "869f647b46e08ec60d595d8151f82603b99cf2d02d135cef74da5ab0c7e81f38",
         "dashboard/frontend/README.md": "f36fbaaf1686d836bede0449b66d7748c2dab3d4f3029c893e77dcfb261c6a85",
-        "dashboard/frontend/src/App.tsx": "7eaebc750f5561eb67f8564ecb880ec45e8ed00d880a391c3ed72c18adc23942",
-        "dashboard/frontend/src/components/bets/BetCard.tsx": "7875a662e3cb133625b2afed8ecca8b6f0ef274ac9568691042f3b9550e67b10",
+        "dashboard/frontend/src/App.tsx": "840df3aa08830811cec40ac8b93fc301479762631a9de64849347a358612e21a",
+        "dashboard/frontend/src/components/bets/BetCard.tsx": "27f4abbb5292cef874e36c595303bc8c94930e997f42f70125d9fa71dc9b4a12",
         "dashboard/frontend/src/components/bets/BetLegItem.tsx": "11891256118d7c552342390abacf3928e334f9ca547554abf9ac084562423c32",
         "dashboard/frontend/src/components/bets/BetSlip.test.tsx": "3535f999e1edc4753924a7e3c983a53dc3e0122531e215b90ed1dbfdab0404f2",
         "dashboard/frontend/src/components/bets/BetSlip.tsx": "a574ef1fe9521e6f4036b28925699c10f0f2fa0bd027a2b69ef58285c0bc07d9",
@@ -219,7 +219,7 @@
         "dashboard/frontend/src/components/ErrorBoundary.tsx": "4212adf381e2dbf57e406493bef6c13cb91074356c4bbbc6d009d0a4af5e25c4",
         "dashboard/frontend/src/components/filters/GameFilters.tsx": "aa3f55fcb1c34c22cf44b571869f241c1b9973c33ab04fa83800c6176b6b331a",
         "dashboard/frontend/src/components/Footer.tsx": "3617cf6262026ce83d76381d00bab91e84a2119ec9ceac50fcc7b21a2e53cf0e",
-        "dashboard/frontend/src/components/Header.tsx": "680fe0de0b11e41469ffd1bb264ee1f4f7b1fd2778713f73b4aa2fb59fd97b14",
+        "dashboard/frontend/src/components/Header.tsx": "ad77f047c2c33a349a262fdd942af155de5dbcf389d319258e62da95638fc0c4",
         "dashboard/frontend/src/components/odds/EnhancedGameCard.tsx": "635fe4dc91b334dee5cebc6fc3739bb98b2ce5b9f9317235e0a1abc811835322",
         "dashboard/frontend/src/components/odds/GameCard.tsx": "89364f7e7eb322c48392c0431d7a4e16e608ef6a7481afdcc5f5e35e04a4d755",
         "dashboard/frontend/src/components/odds/OddsCell.test.tsx": "7bae99838b9f3634fd4458bebff377bab4440de04e0f3d5ef362f24e8a0350bb",

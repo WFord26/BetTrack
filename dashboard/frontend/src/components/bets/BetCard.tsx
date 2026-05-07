@@ -248,30 +248,26 @@ export default function BetCard({ bet }: BetCardProps) {
           width: '100%',
           margin: 0,
           padding: 0,
-          overflow: 'hidden'
         }}
         onClick={() => setIsFlipped(!isFlipped)}
       >
         <div
-          className="relative w-full h-full transition-transform duration-700"
-          style={{
-            transformStyle: 'preserve-3d',
-            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
-          }}
+          className="relative w-full h-full"
         >
           {/* FRONT OF CARD */}
           <div 
-            className="absolute inset-0 rounded-lg overflow-hidden"
+            className="absolute inset-0 rounded-lg overflow-hidden transition-opacity duration-300"
             style={{
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
               boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
               imageRendering: 'pixelated',
               backgroundColor: isDarkMode ? '#374151' : '#ffffff',
               backgroundImage: `url(${isDarkMode ? '/cards/spade-dark.svg' : '/cards/spade-light.svg'})`,
               backgroundSize: '150%',
               backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat'
+              backgroundRepeat: 'no-repeat',
+              opacity: isFlipped ? 0 : 1,
+              pointerEvents: isFlipped ? 'none' : 'auto',
+              visibility: isFlipped ? 'hidden' : 'visible',
             }}
           >
           {/* Status Badge - Upper Right Corner Inside Card */}
@@ -407,18 +403,18 @@ export default function BetCard({ bet }: BetCardProps) {
 
           {/* BACK OF CARD */}
           <div 
-          className="absolute inset-0 rounded-lg overflow-hidden"
+          className="absolute inset-0 rounded-lg overflow-hidden transition-opacity duration-300"
           style={{
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-            transform: 'rotateY(180deg)',
             boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
             imageRendering: 'pixelated',
             backgroundColor: isDarkMode ? '#374151' : '#ffffff',
             backgroundImage: `url(${isDarkMode ? '/cards/spade-dark.svg' : '/cards/spade-light.svg'})`,
             backgroundSize: '150%',
             backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
+            backgroundRepeat: 'no-repeat',
+            opacity: isFlipped ? 1 : 0,
+            pointerEvents: isFlipped ? 'auto' : 'none',
+            visibility: isFlipped ? 'visible' : 'hidden',
           }}
         >
             <div 

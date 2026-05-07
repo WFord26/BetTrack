@@ -233,7 +233,7 @@ export default function Header() {
                 src={siteConfig.logoUrl}
                 alt=""
                 aria-hidden="true"
-                className="h-8 w-auto object-contain"
+                className="h-16 w-auto object-contain"
                 onError={e => {
                   (e.target as HTMLImageElement).style.display = 'none';
                   (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');

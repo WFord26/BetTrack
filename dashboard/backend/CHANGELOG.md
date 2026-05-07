@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **OAuth callback redirects to initiating frontend** (`routes/auth.routes.ts`, `services/oauth.service.ts`, `types/auth.types.ts`): When `CORS_ORIGIN` contains multiple allowed origins, callbacks now redirect to the origin that started the login instead of always using the first entry
+- **Dry-run mode dirtied worktree** (`scripts/bump-version.mjs`): `npm run bump -- --dry-run` no longer writes to `package.json` or `CHANGELOG.md` files; all writes are gated behind the non-dry-run branch
+
 ---
 
 
