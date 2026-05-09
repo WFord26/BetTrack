@@ -356,9 +356,14 @@ router.get('/health', async (_req: Request, res: Response) => {
     const syncStatus = getOddsSyncStatus();
     const requestsRemaining = syncStatus.lastResult?.requestsRemaining;
 
+    // Read version from package.json at runtime
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { version } = require('../../package.json') as { version: string };
+
     res.json({
       status: 'success',
       data: {
+        version,
         database: 'connected',
         dataInitialized: sportsCount > 0,
         hasGames: gamesCount > 0,
