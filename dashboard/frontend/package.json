@@ -1,6 +1,6 @@
 {
   "name": "@wford26/bettrack-frontend",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "type": "module",
   "scripts": {
     "dev": "vite",

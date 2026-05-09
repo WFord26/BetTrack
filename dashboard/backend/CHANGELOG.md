@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.16] - 2026-05-08
+
 ### Added
 
 - **Bookmaker Disagreement Detection — Phase 1** (Issue #4): Detects market uncertainty by calculating consensus lines and disagreement scores across all bookmakers for each upcoming game.

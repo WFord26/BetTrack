@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.13] - 2026-05-08
+
 ### Added
 
 - **Bookmaker Disagreement Detection — Phase 1** (Issue #4): New analytics feature to surface value opportunities where bookmakers strongly disagree.
