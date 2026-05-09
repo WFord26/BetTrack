@@ -24,6 +24,7 @@ export default function GameDetail() {
   const navigate = useNavigate();
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchGame() {
@@ -32,11 +33,33 @@ export default function GameDetail() {
       try {
         const response = await fetch(`/api/games/${gameId}`);
         if (response.ok) {
-          const data = await response.json();
-          setGame(data);
+          const result = await response.json();
+          const gameData = result.data || result;
+          
+          // Transform the game data to flatten sport fields
+          const transformedGame: Game = {
+            id: gameData.id,
+            sportKey: gameData.sport?.key || '',
+            sportName: gameData.sport?.name || '',
+            awayTeamId: gameData.awayTeamId,
+            homeTeamId: gameData.homeTeamId,
+            awayTeamName: gameData.awayTeamName,
+            homeTeamName: gameData.homeTeamName,
+            commenceTime: gameData.commenceTime,
+            status: gameData.status,
+            completed: gameData.status === 'final',
+            venue: gameData.venue,
+            homeScore: gameData.homeScore,
+            awayScore: gameData.awayScore
+          };
+          
+          setGame(transformedGame);
+        } else {
+          setError('Game not found');
         }
       } catch (error) {
         console.error('Error fetching game:', error);
+        setError('Failed to load game details');
       } finally {
         setLoading(false);
       }
@@ -98,13 +121,39 @@ export default function GameDetail() {
         )}
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin mb-4">
+              <div className="w-8 h-8 border-4 border-blue-400 border-t-transparent rounded-full" />
+            </div>
+            <p className="text-gray-400">Loading game details...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {!loading && error && (
+        <div className="bg-red-900/20 border border-red-500 rounded-lg p-6 mb-6">
+          <h2 className="text-red-400 font-bold text-xl mb-2">Error</h2>
+          <p className="text-red-300 mb-4">{error}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      )}
+
       {/* Game Matchup Card */}
       {!loading && game && (
         <div className="bg-gray-800 rounded-lg p-6 mb-6">
           <div className="grid grid-cols-3 gap-8 items-center">
             {/* Away Team */}
             <Link 
-              to={`/team/${game.awayTeamId}`}
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.awayTeamName)}`}
               className="text-center hover:opacity-80 transition-opacity"
             >
               <div className="text-4xl mb-2">🏀</div>
@@ -140,7 +189,7 @@ export default function GameDetail() {
 
             {/* Home Team */}
             <Link 
-              to={`/team/${game.homeTeamId}`}
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.homeTeamName)}`}
               className="text-center hover:opacity-80 transition-opacity"
             >
               <div className="text-4xl mb-2">🏀</div>

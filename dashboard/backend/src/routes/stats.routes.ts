@@ -274,6 +274,126 @@ router.get('/team/:teamId', async (req: Request, res: Response, next: NextFuncti
   }
 });
 
+// GET /api/stats/teams/:league/:teamName
+// Look up team stats by sport league key and team name (used by /teams/:league/:teamName URL pattern)
+router.get('/teams/:league/:teamName', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { league, teamName } = req.params;
+    const { season, location } = req.query;
+
+    // Find the sport by league key
+    const sport = await prisma.sport.findFirst({
+      where: { key: league },
+    });
+
+    if (!sport) {
+      return res.status(404).json({ success: false, error: `League not found: ${league}` });
+    }
+
+    // Find team by name (case-insensitive) within the sport
+    const team = await prisma.team.findFirst({
+      where: {
+        sportId: sport.id,
+        name: { equals: decodeURIComponent(teamName), mode: 'insensitive' },
+      },
+    });
+
+    if (!team) {
+      // Team not in DB yet — return basic info with empty stats so the page renders
+      return res.json({
+        success: true,
+        data: {
+          team: { id: null, name: decodeURIComponent(teamName), abbreviation: null, logoUrl: null, league },
+          seasonStats: null,
+          gameHistory: [],
+          splits: {
+            home: { games: 0, averages: {} },
+            away: { games: 0, averages: {} },
+            overall: { games: 0, averages: {} },
+          },
+        },
+      });
+    }
+
+    // Reuse existing team stats logic with the resolved numeric teamId
+    const teamId = team.id;
+    const where: any = { teamId };
+
+    if (location === 'home') where.isHome = true;
+    else if (location === 'away') where.isHome = false;
+
+    if (season) {
+      where.game = {
+        commenceTime: {
+          gte: new Date(parseInt(season as string), 0, 1),
+          lt: new Date(parseInt(season as string) + 1, 0, 1),
+        },
+      };
+    }
+
+    const teamStats = await prisma.teamStats.findFirst({
+      where: {
+        teamId,
+        season: season ? parseInt(season as string) : new Date().getFullYear(),
+      },
+      include: { team: true },
+    });
+
+    const gameHistory = await prisma.gameStats.findMany({
+      where,
+      include: {
+        game: {
+          select: {
+            id: true,
+            homeTeamName: true,
+            awayTeamName: true,
+            commenceTime: true,
+            status: true,
+            homeScore: true,
+            awayScore: true,
+          },
+        },
+      },
+      orderBy: { game: { commenceTime: 'desc' } },
+      take: 20,
+    });
+
+    const homeGames = await prisma.gameStats.findMany({ where: { teamId, isHome: true } });
+    const awayGames = await prisma.gameStats.findMany({ where: { teamId, isHome: false } });
+
+    const calculateAvgStats = (games: any[]) => {
+      if (games.length === 0) return {};
+      const totals = games.reduce((acc, game) => {
+        const stats = game.stats as any;
+        Object.keys(stats).forEach(key => {
+          if (typeof stats[key] === 'number') acc[key] = (acc[key] || 0) + stats[key];
+        });
+        return acc;
+      }, {} as any);
+      const averages: any = {};
+      Object.keys(totals).forEach(key => { averages[key] = (totals[key] / games.length).toFixed(1); });
+      return averages;
+    };
+
+    res.json({
+      success: true,
+      data: {
+        team: { id: team.id, name: team.name, abbreviation: team.abbreviation, logoUrl: team.logoUrl, league },
+        seasonStats: teamStats,
+        gameHistory,
+        splits: {
+          home: { games: homeGames.length, averages: calculateAvgStats(homeGames) },
+          away: { games: awayGames.length, averages: calculateAvgStats(awayGames) },
+          overall: { games: homeGames.length + awayGames.length, averages: calculateAvgStats([...homeGames, ...awayGames]) },
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Error fetching team stats by league/name:', error);
+    next(error);
+  }
+});
+
 // GET /api/stats/player/:playerId
 router.get('/player/:playerId', async (req: Request, res: Response, next: NextFunction) => {
   try {

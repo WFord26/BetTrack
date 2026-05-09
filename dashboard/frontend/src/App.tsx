@@ -179,7 +179,7 @@ function App() {
                   <Route path="/analytics/clv" element={<ProtectedRoute><CLVAnalytics /></ProtectedRoute>} />
                   <Route path="/analytics/disagreement" element={<ProtectedRoute><ValueOpportunities /></ProtectedRoute>} />
                   <Route path="/game/:gameId" element={<ProtectedRoute><GameDetail /></ProtectedRoute>} />
-                  <Route path="/team/:teamId" element={<ProtectedRoute><TeamDetail /></ProtectedRoute>} />
+                  <Route path="/teams/:league/:teamName" element={<ProtectedRoute><TeamDetail /></ProtectedRoute>} />
                   <Route path="/settings/preferences" element={<ProtectedRoute><Preferences /></ProtectedRoute>} />
                   <Route path="/settings/api-keys" element={<ProtectedRoute><ApiKeysSettings /></ProtectedRoute>} />
                   <Route path="/settings/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />

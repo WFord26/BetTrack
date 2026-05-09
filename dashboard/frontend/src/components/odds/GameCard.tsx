@@ -205,7 +205,7 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
           <div className="flex items-center justify-between">
             <div>
               <Link 
-                to={`/team/${game.id}-away`} 
+                to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.awayTeamName)}`} 
                 className="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
                 {game.awayTeamName}
@@ -283,7 +283,7 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
           <div className="flex items-center justify-between">
             <div>
               <Link 
-                to={`/team/${game.id}-home`} 
+                to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.homeTeamName)}`} 
                 className="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
                 {game.homeTeamName}
@@ -347,7 +347,7 @@ export default function GameCard({ game, onSelect, selectedBets = new Set(), use
         <div className="flex items-center justify-between px-4 py-3">
           <div>
             <Link 
-              to={`/team/${game.id}-home`} 
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.homeTeamName)}`} 
               className="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
               {game.homeTeamName}

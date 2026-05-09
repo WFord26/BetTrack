@@ -470,7 +470,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
 
       {/* View Details Button */}
       <Link
-        to={`/games/${game.id}`}
+        to={`/game/${game.id}`}
         className="block mt-2 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-center font-bold text-[10px] tracking-wider transition-all transform hover:scale-[1.02]"
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
