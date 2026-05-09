@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/jobs/consensus-calc.job.ts`: Scheduled job (`*/15 * * * *`) that runs batch consensus calculation on startup and every 15 minutes.
   - `src/routes/analytics-disagreement.routes.ts`: Four new authenticated endpoints: `GET /api/analytics/disagreement/live`, `GET /api/analytics/disagreement/game/:gameId`, `GET /api/analytics/disagreement/trends`, `GET /api/analytics/disagreement/bookmaker/:bookmaker`.
   - `src/server.ts`: `startConsensusCalcJob()` registered alongside existing scheduled jobs.
+- **Team stats lookup by league and name** (`src/routes/stats.routes.ts`): New `GET /api/stats/teams/:league/:teamName` endpoint resolves a team by sport key and case-insensitive name, then returns season stats, home/away/overall splits, and recent game history. When the team has no record in the database yet the endpoint returns the team name and empty splits so the frontend page always renders.
 
 ### Fixed
 

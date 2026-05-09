@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/pages/ValueOpportunities.tsx`: Full page at `/analytics/disagreement` with filters (min score, sport, time-to-game) and sort controls.
   - `src/App.tsx`: Route registered at `/analytics/disagreement`.
 
+### Fixed
+
+- **Game detail page blank on load** (`pages/GameDetail.tsx`): Page was setting the raw API response (`{ status, data }` envelope) as the game state instead of extracting `result.data`. Added proper data extraction, a loading spinner, and an error state with a "Go Back" button.
+- **Game detail API data mapping** (`pages/GameDetail.tsx`): Backend returns sport info as a nested `sport` object (`sport.key`, `sport.name`). Added a transform that flattens these into the `sportKey`/`sportName` fields expected by the component.
+- **EnhancedGameCard "VIEW DETAILS" link** (`components/odds/EnhancedGameCard.tsx`): Link pointed to `/games/:id` (with an "s") instead of the registered route `/game/:id`, causing navigation to a 404 route.
+- **Team page route redesign** (`App.tsx`, `pages/TeamDetail.tsx`, `components/stats/TeamStatsView.tsx`, `components/odds/GameCard.tsx`, `pages/GameDetail.tsx`): Team links previously used internal numeric IDs (`/team/:teamId`) that were unavailable from game data. Routes and all link sources updated to use `/teams/:league/:teamName` (e.g. `/teams/baseball_mlb/New%20York%20Yankees`) so any team can be navigated to directly from a game card.
+
 ---
 
 ## [0.3.12] - 2026-05-07
