@@ -1,6 +1,6 @@
 import { OddsSnapshot, LineMovement, PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { prisma } from '../config/database';
+import { prisma as defaultPrisma } from '../config/database';
 import { logger } from '../config/logger';
 
 interface LineMovementData {
@@ -26,11 +26,11 @@ interface OddsMovementSnapshot {
 }
 
 export class LineMovementService {
-  /**
-   * Detect line movements by comparing recent odds snapshots
-   * Compares snapshots taken ~5 minutes apart to identify movements
-   */
-  async detectMovements(gameId: string, checkBackMinutes: number = 10): Promise<LineMovement[]> {
+  private prisma: PrismaClient;
+
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma || defaultPrisma;
+  }
     const createdMovements: LineMovement[] = [];
 
     try {
@@ -329,9 +329,6 @@ export class LineMovementService {
    */
   async getRecentMovements(hoursBack: number = 24): Promise<(LineMovement & { game: any })[]> {
     const cutoff = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
-    logger.info(`getRecentMovements: prisma type is ${typeof prisma}`);
-    logger.info(`getRecentMovements: prisma.lineMovement is ${typeof prisma.lineMovement}`);
-    logger.info(`getRecentMovements: prisma.lineMovement value is ${prisma.lineMovement}`);
 
     return prisma.lineMovement.findMany({
       where: {

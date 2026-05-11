@@ -1,11 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/database';
 import { LineMovementService } from '../services/line-movement.service';
 import { requireSessionAuth, AuthenticatedRequest } from '../middleware/auth-session.middleware';
 import { logger as routeLogger } from '../config/logger';
 
 export function createLineMovementRoutes(prisma: PrismaClient): Router {
   const router = Router();
+
+  // Create service - uses direct prisma import from config
   const lineMovementService = new LineMovementService();
 
   // Apply auth middleware to all routes
@@ -27,21 +30,26 @@ export function createLineMovementRoutes(prisma: PrismaClient): Router {
 
       let movements;
 
-      if (movementType === 'all') {
-        movements = await lineMovementService.getRecentMovements(hoursBack);
-      } else {
-        const validTypes = ['steam', 'reverse', 'gradual', 'injury'];
-        if (!validTypes.includes(movementType)) {
-          return res.status(400).json({
-            status: 'error',
-            error: 'Invalid movementType. Must be steam, reverse, gradual, injury, or all',
-            data: null,
-          });
+      try {
+        if (movementType === 'all') {
+          movements = await lineMovementService.getRecentMovements(hoursBack);
+        } else {
+          const validTypes = ['steam', 'reverse', 'gradual', 'injury'];
+          if (!validTypes.includes(movementType)) {
+            return res.status(400).json({
+              status: 'error',
+              error: 'Invalid movementType. Must be steam, reverse, gradual, injury, or all',
+              data: null,
+            });
+          }
+          movements = await lineMovementService.getMovementsByType(movementType as any, hoursBack);
         }
-        movements = await lineMovementService.getMovementsByType(
-          movementType as any,
-          hoursBack
-        );
+      } catch (serviceError) {
+        routeLogger.error('Service error in /live:', {
+          error: serviceError instanceof Error ? serviceError.message : String(serviceError),
+          stack: serviceError instanceof Error ? serviceError.stack : undefined,
+        });
+        throw serviceError;
       }
 
       res.json({
