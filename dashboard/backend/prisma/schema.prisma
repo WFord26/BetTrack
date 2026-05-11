@@ -159,6 +159,7 @@ model Game {
   gameStats          GameStats[]
   playerStats        PlayerGameStats[]
   marketConsensus    MarketConsensus[]
+  lineMovements      LineMovement[]
 
   @@index([commenceTime])
   @@index([status])
@@ -296,11 +297,45 @@ model OddsSnapshot {
   overPrice       Int?     @map("over_price")
   underPrice      Int?     @map("under_price")
   capturedAt      DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
+  
+  // Movement detection fields
+  movementType    String?  @map("movement_type") @db.VarChar(20) // steam, reverse, gradual, normal, injury
+  movementSize    Decimal? @map("movement_size") @db.Decimal(5, 2) // points or cents moved
+  volumeIndicator Int?     @map("volume_indicator") // 1-10 scale for movement intensity
+  
   game            Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@index([capturedAt])
   @@index([gameId])
+  @@index([movementType])
   @@map("odds_snapshots")
+}
+
+// Line movement events detected across bookmakers
+model LineMovement {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId            String   @map("game_id") @db.Uuid
+  marketType        String   @map("market_type") @db.VarChar(20) // h2h, spreads, totals
+  detectedAt        DateTime @default(now()) @map("detected_at") @db.Timestamptz(6)
+  
+  // Movement characteristics
+  movementType      String   @map("movement_type") @db.VarChar(20) // steam, reverse, gradual, injury, normal
+  linesBefore       Json     @map("lines_before") // Snapshot of bookmaker lines before movement
+  linesAfter        Json     @map("lines_after") // Snapshot of bookmaker lines after movement
+  
+  // Analysis metadata
+  bookmakerCount    Int      @map("bookmaker_count") // How many books moved
+  averageMovement   Decimal  @map("average_movement") @db.Decimal(5, 2) // Average movement size
+  timeToMove        Int      @map("time_to_move") // Seconds between before/after snapshots
+  maxMovement       Decimal? @map("max_movement") @db.Decimal(5, 2) // Largest single movement
+  suspectedCause    String?  @map("suspected_cause") @db.VarChar(100) // injury, weather, news, etc
+  
+  game              Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  @@index([gameId])
+  @@index([movementType])
+  @@index([detectedAt])
+  @@map("line_movements")
 }
 
 // Users table (for OAuth2 authentication)

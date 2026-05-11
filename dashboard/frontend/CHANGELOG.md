@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Line Movement Detection & Tracking — Phase 2** (Issue #5): Frontend analytics components for visualizing and analyzing detected line movements across bookmakers. Enables users to identify steam moves, track sharp action, and monitor movement patterns.
+  - `src/types/movements.types.ts`: Shared types (`LineMovement`, `MovementType`, `MarketType`, `MovementStats`, `MovementFilters`).
+  - `src/services/line-movement.service.ts`: API client for `/api/analytics/movements/*` endpoints with methods: `getLiveMovements()`, `getGameMovements()`, `getMovementHistory()`, `getBookmakerMovements()`, `getMovementStats()`, `getSteamMoves()`.
+  - `src/store/movementSlice.ts`: Redux slice with state management, async thunks (`fetchLiveMovements`, `fetchGameMovements`, `fetchMovementStats`, `fetchSteamMoves`), selectors, and actions.
+  - `src/store/index.ts`: Movement reducer registered in Redux store.
+  - `src/components/analytics/SteamMoveAlert.tsx`: Dashboard widget displaying live steam moves in real-time. Shows game matchup, market type, movement size, bookmaker count, severity badge, and time-to-move. Auto-refreshes every 60 seconds with pause/play control.
+  - `src/components/analytics/LineMovementChart.tsx`: Timeline visualization of line movements with before/after line comparison. Displays interactive timeline with hover tooltips, color-coded movement types (steam/reverse/gradual/injury), and detailed movement breakdown showing bookmaker line changes.
+  - `src/components/analytics/LineMovementPerformance.tsx`: Statistics dashboard showing movement frequency breakdown by type and market. Includes distribution charts, time-range selector (1d/1w/1m), and summary metrics. Compact mode for embedding in other pages.
+  - `src/pages/LineMovementAnalytics.tsx`: Full analytics page at `/analytics/movements` with filters (movement type, market type, time range), integrated widget components, performance statistics, quick tips, and severity legend.
+  - `src/App.tsx`: Route registered at `/analytics/movements`.
+
 ---
 
 ## [0.3.13] - 2026-05-08

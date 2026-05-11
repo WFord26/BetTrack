@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Line Movement Detection & Tracking — Phase 1** (Issue #5): Detects and analyzes odds line movements across bookmakers to identify steam moves, sharp action, and market activity patterns. Scheduled job runs every 5 minutes to detect movements and classify them for analytical and trading insights.
+  - `prisma/schema.prisma`: Enhanced `OddsSnapshot` model with movement detection fields (`movementType`, `movementSize`, `volumeIndicator`). New `LineMovement` model stores detected movements with before/after line snapshots, bookmaker count, average movement size, and time elapsed. Migration: `20260509040701_add_line_movement_tracking`.
+  - `src/services/line-movement.service.ts`: `LineMovementService` with `detectMovements()` (compares snapshots, classifies movements), `classifyMovement()` (steam/reverse/gradual), `getGameMovements()`, `getMovementsByType()`, `getRecentMovements()`, `getSteamMoves()`, and `getMovementStats()`.
+  - `src/jobs/line-movement.job.ts`: Scheduled job (`*/5 * * * *`) that runs every 5 minutes, detects movements across all active/upcoming games, logs steam moves prominently with movement classification, and persists `LineMovement` records.
+  - `src/routes/analytics-movements.routes.ts`: Five new authenticated endpoints: `GET /api/analytics/movements/live` (recent steam/reverse/gradual moves), `GET /api/analytics/movements/game/:gameId` (movements for a specific game), `GET /api/analytics/movements/history` (historical data with statistics), `GET /api/analytics/movements/bookmaker/:bookmaker` (movements detected by a specific bookmaker), `GET /api/analytics/movements/stats` (movement summary statistics).
+  - `src/server.ts`: `initLineMovementJob(prisma)` registered alongside other scheduled jobs on server startup.
+  - Database integration: Migrations support new fields and model, Prisma Client types generated automatically.
+
 ---
 
 ## [0.2.16] - 2026-05-08
