@@ -367,12 +367,33 @@ export class MarketConsensusService {
     threshold: number = 60,
     limit: number = 20
   ): Promise<HighDisagreementGame[]> {
-    const cutoff = new Date(Date.now() - 30 * 60 * 1000); // last 30 minutes
+    // Use a wider lookback to find the latest row per game+market (the consensus
+    // job runs every 15 min, so 2 h is ample). We must NOT apply the threshold
+    // here — that would silently exclude a game whose latest row dropped below
+    // the threshold but whose older row from the previous cycle is still visible.
+    const lookback = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
+    // Step 1: find the most-recent calculatedAt for every gameId+marketType pair.
+    const latestByMarket = await prisma.marketConsensus.groupBy({
+      by: ['gameId', 'marketType'],
+      _max: { calculatedAt: true },
+      where: { calculatedAt: { gte: lookback } },
+    });
+
+    if (latestByMarket.length === 0) return [];
+
+    // Step 2: fetch only those latest rows, applying the threshold on the
+    // current (not stale) score. This prevents old high-score rows from
+    // remaining visible after a recalculation drops below the threshold, and
+    // prevents duplicate entries for the same game+market pair.
     const records = await prisma.marketConsensus.findMany({
       where: {
+        OR: latestByMarket.map(t => ({
+          gameId: t.gameId,
+          marketType: t.marketType,
+          calculatedAt: t._max.calculatedAt!,
+        })),
         disagreementScore: { gte: threshold },
-        calculatedAt: { gte: cutoff },
       },
       include: {
         game: {

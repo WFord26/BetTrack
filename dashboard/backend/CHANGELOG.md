@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`/analytics/disagreement/live` shows stale and duplicate opportunities** (`src/services/market-consensus.service.ts` — `findHighDisagreement`): The query filtered all `MarketConsensus` rows from the last 30 minutes where `disagreementScore >= threshold`. Because the consensus job inserts a new row every 15 minutes rather than updating in place, a market that scored high at T+0 but dropped below the threshold at T+15 continued to appear until the T+0 row aged out of the 30-minute window. The same game+market pair could also appear twice (both the old and new rows matched). Fixed with a two-step approach: (1) `groupBy(gameId, marketType)` with `_max: calculatedAt` to identify the single latest row per game+market pair across a 2-hour lookback; (2) fetch only those specific rows and apply the threshold filter. The threshold is now evaluated exclusively on the current consensus, not on any stale predecessors.
+
 ---
 
 ## [0.3.1] - 2026-05-12
