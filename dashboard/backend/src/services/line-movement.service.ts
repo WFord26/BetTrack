@@ -169,9 +169,33 @@ export class LineMovementService {
     const movements = Object.values(changes).filter(m => m.change !== 0);
     if (movements.length === 0) return null;
 
-    const bookmakerCount = movements.length;
-    const avgMovement = movements.reduce((sum, m) => sum + Math.abs(m.change), 0) / bookmakerCount;
-    const maxMovement = Math.max(...movements.map(m => Math.abs(m.change)));
+    // Partition movers by direction so that a split market (some books up,
+    // some books down) is never classified as steam. Steam requires coordinated
+    // movement: 3+ books all moving the same way in the same window.
+    const upMovers   = movements.filter(m => m.change > 0);
+    const downMovers = movements.filter(m => m.change < 0);
+
+    // The dominant group is whichever direction had more books move. On a tie
+    // we pick the group with the larger average absolute change. This group's
+    // count and average are what we pass to classifyMovement so the steam
+    // thresholds are evaluated against coordinated-only movement.
+    let dominantGroup: typeof movements;
+    if (upMovers.length > downMovers.length) {
+      dominantGroup = upMovers;
+    } else if (downMovers.length > upMovers.length) {
+      dominantGroup = downMovers;
+    } else {
+      // Equal split — pick the group with larger average absolute move
+      const upAvg   = upMovers.reduce((s, m) => s + Math.abs(m.change), 0)   / (upMovers.length   || 1);
+      const downAvg = downMovers.reduce((s, m) => s + Math.abs(m.change), 0) / (downMovers.length || 1);
+      dominantGroup = upAvg >= downAvg ? upMovers : downMovers;
+    }
+
+    // bookmakerCount and avgMovement reflect only the coordinated movers
+    const bookmakerCount = dominantGroup.length;
+    const avgMovement    = dominantGroup.reduce((sum, m) => sum + Math.abs(m.change), 0) / bookmakerCount;
+    // maxMovement still considers all movers (useful metadata even for non-steam)
+    const maxMovement    = Math.max(...movements.map(m => Math.abs(m.change)));
 
     // Classify the movement
     const classification = this.classifyMovement(
