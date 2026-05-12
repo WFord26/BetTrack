@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.0] - 2026-05-12
+
 ### Added
 
 - **Line Movement Detection & Tracking — Phase 1** (Issue #5): Detects and analyzes odds line movements across bookmakers to identify steam moves, sharp action, and market activity patterns. Scheduled job runs every 5 minutes to detect movements and classify them for analytical and trading insights.

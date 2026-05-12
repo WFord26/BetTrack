@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.0] - 2026-05-12
+
 ### Added
 
 - **Line Movement Detection & Tracking — Phase 2** (Issue #5): Frontend analytics components for visualizing and analyzing detected line movements across bookmakers. Enables users to identify steam moves, track sharp action, and monitor movement patterns.
