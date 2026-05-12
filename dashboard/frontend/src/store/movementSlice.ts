@@ -29,7 +29,7 @@ const initialState: MovementState = {
   steamMovesCount: 0,
   totalMovements: 0,
   filters: {
-    type: 'steam',
+    movementType: 'steam',
     hoursBack: 4,
     limit: 20
   },

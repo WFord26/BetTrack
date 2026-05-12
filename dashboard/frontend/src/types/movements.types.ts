@@ -14,9 +14,9 @@ export interface LineMovement {
   linesBefore: Record<string, any>;
   linesAfter: Record<string, any>;
   bookmakerCount: number;
-  averageMovement: number; // Decimal as string from API
+  averageMovement: number | string; // Can be string from API (Prisma Decimal)
   timeToMove: number; // seconds
-  maxMovement?: number;
+  maxMovement?: number | string;
   suspectedCause?: string | null;
   game?: {
     id: string;
@@ -74,8 +74,8 @@ export interface MovementResponse {
 }
 
 export interface MovementFilters {
-  type: MovementType | 'all';
-  hoursBack: number;
+  movementType?: MovementType | 'all';
+  hoursBack?: number;
   marketType?: MarketType;
   limit?: number;
 }

@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { AppDispatch, RootState } from '../store';
+import { MovementType } from '../types/movements.types';
 import {
   fetchLiveMovements,
   setFilters,
@@ -47,7 +48,7 @@ export default function LineMovementAnalytics() {
     dispatch(fetchLiveMovements({
       limit: 100,
       hoursBack,
-      movementType: movementType === 'all' ? 'steam' : movementType
+      movementType: movementType === 'all' ? 'steam' : (movementType as MovementType)
     }));
   }, [dispatch, movementType, hoursBack]);
 

@@ -148,7 +148,7 @@ export default function SteamMoveAlert({
                   isDarkMode ? 'bg-gray-750' : 'bg-gray-50'
                 } ${getSeverityColor(
                   movement.bookmakerCount,
-                  parseFloat(movement.averageMovement)
+                  typeof movement.averageMovement === 'string' ? parseFloat(movement.averageMovement) : movement.averageMovement
                 )}`}
                 onClick={() => {
                   if (movement.game?.id) {
@@ -174,14 +174,14 @@ export default function SteamMoveAlert({
                       className={`inline-block px-2 py-1 rounded text-xs font-bold ${
                         getSeverityBadge(
                           movement.bookmakerCount,
-                          parseFloat(movement.averageMovement)
+                          typeof movement.averageMovement === 'string' ? parseFloat(movement.averageMovement) : movement.averageMovement
                         ) === 'CRITICAL'
                           ? isDarkMode
                             ? 'bg-red-600 text-white'
                             : 'bg-red-600 text-white'
                           : getSeverityBadge(
                               movement.bookmakerCount,
-                              parseFloat(movement.averageMovement)
+                              typeof movement.averageMovement === 'string' ? parseFloat(movement.averageMovement) : movement.averageMovement
                             ) === 'HIGH'
                           ? isDarkMode
                             ? 'bg-orange-600 text-white'
@@ -193,7 +193,7 @@ export default function SteamMoveAlert({
                     >
                       {getSeverityBadge(
                         movement.bookmakerCount,
-                        parseFloat(movement.averageMovement)
+                        typeof movement.averageMovement === 'string' ? parseFloat(movement.averageMovement) : movement.averageMovement
                       )}
                     </span>
                   </div>
@@ -214,7 +214,7 @@ export default function SteamMoveAlert({
                       Avg Movement
                     </p>
                     <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {parseFloat(movement.averageMovement).toFixed(2)} pts
+                      {(typeof movement.averageMovement === 'string' ? parseFloat(movement.averageMovement) : movement.averageMovement).toFixed(2)} pts
                     </p>
                   </div>
                   <div>
