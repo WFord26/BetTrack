@@ -48,7 +48,7 @@ export default function LineMovementAnalytics() {
     dispatch(fetchLiveMovements({
       limit: 100,
       hoursBack,
-      movementType: movementType === 'all' ? 'steam' : (movementType as MovementType)
+      movementType: movementType as MovementType | 'all'
     }));
   }, [dispatch, movementType, hoursBack]);
 
