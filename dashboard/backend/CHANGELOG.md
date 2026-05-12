@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/server.ts`: `initLineMovementJob(prisma)` registered alongside other scheduled jobs on server startup.
   - Database integration: Migrations support new fields and model, Prisma Client types generated automatically.
 
+### Fixed
+
+- **Steam move detection — timestamp-based batch grouping** (`src/services/line-movement.service.ts`): `detectMovements` previously grouped snapshots by `"market:bookmaker"` key, meaning each bookmaker's timeline was compared in isolation. This produced singleton arrays `[before]` / `[after]` for every comparison, so `bookmakerCount` was always 1 and the steam threshold (≥ 3 bookmakers) was unreachable — all movements were classified as `normal` and never persisted. Refactored to `groupSnapshotsByMarketAndTime`: snapshots are now grouped by market type and `capturedAt` timestamp so every bookmaker from the same sync cycle forms a single batch. Consecutive sync batches are compared (T1 batch vs T2 batch), `buildLineSnapshot` receives multiple same-cycle snapshots, and `classifyMovement` now correctly receives arrays with actual bookmaker counts, enabling steam detection to work as designed.
+- **American odds best-value comparators** (`src/services/market-consensus.service.ts`): Conditional sign-checking comparators (e.g. `a < 0 ? a - b : b - a`) sorted negative American odds ascending so −150 ranked above −105, identifying worse prices as best value. Replaced all three comparators (h2h, spreads, totals) with a simple descending numerical sort (`.sort((a, b) => b.price! - a.price!)[0]`) — the highest number always represents the best payout regardless of sign.
+
 ---
 
 ## [0.2.16] - 2026-05-08

@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/pages/LineMovementAnalytics.tsx`: Full analytics page at `/analytics/movements` with filters (movement type, market type, time range), integrated widget components, performance statistics, quick tips, and severity legend.
   - `src/App.tsx`: Route registered at `/analytics/movements`.
 
+### Fixed
+
+- **MovementFilters type system errors** (`src/types/movements.types.ts`, `src/store/movementSlice.ts`, `src/test/test-utils.tsx`): `MovementFilters` interface was missing the `movementType` property, causing 8 TypeScript compilation errors across the analytics components. Added `movementType?: MovementType | 'all'` to the interface, changed `averageMovement` from `number` to `number | string` to handle Prisma `Decimal` serialization in API responses, and added the `movements` reducer to the mock store configuration in test utilities.
+- **"All Types" movement filter forced to steam** (`src/pages/LineMovementAnalytics.tsx`): The filter dispatch was converting `movementType === 'all'` to `'steam'`, meaning selecting "All Types" in the UI returned only steam moves. Removed the conditional conversion so `movementType` is passed through as-is; the backend treats the absence of a type filter as "all types".
+- **EnhancedGameCard team links navigating to 404** (`src/components/odds/EnhancedGameCard.tsx`): After the team detail route was updated from `/teams/:teamName` to `/teams/:league/:teamName`, EnhancedGameCard still used the single-segment format (`/teams/${game.awayTeamName}`). Both team name links updated to the two-segment format (`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.teamName)}`), consistent with the existing GameCard component.
+
 ---
 
 ## [0.3.13] - 2026-05-08
