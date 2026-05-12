@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **DisagreementBreakdown modal omits markets below the live-list threshold** (`src/components/odds/DisagreementBreakdown.tsx`): When a game was clicked from the live list, the modal reused `game.consensus` from the parent — which only contained markets whose `disagreementScore` passed the live-list filter. Lower-score markets (e.g. spread/total when only the moneyline exceeded Min Score 60) were silently omitted. The `useEffect` now always fetches from `/analytics/disagreement/game/:gameId`, which returns the latest row per market type without any score threshold, so all available markets are always shown in the breakdown.
+- **SteamMoveAlert widget overwrites the page's filtered movement list** (`src/store/movementSlice.ts`, `src/components/analytics/SteamMoveAlert.tsx`): `fetchSteamMoves.fulfilled` wrote to `state.liveMovements` — the same slice field that `fetchLiveMovements.fulfilled` uses for the page's filter-driven results. When the widget auto-refreshed (every 60 s) or mounted alongside `LineMovementAnalytics`, it clobbered the page's selected filter (All Types, reverse, gradual, injury) with steam-only data. Fixed by adding a dedicated `steamMoves: LineMovement[]` field to `MovementState` and a `selectSteamMoves` selector. `fetchSteamMoves.fulfilled` now writes to `state.steamMoves`, `SteamMoveAlert` reads from `selectSteamMoves`, and `state.liveMovements` is owned exclusively by `fetchLiveMovements`.
 
 ---
 

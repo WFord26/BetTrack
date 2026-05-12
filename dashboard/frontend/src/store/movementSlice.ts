@@ -8,6 +8,7 @@ import { RootState } from './index';
 
 export interface MovementState {
   liveMovements: LineMovement[];
+  steamMoves: LineMovement[];
   selectedGameMovements: LineMovement[] | null;
   selectedGameId: string | null;
   selectedGame: any | null;
@@ -22,6 +23,7 @@ export interface MovementState {
 
 const initialState: MovementState = {
   liveMovements: [],
+  steamMoves: [],
   selectedGameMovements: null,
   selectedGameId: null,
   selectedGame: null,
@@ -171,9 +173,8 @@ const movementSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchSteamMoves.fulfilled, (state, action) => {
-        state.liveMovements = action.payload;
+        state.steamMoves = action.payload;
         state.loading = false;
-        state.lastFetched = new Date().toISOString();
       })
       .addCase(fetchSteamMoves.rejected, (state, action) => {
         state.loading = false;
@@ -186,6 +187,7 @@ export const { setFilters, clearGameMovements, clearError } = movementSlice.acti
 
 // Selectors
 export const selectLiveMovements = (state: RootState) => state.movements.liveMovements;
+export const selectSteamMoves = (state: RootState) => state.movements.steamMoves;
 export const selectGameMovements = (state: RootState) => state.movements.selectedGameMovements;
 export const selectMovementStats = (state: RootState) => state.movements.statistics;
 export const selectMovementLoading = (state: RootState) => state.movements.loading;

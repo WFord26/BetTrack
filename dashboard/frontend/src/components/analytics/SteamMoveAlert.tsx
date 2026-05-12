@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
-import { fetchSteamMoves, selectLiveMovements, selectMovementLoading } from '../../store/movementSlice';
+import { fetchSteamMoves, selectSteamMoves, selectMovementLoading } from '../../store/movementSlice';
 import { LineMovement } from '../../types/movements.types';
 import { useDarkMode } from '../../contexts/DarkModeContext';
 import { useNavigate } from 'react-router-dom';
@@ -26,7 +26,7 @@ export default function SteamMoveAlert({
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { isDarkMode } = useDarkMode();
-  const movements = useSelector(selectLiveMovements);
+  const movements = useSelector(selectSteamMoves);
   const loading = useSelector(selectMovementLoading);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
