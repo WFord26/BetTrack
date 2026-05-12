@@ -357,7 +357,6 @@ router.get('/health', async (_req: Request, res: Response) => {
     const requestsRemaining = syncStatus.lastResult?.requestsRemaining;
 
     // Read version from package.json at runtime
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { version } = require('../../package.json') as { version: string };
 
     res.json({
