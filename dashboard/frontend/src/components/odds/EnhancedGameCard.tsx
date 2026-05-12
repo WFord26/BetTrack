@@ -320,7 +320,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               {game.awayScore ?? '--'}
             </div>
             <Link 
-              to={`/teams/${game.awayTeamName}`} 
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.awayTeamName)}`} 
               className="text-[9px] font-bold tracking-wide hover:text-[#38bdf8] transition-colors block px-1 leading-tight"
               style={{ minHeight: '28px' }}
             >
@@ -372,7 +372,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               {game.homeScore ?? '--'}
             </div>
             <Link 
-              to={`/teams/${game.homeTeamName}`} 
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.homeTeamName)}`} 
               className="text-[9px] font-bold tracking-wide hover:text-[#f97316] transition-colors block px-1 leading-tight"
               style={{ minHeight: '28px' }}
             >
