@@ -30,8 +30,14 @@ export class LineMovementService {
    * Detect line movements by comparing recent odds snapshots
    * Groups snapshots by sync timestamp, then compares across consecutive sync cycles
    * This enables detection of multi-bookmaker movements (steam moves)
+   *
+   * @param sinceTime - Only persist movements whose "after" snapshot is newer than
+   *   this timestamp. The lookback window is kept wider so the service always has a
+   *   "before" batch to compare against, but snapshot pairs that were already
+   *   processed by a previous job run are skipped, preventing duplicate rows from
+   *   overlapping detection windows.
    */
-  async detectMovements(gameId: string, checkBackMinutes: number = 10): Promise<LineMovement[]> {
+  async detectMovements(gameId: string, checkBackMinutes: number = 10, sinceTime?: Date): Promise<LineMovement[]> {
     const createdMovements: LineMovement[] = [];
 
     try {
@@ -86,6 +92,12 @@ export class LineMovementService {
           );
 
           if (movement) {
+            // Skip pairs whose "after" batch has already been processed by a
+            // previous job run. Without this guard, overlapping lookback windows
+            // would insert duplicate rows for the same snapshot transition.
+            if (sinceTime && new Date(afterTime) <= sinceTime) {
+              continue;
+            }
             const created = await this.persistMovement(movement);
             createdMovements.push(created);
           }

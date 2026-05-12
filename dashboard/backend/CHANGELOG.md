@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Line movement job misses live games and processes stale historical backlog** (`src/jobs/line-movement.job.ts`): Two related issues in the game filter:
+  1. The status filter used `'inprogress'` and `'live'` but the backend writes `'in_progress'` when a game transitions from scheduled (e.g. `OutcomeResolverService`). Once a game went live the job no longer matched it, silently dropping all live line movements. Added `'in_progress'` to the `status.in` array.
+  2. The `commenceTime` filter had no lower bound — only an upper bound 48 hours in the future. Any old game left in a non-completed status was included on every 5-minute run, causing the job to call `detectMovements` for the entire historical backlog and making runtime scale with all past data. Added a `gte: sixHoursAgo` lower bound so only games that started within the last 6 hours (still plausibly in-progress) or are upcoming are processed.
+- **Duplicate `LineMovement` rows from overlapping detection windows** (`src/jobs/line-movement.job.ts`, `src/services/line-movement.service.ts`): `detectMovements` fetches a 10-minute lookback window on every 5-minute job run, so any snapshot pair that falls inside two consecutive windows was persisted twice. The job now tracks `lastRunAt` and passes it as `sinceTime` to `detectMovements`. The service keeps the wider lookback so there is always a "before" batch available, but skips `persist` for any snapshot pair whose "after" timestamp is `<= sinceTime` (already processed). `lastRunAt` is only advanced after a fully successful run so a partial failure does not silently skip unprocessed pairs.
+
 ---
 
 ## [0.3.0] - 2026-05-12

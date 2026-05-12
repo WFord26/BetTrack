@@ -5,6 +5,9 @@ import { logger } from '../config/logger';
 
 const lineMovementLogger = logger;
 let isRunning = false;
+// Tracks the start of the previous successful run so detectMovements can
+// skip snapshot pairs whose "after" timestamp was already processed.
+let lastRunAt: Date | null = null;
 
 export function initLineMovementJob(prisma: PrismaClient): void {
   const lineMovementService = new LineMovementService();
@@ -18,21 +21,26 @@ export function initLineMovementJob(prisma: PrismaClient): void {
 
     isRunning = true;
     const startTime = Date.now();
+    const runStartedAt = new Date(startTime);
 
     try {
       lineMovementLogger.info('Starting line movement detection job');
 
-      // Get all active/upcoming games (next 48 hours)
+      // Get active/upcoming games: started at most 6 hours ago (in_progress)
+      // up to 48 hours in the future (scheduled). This bounds both ends so
+      // stale historical games with a non-completed status are never included.
       const now = new Date();
+      const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
       const inTwoDays = new Date(now.getTime() + 48 * 60 * 60 * 1000);
 
       const activeGames = await prisma.game.findMany({
         where: {
           commenceTime: {
+            gte: sixHoursAgo,
             lte: inTwoDays,
           },
           status: {
-            in: ['scheduled', 'inprogress', 'live'],
+            in: ['scheduled', 'in_progress', 'inprogress', 'live'],
           },
         },
         select: { id: true, homeTeamName: true, awayTeamName: true },
@@ -45,7 +53,7 @@ export function initLineMovementJob(prisma: PrismaClient): void {
       // Detect movements for each game
       for (const game of activeGames) {
         try {
-          const movements = await lineMovementService.detectMovements(game.id, 10);
+          const movements = await lineMovementService.detectMovements(game.id, 10, lastRunAt ?? undefined);
 
           if (movements.length > 0) {
             lineMovementLogger.info(
@@ -70,6 +78,9 @@ export function initLineMovementJob(prisma: PrismaClient): void {
       lineMovementLogger.info(
         `Line movement detection completed: ${totalMovementsDetected} movements detected in ${duration}ms`
       );
+      // Only advance the cursor after a fully successful run so a partial
+      // failure does not silently skip unprocessed snapshot pairs.
+      lastRunAt = runStartedAt;
     } catch (error) {
       lineMovementLogger.error('Error in line movement detection job:', error);
     } finally {
