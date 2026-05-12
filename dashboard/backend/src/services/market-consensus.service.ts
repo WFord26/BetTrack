@@ -152,8 +152,7 @@ export class MarketConsensusService {
       // Negative odds: -105 is better than -150
       const bestHomeOdds = odds
         .filter((o) => o.homePrice !== null)
-        .sort((a, b) => b.homePrice! - a.homePrice!) // descending: highest first
-        [0];
+        .sort((a, b) => b.homePrice! - a.homePrice!)[0]; // descending: highest first
 
       const bestValue: BestValue = {
         side: 'home',
@@ -197,8 +196,7 @@ export class MarketConsensusService {
       // Negative odds: -105 is better than -150
       const bestOdds = odds
         .filter((o) => o.homeSpreadPrice !== null)
-        .sort((a, b) => b.homeSpreadPrice! - a.homeSpreadPrice!) // descending: highest first
-        [0];
+        .sort((a, b) => b.homeSpreadPrice! - a.homeSpreadPrice!)[0]; // descending: highest first
 
       const bestValue: BestValue = {
         side: 'home',
@@ -245,8 +243,7 @@ export class MarketConsensusService {
       // Negative odds: -105 is better than -150
       const bestOver = odds
         .filter((o) => o.overPrice !== null)
-        .sort((a, b) => b.overPrice! - a.overPrice!) // descending: highest first
-        [0];
+        .sort((a, b) => b.overPrice! - a.overPrice!)[0]; // descending: highest first
 
       const bestValue: BestValue = {
         side: 'over',
