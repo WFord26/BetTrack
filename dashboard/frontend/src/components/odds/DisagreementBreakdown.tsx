@@ -47,22 +47,21 @@ export default function DisagreementBreakdown({ game, onClose }: Props) {
   useEffect(() => {
     if (!game) return;
 
-    // Use the consensus data already loaded in the parent, supplemented
-    // by a fresh fetch if needed.
-    if (game.consensus?.length > 0) {
-      setConsensus(game.consensus);
-    } else {
-      setLoading(true);
-      api
-        .get(`/analytics/disagreement/game/${game.gameId}`)
-        .then((res) => {
-          setConsensus(res.data.data ?? []);
-        })
-        .catch((err) => {
-          setError(err.response?.data?.error ?? 'Failed to load breakdown');
-        })
-        .finally(() => setLoading(false));
-    }
+    // Always fetch the full breakdown from the dedicated endpoint so all
+    // markets for this game are shown, regardless of which markets passed the
+    // threshold filter on the live list. Using the pre-loaded game.consensus
+    // would silently omit any market whose score is below the current filter.
+    setLoading(true);
+    setError(null);
+    api
+      .get(`/analytics/disagreement/game/${game.gameId}`)
+      .then((res) => {
+        setConsensus(res.data.data ?? []);
+      })
+      .catch((err) => {
+        setError(err.response?.data?.error ?? 'Failed to load breakdown');
+      })
+      .finally(() => setLoading(false));
   }, [game]);
 
   if (!game) return null;

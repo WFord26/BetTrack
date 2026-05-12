@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **DisagreementBreakdown modal omits markets below the live-list threshold** (`src/components/odds/DisagreementBreakdown.tsx`): When a game was clicked from the live list, the modal reused `game.consensus` from the parent — which only contained markets whose `disagreementScore` passed the live-list filter. Lower-score markets (e.g. spread/total when only the moneyline exceeded Min Score 60) were silently omitted. The `useEffect` now always fetches from `/analytics/disagreement/game/:gameId`, which returns the latest row per market type without any score threshold, so all available markets are always shown in the breakdown.
+
 ---
 
 ## [0.4.0] - 2026-05-12
