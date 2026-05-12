@@ -28,7 +28,8 @@ interface OddsMovementSnapshot {
 export class LineMovementService {
   /**
    * Detect line movements by comparing recent odds snapshots
-   * Compares snapshots taken ~5 minutes apart to identify movements
+   * Groups snapshots by sync timestamp, then compares across consecutive sync cycles
+   * This enables detection of multi-bookmaker movements (steam moves)
    */
   async detectMovements(gameId: string, checkBackMinutes: number = 10): Promise<LineMovement[]> {
     const createdMovements: LineMovement[] = [];
@@ -50,21 +51,27 @@ export class LineMovementService {
         return createdMovements;
       }
 
-      // Group snapshots by market type AND bookmaker (not just market)
-      const byMarketAndBookmaker = this.groupSnapshotsByMarketAndBookmaker(snapshots);
+      // Group snapshots by market type AND sync timestamp
+      // This lets us analyze all bookmakers from each sync cycle together
+      const byMarketAndTime = this.groupSnapshotsByMarketAndTime(snapshots);
 
-      // Detect movements for each market-bookmaker combination
-      for (const [marketKey, bookmakerSnapshots] of Object.entries(byMarketAndBookmaker)) {
-        if (bookmakerSnapshots.length < 2) continue;
+      // For each market type, compare consecutive sync cycles
+      for (const [marketType, syncBatches] of Object.entries(byMarketAndTime)) {
+        if (syncBatches.size < 2) continue;
 
-        const [marketType] = marketKey.split(':');
+        const sortedTimes = Array.from(syncBatches.keys()).sort(
+          (a, b) => new Date(a).getTime() - new Date(b).getTime()
+        );
 
-        // Compare consecutive pairs of snapshots for the SAME bookmaker
-        for (let i = 0; i < bookmakerSnapshots.length - 1; i++) {
-          const before = bookmakerSnapshots[i];
-          const after = bookmakerSnapshots[i + 1];
+        // Compare consecutive sync cycles
+        for (let i = 0; i < sortedTimes.length - 1; i++) {
+          const beforeTime = sortedTimes[i];
+          const afterTime = sortedTimes[i + 1];
+          const beforeSnapshots = syncBatches.get(beforeTime)!;
+          const afterSnapshots = syncBatches.get(afterTime)!;
+
           const timeElapsed = Math.round(
-            (after.capturedAt.getTime() - before.capturedAt.getTime()) / 1000
+            (new Date(afterTime).getTime() - new Date(beforeTime).getTime()) / 1000
           );
 
           // Skip if snapshots are too close together (less than 2 seconds)
@@ -73,8 +80,8 @@ export class LineMovementService {
           const movement = this.analyzeMovement(
             gameId,
             marketType as 'h2h' | 'spreads' | 'totals',
-            [before],
-            [after],
+            beforeSnapshots,
+            afterSnapshots,
             timeElapsed
           );
 
@@ -93,22 +100,30 @@ export class LineMovementService {
   }
 
   /**
-   * Group snapshots by market type AND bookmaker
-   * This ensures we compare the same bookmaker's snapshots across time,
-   * not different bookmakers from the same sync cycle
+   * Group snapshots by market type AND sync timestamp (capturedAt)
+   * Returns: Record<marketType, Map<timestamp, OddsSnapshot[]>>
+   * 
+   * This groups all bookmakers from the same sync cycle together,
+   * enabling detection of multi-bookmaker movements (steam moves)
    */
-  private groupSnapshotsByMarketAndBookmaker(
+  private groupSnapshotsByMarketAndTime(
     snapshots: OddsSnapshot[]
-  ): Record<string, OddsSnapshot[]> {
-    const grouped: Record<string, OddsSnapshot[]> = {};
+  ): Record<string, Map<string, OddsSnapshot[]>> {
+    const grouped: Record<string, Map<string, OddsSnapshot[]>> = {};
 
     for (const snapshot of snapshots) {
-      // Key: "h2h:draftkings" or "spreads:fanduel" etc
-      const key = `${snapshot.marketType}:${snapshot.bookmaker}`;
-      if (!grouped[key]) {
-        grouped[key] = [];
+      if (!grouped[snapshot.marketType]) {
+        grouped[snapshot.marketType] = new Map();
       }
-      grouped[key].push(snapshot);
+
+      const timeKey = snapshot.capturedAt.toISOString();
+      const timeMap = grouped[snapshot.marketType];
+      
+      if (!timeMap.has(timeKey)) {
+        timeMap.set(timeKey, []);
+      }
+      
+      timeMap.get(timeKey)!.push(snapshot);
     }
 
     return grouped;
