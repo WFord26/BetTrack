@@ -27,7 +27,7 @@
     },
     "dashboard/backend": {
       "name": "@wford26/bettrack-backend",
-      "hash": "81aa24ce71c79d8e174adfa028e2d83b0d88607435e74a9bdbc8016db389e194",
+      "hash": "feced8323fd7307e9e84933583e167075d9b7ab992ec7b4dc6c1145b46bd2a8d",
       "files": {
         "dashboard/backend/.dockerignore": "3e9dfe9f05211b9b2cb2775e9861b5f4e2fa614a0773a6c71283404498391d8e",
         "dashboard/backend/.env": "6dcbf3bc590016abc2351c795620c9e80789655cc3930aa219736eef9dd8440b",
@@ -65,7 +65,7 @@
         "dashboard/backend/src/jobs/capture-closing-lines.job.ts": "729867a2f8a0baea2f58a7f34e100575a7f8ae903a76dfcafdcc5a8e38b4ce71",
         "dashboard/backend/src/jobs/cleanup-old-records.job.ts": "d3b51a82f3931217892f80313a7afeda5dee443210e392d1bb293a5dcb40f7ae",
         "dashboard/backend/src/jobs/consensus-calc.job.ts": "0091431acc7a3c9fcd2f6d5617fd529bd1a8c319107609e9394fc5b65f065d82",
-        "dashboard/backend/src/jobs/line-movement.job.ts": "3874fd9deb892f4b3d8e0b010fe9d99aebe58152d6afd57923be2cf764530eda",
+        "dashboard/backend/src/jobs/line-movement.job.ts": "f3d952f4a146b756c2b683c5abbe3736e3a58ce1dc072b2cf49c38cabcb0be1a",
         "dashboard/backend/src/jobs/settle-bets.job.ts": "ff4da1879a161cf87de0ef1e3e170e02bfdd558a20dc21d13863d333b0aa116d",
         "dashboard/backend/src/jobs/stats-sync.job.ts": "bdb1e597a1d30b45911cd1a8c12ae7a4c542e5ad843f672bf62d4f62a143e735",
         "dashboard/backend/src/jobs/sync-odds.job.ts": "82ab28def0e149bb78c3be644a4a061bf08b69677329b6d379b1812a64f95352",
@@ -104,7 +104,7 @@
         "dashboard/backend/src/services/clv.service.ts": "432802c0ef81b129297d8ebb84f6d994ebd11e1cb74aed3f31eaf2a556dfa74f",
         "dashboard/backend/src/services/espn-weather.service.ts": "6dda5b84ebdbb262a95953f19890251793a3f33e569ea6afdf3bb5ce215c7d6b",
         "dashboard/backend/src/services/futures-sync.service.ts": "e6ba2e0febdf37ea85c0c1462d194b9f3933c17bc99ae9892603a9cb7ab5c234",
-        "dashboard/backend/src/services/line-movement.service.ts": "c33913ecf0b3d75298863d1eeaeb3c630d2ff57fbad85b358b0a8e50258b2b80",
+        "dashboard/backend/src/services/line-movement.service.ts": "91b89212e59bc873c2ae02600fe4b5899303a3573231ab822968e58f19b57a40",
         "dashboard/backend/src/services/line-movement.service.ts.bak": "9586277e788ff7af6d69e5e13bc84239608492b058b262aaa318526bf42eb1fd",
         "dashboard/backend/src/services/market-consensus.service.ts": "2d52510690b1e08023b6c04834d7b1cb65dc7688f728b63de92980d9b3c80a37",
         "dashboard/backend/src/services/oauth.service.ts": "ad50fccd857ba18f9da9a8b02e5289484db6596653c105a97c95482c0149b161",

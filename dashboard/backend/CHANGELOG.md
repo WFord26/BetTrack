@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.1] - 2026-05-12
+
 ### Fixed
 
 - **Line movement job misses live games and processes stale historical backlog** (`src/jobs/line-movement.job.ts`): Two related issues in the game filter:
