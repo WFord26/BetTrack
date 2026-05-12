@@ -147,14 +147,13 @@ export class MarketConsensusService {
         dev
       );
 
-      // Best home value = highest implied prob (most favourable line for bettor)
+      // Best home value = numerically highest price (most favorable for bettor)
+      // Positive odds: +130 is better than +110
+      // Negative odds: -105 is better than -150
       const bestHomeOdds = odds
         .filter((o) => o.homePrice !== null)
-        .sort((a, b) =>
-          a.homePrice! > 0
-            ? b.homePrice! - a.homePrice! // higher positive = better
-            : a.homePrice! - b.homePrice! // less negative = better
-        )[0];
+        .sort((a, b) => b.homePrice! - a.homePrice!) // descending: highest first
+        [0];
 
       const bestValue: BestValue = {
         side: 'home',
@@ -193,14 +192,13 @@ export class MarketConsensusService {
         dev
       );
 
-      // Best value = most favourable spread price
+      // Best value = numerically highest spread price (most favorable for bettor)
+      // Positive odds: +110 is better than -110
+      // Negative odds: -105 is better than -150
       const bestOdds = odds
         .filter((o) => o.homeSpreadPrice !== null)
-        .sort((a, b) =>
-          a.homeSpreadPrice! > 0
-            ? b.homeSpreadPrice! - a.homeSpreadPrice!
-            : a.homeSpreadPrice! - b.homeSpreadPrice!
-        )[0];
+        .sort((a, b) => b.homeSpreadPrice! - a.homeSpreadPrice!) // descending: highest first
+        [0];
 
       const bestValue: BestValue = {
         side: 'home',
@@ -242,14 +240,13 @@ export class MarketConsensusService {
         dev
       );
 
-      // Best over value
+      // Best over value = numerically highest price (most favorable for bettor)
+      // Positive odds: +110 is better than -110
+      // Negative odds: -105 is better than -150
       const bestOver = odds
         .filter((o) => o.overPrice !== null)
-        .sort((a, b) =>
-          a.overPrice! > 0
-            ? b.overPrice! - a.overPrice!
-            : a.overPrice! - b.overPrice!
-        )[0];
+        .sort((a, b) => b.overPrice! - a.overPrice!) // descending: highest first
+        [0];
 
       const bestValue: BestValue = {
         side: 'over',
