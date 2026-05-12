@@ -50,17 +50,19 @@ export class LineMovementService {
         return createdMovements;
       }
 
-      // Group snapshots by market type
-      const byMarket = this.groupSnapshotsByMarket(snapshots);
+      // Group snapshots by market type AND bookmaker (not just market)
+      const byMarketAndBookmaker = this.groupSnapshotsByMarketAndBookmaker(snapshots);
 
-      // Detect movements in each market
-      for (const [marketType, marketSnapshots] of Object.entries(byMarket)) {
-        if (marketSnapshots.length < 2) continue;
+      // Detect movements for each market-bookmaker combination
+      for (const [marketKey, bookmakerSnapshots] of Object.entries(byMarketAndBookmaker)) {
+        if (bookmakerSnapshots.length < 2) continue;
 
-        // Compare consecutive pairs of snapshots
-        for (let i = 0; i < marketSnapshots.length - 1; i++) {
-          const before = marketSnapshots[i];
-          const after = marketSnapshots[i + 1];
+        const [marketType] = marketKey.split(':');
+
+        // Compare consecutive pairs of snapshots for the SAME bookmaker
+        for (let i = 0; i < bookmakerSnapshots.length - 1; i++) {
+          const before = bookmakerSnapshots[i];
+          const after = bookmakerSnapshots[i + 1];
           const timeElapsed = Math.round(
             (after.capturedAt.getTime() - before.capturedAt.getTime()) / 1000
           );
@@ -91,18 +93,22 @@ export class LineMovementService {
   }
 
   /**
-   * Group snapshots by market type for analysis
+   * Group snapshots by market type AND bookmaker
+   * This ensures we compare the same bookmaker's snapshots across time,
+   * not different bookmakers from the same sync cycle
    */
-  private groupSnapshotsByMarket(
+  private groupSnapshotsByMarketAndBookmaker(
     snapshots: OddsSnapshot[]
   ): Record<string, OddsSnapshot[]> {
     const grouped: Record<string, OddsSnapshot[]> = {};
 
     for (const snapshot of snapshots) {
-      if (!grouped[snapshot.marketType]) {
-        grouped[snapshot.marketType] = [];
+      // Key: "h2h:draftkings" or "spreads:fanduel" etc
+      const key = `${snapshot.marketType}:${snapshot.bookmaker}`;
+      if (!grouped[key]) {
+        grouped[key] = [];
       }
-      grouped[snapshot.marketType].push(snapshot);
+      grouped[key].push(snapshot);
     }
 
     return grouped;
