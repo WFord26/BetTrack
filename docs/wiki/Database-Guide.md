@@ -185,6 +185,47 @@ model OddSnapshot {
 - Indexes on `gameId`, `bookmaker`, and `timestamp` for fast queries
 - No updates - always insert new snapshots
 
+### SharpMoneyIndicator Model
+
+Stores sharp vs public money indicators calculated from line movement data.
+
+```prisma
+model SharpMoneyIndicator {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId           String   @map("game_id") @db.Uuid
+  marketType       String   @map("market_type") @db.VarChar(20)   // h2h, spreads, totals
+  calculatedAt     DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+
+  // Indicators
+  lineMovement     String   @map("line_movement") @db.VarChar(20)   // steam, reverse, gradual, no_movement
+  sharpSide        String   @map("sharp_side") @db.VarChar(20)      // home, away, over, under, none
+  publicSide       String   @map("public_side") @db.VarChar(20)     // home, away, over, under, none
+
+  // Confidence
+  sharpConfidence  Int      @map("sharp_confidence")                 // 1-10
+  contraindicators String[] @map("contraindicators")
+
+  // External data (when integrated)
+  publicBettingPct Decimal? @map("public_betting_pct") @db.Decimal(5, 2)
+  publicMoneyPct   Decimal? @map("public_money_pct") @db.Decimal(5, 2)
+
+  game             Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+  @@index([sharpSide])
+  @@index([calculatedAt])
+  @@map("sharp_money_indicators")
+}
+```
+
+**Key Points**:
+- Calculated every 15 minutes by `startSharpIndicatorJob()`
+- `sharpSide` / `publicSide` values: `home`, `away`, `over`, `under`, `none`
+- `lineMovement` values: `steam`, `reverse`, `gradual`, `no_movement`
+- `sharpConfidence` 1-10 scale (8+ = high confidence)
+- `contraindicators` array flags signals that reduce reliability
+- `publicBettingPct` / `publicMoneyPct` reserved for external data integration
+
 ### Bet Model
 
 User bets placed on games.

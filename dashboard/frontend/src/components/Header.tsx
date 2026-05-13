@@ -57,6 +57,13 @@ const IconCLV = () => (
   </svg>
 );
 
+const IconShark = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 const IconSun = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="5" />
@@ -205,11 +212,12 @@ export default function Header() {
   // '/v2' is the canonical dashboard (EnhancedDashboard). The "V2" label and
   // "NEW" badge were internal migration artifacts — removed here.
   const navItems: NavItem[] = [
-    { path: '/v2',           label: 'Dashboard',  icon: <IconDashboard /> },
-    { path: '/history',      label: 'Bet History', icon: <IconHistory />  },
-    { path: '/futures',      label: 'Futures',     icon: <IconFutures />  },
-    { path: '/stats',        label: 'Statistics',  icon: <IconStats />    },
-    { path: '/analytics/clv', label: 'CLV',        icon: <IconCLV />      },
+    { path: '/v2',                    label: 'Dashboard',  icon: <IconDashboard /> },
+    { path: '/history',               label: 'Bet History', icon: <IconHistory />  },
+    { path: '/futures',               label: 'Futures',     icon: <IconFutures />  },
+    { path: '/stats',                 label: 'Statistics',  icon: <IconStats />    },
+    { path: '/analytics/clv',         label: 'CLV',         icon: <IconCLV />      },
+    { path: '/analytics/sharp',       label: 'Sharp Money', icon: <IconShark />    },
   ];
 
   // User initials for avatar fallback

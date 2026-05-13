@@ -153,13 +153,14 @@ model Game {
   sport              Sport             @relation(fields: [sportId], references: [id])
   homeTeam           Team?             @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam           Team?             @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  currentOdds        CurrentOdds[]
-  oddsSnapshots      OddsSnapshot[]
-  betLegs            BetLeg[]
-  gameStats          GameStats[]
-  playerStats        PlayerGameStats[]
-  marketConsensus    MarketConsensus[]
-  lineMovements      LineMovement[]
+  currentOdds          CurrentOdds[]
+  oddsSnapshots        OddsSnapshot[]
+  betLegs              BetLeg[]
+  gameStats            GameStats[]
+  playerStats          PlayerGameStats[]
+  marketConsensus      MarketConsensus[]
+  lineMovements        LineMovement[]
+  sharpMoneyIndicators SharpMoneyIndicator[]
 
   @@index([commenceTime])
   @@index([status])
@@ -490,6 +491,34 @@ model UserCLVStats {
   @@unique([userId, sportKey, betType, period])
   @@index([userId])
   @@map("user_clv_stats")
+}
+
+// Sharp vs Public Money Indicators
+model SharpMoneyIndicator {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId           String   @map("game_id") @db.Uuid
+  marketType       String   @map("market_type") @db.VarChar(20)
+  calculatedAt     DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+
+  // Indicators
+  lineMovement     String   @map("line_movement") @db.VarChar(20)   // steam, reverse, gradual, no_movement
+  sharpSide        String   @map("sharp_side") @db.VarChar(20)      // home, away, over, under, none
+  publicSide       String   @map("public_side") @db.VarChar(20)     // home, away, over, under, none
+
+  // Confidence
+  sharpConfidence  Int      @map("sharp_confidence")                 // 1-10
+  contraindicators String[] @map("contraindicators")
+
+  // External data (when integrated)
+  publicBettingPct Decimal? @map("public_betting_pct") @db.Decimal(5, 2)
+  publicMoneyPct   Decimal? @map("public_money_pct") @db.Decimal(5, 2)
+
+  game             Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+  @@index([sharpSide])
+  @@index([calculatedAt])
+  @@map("sharp_money_indicators")
 }
 
 // Site configuration for branding
