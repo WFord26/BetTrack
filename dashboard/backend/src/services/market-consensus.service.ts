@@ -113,39 +113,53 @@ export class MarketConsensusService {
       return null;
     }
 
-    let lines: number[];
-    let sides: ('home' | 'away' | 'over' | 'under')[];
-    let lineValues: number[];
-
     if (marketType === 'h2h') {
-      // Use implied probability of home team for moneyline consensus
-      const homeProbs = odds
+      // Use implied probability space for moneyline consensus.
+      // We must score BOTH sides independently: a market where home prices
+      // are stable but away prices diverge is genuine disagreement but
+      // would be scored 0 if only home probs are used. We compute deviation
+      // and outliers for each side, then take the max score so neither side
+      // is silently ignored.
+      const homeEntries = odds
         .filter((o) => o.homePrice !== null)
-        .map((o) => americanToImpliedProb(o.homePrice!));
-      const awayProbs = odds
+        .map((o) => ({ bookmaker: o.bookmaker, value: americanToImpliedProb(o.homePrice!) }));
+      const awayEntries = odds
         .filter((o) => o.awayPrice !== null)
-        .map((o) => americanToImpliedProb(o.awayPrice!));
+        .map((o) => ({ bookmaker: o.bookmaker, value: americanToImpliedProb(o.awayPrice!) }));
 
-      // We work in implied-prob space for moneylines
-      lines = homeProbs;
-      lineValues = homeProbs;
-      sides = Array(homeProbs.length).fill('home');
+      const homeProbs = homeEntries.map((e) => e.value);
+      const awayProbs = awayEntries.map((e) => e.value);
 
-      const consensusProb = median(homeProbs);
-      const dev = stdDev(homeProbs);
-      const consensusAmerican = impliedProbToAmerican(consensusProb);
-      const score = this.computeScore(dev, consensusProb);
+      const consensusHomeProb = median(homeProbs);
+      const consensusAwayProb = median(awayProbs);
 
-      const outliers = this.findOutliers(
-        odds
-          .filter((o) => o.homePrice !== null)
-          .map((o) => ({
-            bookmaker: o.bookmaker,
-            value: americanToImpliedProb(o.homePrice!),
-          })),
-        consensusProb,
-        dev
-      );
+      const homeDev = stdDev(homeProbs);
+      const awayDev = stdDev(awayProbs);
+
+      const homeScore = this.computeScore(homeDev, consensusHomeProb);
+      const awayScore = this.computeScore(awayDev, consensusAwayProb);
+
+      // Use the higher-disagreement side for the reported score and stddev.
+      const dominantSide = awayScore > homeScore ? 'away' : 'home';
+      const score = Math.max(homeScore, awayScore);
+      const reportedDev = dominantSide === 'away' ? awayDev : homeDev;
+
+      const homeOutliers = this.findOutliers(homeEntries, consensusHomeProb, homeDev);
+      const awayOutliers = this.findOutliers(awayEntries, consensusAwayProb, awayDev);
+
+      // Merge outlier lists; if a bookmaker appears on both sides keep the
+      // entry with the larger absolute deviation.
+      const outlierMap = new Map<string, OutlierBookmaker>();
+      for (const o of [...homeOutliers, ...awayOutliers]) {
+        const existing = outlierMap.get(o.bookmaker);
+        if (!existing || Math.abs(o.deviation) > Math.abs(existing.deviation)) {
+          outlierMap.set(o.bookmaker, o);
+        }
+      }
+      const outliers = Array.from(outlierMap.values());
+
+      // Consensus line reported as home American odds (UI convention).
+      const consensusAmerican = impliedProbToAmerican(consensusHomeProb);
 
       // Best value = numerically highest price across both sides (most favorable for bettor)
       // Positive odds: +130 is better than +110
@@ -177,7 +191,7 @@ export class MarketConsensusService {
         gameId,
         marketType,
         consensusLine: consensusAmerican,
-        standardDeviation: parseFloat((dev * 100).toFixed(2)), // as percentage points
+        standardDeviation: parseFloat((reportedDev * 100).toFixed(2)), // as percentage points
         outlierBookmakers: outliers,
         bookmakerCount: odds.length,
         disagreementScore: score,

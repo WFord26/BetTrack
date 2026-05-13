@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **h2h moneyline disagreement ignores away-price divergence** (`src/services/market-consensus.service.ts` — `calculateConsensus`): Consensus, standard deviation, outlier detection, and the disagreement score for `h2h` markets were computed exclusively from home implied probabilities. A market where away prices diverge across bookmakers while home prices remain stable produced a score of 0 and was never surfaced by `/analytics/disagreement/live` or the Value Opportunities page. Fixed by computing independent scores for both home and away sides: `homeScore = computeScore(stdDev(homeProbs), consensusHomeProb)` and `awayScore = computeScore(stdDev(awayProbs), consensusAwayProb)`. The persisted `disagreementScore` is `max(homeScore, awayScore)`, the `standardDeviation` comes from the dominant side, and outliers from both sides are merged (keeping the entry with the larger absolute deviation when a bookmaker appears on both sides). The consensus line is still reported as home American odds for UI consistency.
+
 ---
 
 ## [0.3.5] - 2026-05-12
