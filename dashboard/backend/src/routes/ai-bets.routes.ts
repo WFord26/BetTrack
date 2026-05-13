@@ -188,20 +188,30 @@ router.post('/', apiKeyAuth, async (req, res) => {
         : stake * (100 / Math.abs(odds));
     } else {
       // Parlay calculation using effective odds (accounts for SGP groups)
-      const decimalOdds = effectiveOdds.map(odd => 
+      const decimalOdds = effectiveOdds.map(odd =>
         odd > 0 ? 1 + (odd / 100) : 1 + (100 / Math.abs(odd))
       );
-      const totalDecimalOdds = decimalOdds.reduce((acc, odd) => acc * odd, 1);
-      
+      const rawTotalDecimalOdds = decimalOdds.reduce((acc, odd) => acc * odd, 1);
+
+      // Guard: degenerate parlay where all legs cancel out or produce invalid odds
+      if (!isFinite(rawTotalDecimalOdds) || rawTotalDecimalOdds <= 1.0) {
+        return res.status(400).json({
+          status: 'error',
+          error: 'Parlay odds calculation produced an invalid result. Check individual leg odds.'
+        });
+      }
+
+      const totalDecimalOdds = rawTotalDecimalOdds;
+
       // Convert back to American odds for storage
       if (totalDecimalOdds >= 2.0) {
         oddsAtPlacement = Math.round((totalDecimalOdds - 1) * 100);
       } else {
         oddsAtPlacement = Math.round(-100 / (totalDecimalOdds - 1));
       }
-      
+
       potentialPayout = stake * totalDecimalOdds;
-      
+
       logger.info(`Parlay odds calculation: ${effectiveOdds.join(', ')} → ${oddsAtPlacement} (${gameGroups.size} games, ${sgpGames.size} with SGP)`);
     }
 

@@ -456,4 +456,47 @@ router.put('/site-config', validateBody(siteConfigSchema), async (req: Request, 
   }
 });
 
+const adminSettingsSchema = z.object({
+  riskHighThreshold: z.number().positive().optional(),
+  riskModerateThreshold: z.number().positive().optional(),
+  winRateLow: z.number().min(0).max(100).optional(),
+  winRateHigh: z.number().min(0).max(100).optional()
+});
+
+/**
+ * GET /api/admin/settings
+ * Get deployment-wide MCP risk thresholds (creates singleton row with defaults if absent)
+ */
+router.get('/settings', async (_req: Request, res: Response) => {
+  try {
+    const settings = await prisma.adminSettings.upsert({
+      where: { id: 'singleton' },
+      update: {},
+      create: { id: 'singleton' }
+    });
+    res.json({ status: 'success', data: settings });
+  } catch (error: any) {
+    logger.error('Failed to fetch admin settings:', error);
+    res.status(500).json({ status: 'error', error: error.message });
+  }
+});
+
+/**
+ * PATCH /api/admin/settings
+ * Update deployment-wide MCP risk thresholds
+ */
+router.patch('/settings', validateBody(adminSettingsSchema), async (req: Request, res: Response) => {
+  try {
+    const settings = await prisma.adminSettings.upsert({
+      where: { id: 'singleton' },
+      update: req.body,
+      create: { id: 'singleton', ...req.body }
+    });
+    res.json({ status: 'success', data: settings });
+  } catch (error: any) {
+    logger.error('Failed to update admin settings:', error);
+    res.status(500).json({ status: 'error', error: error.message });
+  }
+});
+
 export default router;

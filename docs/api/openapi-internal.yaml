@@ -18,7 +18,7 @@ info:
     Default: `http://localhost:3001`
 
     All API routes are prefixed with `/api`.
-  version: 0.2.11
+  version: 0.3.6
   contact:
     url: https://github.com/WFord26/BetTrack
   license:
@@ -57,6 +57,16 @@ tags:
     description: Optimized routes for MCP Server integration (requires API key)
   - name: AI Bets
     description: AI-assisted bet creation (requires API key)
+  - name: Bookmaker Disagreement
+    description: |
+      Detect bookmaker consensus divergence across h2h, spreads, and totals markets.
+      High disagreement scores indicate market inefficiency and potential value opportunities.
+      All endpoints require session auth.
+  - name: Line Movement Analytics
+    description: |
+      Detect and analyze betting line movements across bookmakers — steam moves (rapid
+      coordinated shifts), gradual drift, and reverse line movement.
+      All endpoints require session auth.
 
 components:
   securitySchemes:
@@ -379,6 +389,152 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    LineMovement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        gameId:
+          type: string
+          format: uuid
+        marketType:
+          type: string
+          enum: [h2h, spreads, totals]
+        movementType:
+          type: string
+          enum: [steam, reverse, gradual, injury, normal]
+        bookmakerCount:
+          type: integer
+          description: Number of bookmakers that moved in the dominant direction
+        averageMovement:
+          type: number
+          description: Average line change across coordinated bookmakers
+        maxMovement:
+          type: number
+          nullable: true
+          description: Largest single-bookmaker move in the window
+        timeToMove:
+          type: integer
+          description: Elapsed seconds between the compared sync batches
+        suspectedCause:
+          type: string
+          nullable: true
+          description: Human-readable reason (e.g. "Rapid line movement across multiple bookmakers")
+        linesBefore:
+          type: object
+          description: Per-bookmaker snapshot before the move (keys are bookmaker names)
+        linesAfter:
+          type: object
+          description: Per-bookmaker snapshot after the move
+        detectedAt:
+          type: string
+          format: date-time
+
+    MovementStats:
+      type: object
+      properties:
+        byType:
+          type: object
+          properties:
+            steam:
+              type: integer
+            reverse:
+              type: integer
+            gradual:
+              type: integer
+            injury:
+              type: integer
+            normal:
+              type: integer
+        byMarket:
+          type: object
+          properties:
+            h2h:
+              type: integer
+            spreads:
+              type: integer
+            totals:
+              type: integer
+        totalMovements:
+          type: integer
+        steamMovesCount:
+          type: integer
+        period:
+          type: string
+          example: Last 24 hours
+
+    ConsensusResult:
+      type: object
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        marketType:
+          type: string
+          enum: [h2h, spreads, totals]
+        consensusLine:
+          type: number
+          description: Median consensus line (American odds for h2h, points for spreads/totals)
+        standardDeviation:
+          type: number
+          description: Std dev in percentage points (h2h) or points (spreads/totals)
+        outlierBookmakers:
+          type: array
+          items:
+            type: object
+            properties:
+              bookmaker:
+                type: string
+              line:
+                type: number
+              deviation:
+                type: number
+                description: Standard deviations from consensus (negative = below)
+        bookmakerCount:
+          type: integer
+        disagreementScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: |
+            Coefficient of variation × 1000, capped at 100.
+            0–30 normal, 31–60 medium, 61–80 high, 81–100 extreme.
+        bestValue:
+          type: object
+          properties:
+            side:
+              type: string
+              enum: [home, away, over, under]
+            bookmaker:
+              type: string
+            line:
+              type: number
+            impliedProb:
+              type: number
+
+    HighDisagreementGame:
+      type: object
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        homeTeamName:
+          type: string
+        awayTeamName:
+          type: string
+        commenceTime:
+          type: string
+          format: date-time
+        sportKey:
+          type: string
+        consensus:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsensusResult'
+        maxDisagreementScore:
+          type: integer
 
     CLVReport:
       type: object
@@ -1820,3 +1976,476 @@ paths:
                     type: string
                   details:
                     type: object
+
+  # ============================================================
+  # BOOKMAKER DISAGREEMENT
+  # ============================================================
+  /api/analytics/disagreement/live:
+    get:
+      tags: [Bookmaker Disagreement]
+      summary: Get games with high bookmaker disagreement
+      description: |
+        Returns scheduled games that have not yet started (`status = scheduled` and
+        `commenceTime > now`) whose latest consensus row has a `disagreementScore`
+        above the threshold. Only the single latest row per game+market pair is
+        evaluated so stale high-score rows are never re-surfaced after a
+        recalculation drops below the threshold.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: threshold
+          in: query
+          description: Minimum disagreement score (1–100, default 60)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 60
+        - name: limit
+          in: query
+          description: Maximum number of games returned (1–100, default 20)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of high-disagreement games
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      games:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HighDisagreementGame'
+                      threshold:
+                        type: integer
+                      count:
+                        type: integer
+        '500':
+          description: Internal server error
+
+  /api/analytics/disagreement/game/{gameId}:
+    get:
+      tags: [Bookmaker Disagreement]
+      summary: Get consensus breakdown for a specific game
+      description: |
+        Returns the latest `MarketConsensus` row for each market type (h2h, spreads,
+        totals) for the given game. No score threshold applied — all markets are
+        returned regardless of their disagreement score.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Per-market consensus breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConsensusResult'
+        '500':
+          description: Internal server error
+
+  /api/analytics/disagreement/trends:
+    get:
+      tags: [Bookmaker Disagreement]
+      summary: Get disagreement score history for a game over time
+      description: |
+        Returns a time series of `MarketConsensus` rows for a game so the UI can
+        plot how disagreement evolved leading up to kickoff.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: gameId
+          in: query
+          required: true
+          description: Game UUID
+          schema:
+            type: string
+            format: uuid
+        - name: marketType
+          in: query
+          description: Filter to a single market type
+          schema:
+            type: string
+            enum: [h2h, spreads, totals]
+      responses:
+        '200':
+          description: Time-series disagreement history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        marketType:
+                          type: string
+                        disagreementScore:
+                          type: integer
+                        calculatedAt:
+                          type: string
+                          format: date-time
+        '400':
+          description: Missing gameId query parameter
+        '500':
+          description: Internal server error
+
+  /api/analytics/disagreement/bookmaker/{bookmaker}:
+    get:
+      tags: [Bookmaker Disagreement]
+      summary: Get outlier frequency stats for a bookmaker
+      description: |
+        Returns how often the specified bookmaker was identified as a consensus
+        outlier (> 2 standard deviations from the market) within a look-back window.
+        Useful for identifying which books consistently shade lines differently.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: bookmaker
+          in: path
+          required: true
+          description: Bookmaker key (e.g. `draftkings`, `fanduel`)
+          schema:
+            type: string
+        - name: days
+          in: query
+          description: Look-back window in days (1–365, default 30)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+      responses:
+        '200':
+          description: Bookmaker outlier statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      bookmaker:
+                        type: string
+                      days:
+                        type: integer
+                      outlierCount:
+                        type: integer
+                      totalMarkets:
+                        type: integer
+                      outlierRate:
+                        type: number
+                        description: Fraction of markets where this bookmaker was an outlier (0–1)
+        '500':
+          description: Internal server error
+
+  # ============================================================
+  # LINE MOVEMENT ANALYTICS
+  # ============================================================
+  /api/analytics/movements/live:
+    get:
+      tags: [Line Movement Analytics]
+      summary: Get recent line movements in real-time
+      description: |
+        Returns recently detected line movements. Use `movementType=steam` (default)
+        for the most actionable signals. Pass `movementType=all` to include every
+        classification (normal, gradual, reverse, injury).
+
+        Steam detection requires ≥ 3 bookmakers moving ≥ 1.5 pts (spreads/totals) or
+        ≥ 15 cents (h2h) in the same direction within a single 10-minute sync window
+        (`timeElapsed < 900 s`).
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum movements returned (default 20)
+          schema:
+            type: integer
+            default: 20
+        - name: hoursBack
+          in: query
+          description: Look-back window in hours (default 4)
+          schema:
+            type: integer
+            default: 4
+        - name: movementType
+          in: query
+          description: Filter by classification. Omit or pass `all` for all types.
+          schema:
+            type: string
+            enum: [steam, reverse, gradual, injury, all]
+            default: steam
+      responses:
+        '200':
+          description: Live movements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      movements:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LineMovement'
+                      total:
+                        type: integer
+                      hoursBack:
+                        type: integer
+                      movementType:
+                        type: string
+        '400':
+          description: Invalid movementType value
+        '500':
+          description: Internal server error
+
+  /api/analytics/movements/game/{gameId}:
+    get:
+      tags: [Line Movement Analytics]
+      summary: Get all line movements for a specific game
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          description: Maximum movements returned (default 50)
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Game movements with matchup context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      game:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          matchup:
+                            type: string
+                            example: Kansas City Chiefs vs Buffalo Bills
+                          sport:
+                            type: string
+                          commenceTime:
+                            type: string
+                            format: date-time
+                      movements:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LineMovement'
+                      total:
+                        type: integer
+        '404':
+          description: Game not found
+        '500':
+          description: Internal server error
+
+  /api/analytics/movements/history:
+    get:
+      tags: [Line Movement Analytics]
+      summary: Get historical movement data with statistics
+      description: |
+        Returns both aggregate statistics and raw movement records for the
+        look-back window. Records are grouped by date so the UI can render
+        a timeline breakdown. Capped at 200 records.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: hoursBack
+          in: query
+          description: Look-back window in hours (default 24)
+          schema:
+            type: integer
+            default: 24
+        - name: movementType
+          in: query
+          description: Filter by classification (omit for all types)
+          schema:
+            type: string
+            enum: [steam, reverse, gradual, injury]
+      responses:
+        '200':
+          description: Historical movements with statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      statistics:
+                        $ref: '#/components/schemas/MovementStats'
+                      movements:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LineMovement'
+                      byDate:
+                        type: object
+                        description: Movements grouped by ISO date key (YYYY-MM-DD)
+                        additionalProperties:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/LineMovement'
+                      hoursBack:
+                        type: integer
+                      period:
+                        type: string
+                        example: Last 24 hours
+        '400':
+          description: Invalid movementType value
+        '500':
+          description: Internal server error
+
+  /api/analytics/movements/bookmaker/{bookmaker}:
+    get:
+      tags: [Line Movement Analytics]
+      summary: Get movements where a specific bookmaker was involved
+      description: |
+        Filters the movement window for records where the bookmaker appears in
+        `linesBefore` or `linesAfter`. Useful for identifying which books lead
+        versus follow steam moves.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: bookmaker
+          in: path
+          required: true
+          description: Bookmaker key (e.g. `draftkings`)
+          schema:
+            type: string
+        - name: hoursBack
+          in: query
+          description: Look-back window in hours (default 24)
+          schema:
+            type: integer
+            default: 24
+        - name: marketType
+          in: query
+          description: Filter by market type
+          schema:
+            type: string
+            enum: [h2h, spreads, totals]
+      responses:
+        '200':
+          description: Movements involving this bookmaker plus impact statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      bookmaker:
+                        type: string
+                      hoursBack:
+                        type: integer
+                      impactStats:
+                        type: object
+                        properties:
+                          totalMovements:
+                            type: integer
+                          steamMoves:
+                            type: integer
+                          avgMovementSize:
+                            type: string
+                            example: "1.25"
+                      recentMovements:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LineMovement'
+        '500':
+          description: Internal server error
+
+  /api/analytics/movements/stats:
+    get:
+      tags: [Line Movement Analytics]
+      summary: Get aggregate movement statistics
+      description: |
+        Returns counts broken down by movement type and market type for the
+        look-back window, plus the current steam move count.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: hoursBack
+          in: query
+          description: Look-back window in hours (default 24)
+          schema:
+            type: integer
+            default: 24
+      responses:
+        '200':
+          description: Movement statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/MovementStats'
+        '500':
+          description: Internal server error
+

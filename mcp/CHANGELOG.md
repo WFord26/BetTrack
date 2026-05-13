@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.7] - 2026-05-12
+
+### Added
+- **`get_advice_context` tool**: Returns structured betting context for Claude — active pending bets, recent results, win-rate stats, and risk analysis — via `GET /api/mcp/bets/advice-context`. Accepts optional `limit` query param (default 100).
+- **`get_games_with_exposure` tool**: Lists today's and tomorrow's games alongside the user's open bet exposure per game via `GET /api/mcp/games/with-exposure`. Accepts optional `sport` filter and `only_with_bets` boolean.
+- **Singleton `aiohttp.ClientSession`**: Session created once at module init and shared across all requests; closed cleanly on interpreter shutdown via `atexit` (eliminates per-call overhead and unclosed-connector warnings).
+- **Structured HTTP error handling in `make_request`**: Responses with status ≥ 400 now return `{"error": "HTTP <status>", "status": <int>, "detail": <body>}` instead of silently forwarding the raw response body.
+- **HTTPS guidance**: `DASHBOARD_API_URL` default value comment warns that `http://` is only acceptable for local development; hosted deployments must use `https://`.
+
+### Changed
+- **All dashboard tools rewired to `/api/mcp/*`**: Replaced session-gated `/api/*` paths with API-key-authenticated `/api/mcp/*` equivalents across all seven tools — `create_bet`, `get_active_games`, `get_my_bets`, `get_bet_details`, `get_game_odds`, `get_dashboard_stats`, and `search_teams`.
+- **`create_bet` new signature**: Parameters changed to `(game_id, selection_type, selection, stake, odds, line, name)`; posts to `POST /api/mcp/bets/quick-create`. Parlay limitation documented in docstring.
+- **`search_teams` fixed**: Now calls `GET /api/mcp/teams/search?q=<query>` (real backend endpoint) instead of the previous non-functional route.
+- **`get_active_games`** → `GET /api/mcp/games`
+- **`get_my_bets`** → `GET /api/mcp/bets`
+- **`get_bet_details`** → `GET /api/mcp/bets/{bet_id}`
+- **`get_game_odds`** → `GET /api/mcp/games/{game_id}/odds`
+- **`get_dashboard_stats`** → `GET /api/mcp/bets/summary`
+- All tool docstrings updated to reflect actual endpoints, parameters, and response shapes.
+
+---
+
 ## [0.2.6] - 2026-05-08
 
 ### Added
