@@ -27,7 +27,7 @@
     },
     "dashboard/backend": {
       "name": "@wford26/bettrack-backend",
-      "hash": "bf9e21ae4619d6778135f53eeb576de5c6a4de42a048ca168ba61ea660136547",
+      "hash": "6c950b4853830d56a5cecb14e93323c6057895b06ac8981a193e489d1d5567c6",
       "files": {
         "dashboard/backend/.dockerignore": "3e9dfe9f05211b9b2cb2775e9861b5f4e2fa614a0773a6c71283404498391d8e",
         "dashboard/backend/.env": "6dcbf3bc590016abc2351c795620c9e80789655cc3930aa219736eef9dd8440b",
@@ -39,8 +39,8 @@
         "dashboard/backend/Dockerfile.dev": "72e5fd6d621b54926d3d682bb23515b147a8e22b8fba85fbc37f0f931de757ea",
         "dashboard/backend/eslint.config.js": "cc7a6d7ceed3b9d55c14b0c6eebf1336ebb227b09888de554a211a44694d66c3",
         "dashboard/backend/jest.config.js": "a5ce708aabc1eea6eb7090975dcdec3e4ef976d2ab6dabeb1cca7b0d893fc109",
-        "dashboard/backend/logs/combined.log": "d9a12671ba62d4ab3d890bc20c9250c1d2023a1de7e6a5cbd9f0686faa713dd9",
-        "dashboard/backend/logs/error.log": "264704b08b6e8eb94671e0ceda8e8481c32f39515d6f2f513cc15dd1a3b97bfa",
+        "dashboard/backend/logs/combined.log": "0c3e2b7ffa6f57328b1b7c300bd70dcae2f46d5fd8aa2761f9df72ae79033d4b",
+        "dashboard/backend/logs/error.log": "95498608c5940e2103d343ecbce296a0419baf72a192f36e5b52b8c26d2a748e",
         "dashboard/backend/prisma.config.ts": "bc3775eccdaad760500185564e39f286477293bbff83f686f8638f5ed603c61a",
         "dashboard/backend/prisma/migrations/20260109180744_init/migration.sql": "ea8770758bd9ab8c09a958c61efc224a991293a259e3b40141b23bad2ade291b",
         "dashboard/backend/prisma/migrations/20260110175548_new_sports_bet_dashboard/migration.sql": "040d4fa56b12ac8cfa02b05b35b93a5b7f963ea4f2069d699fbfe6773b3e4b34",
@@ -106,7 +106,7 @@
         "dashboard/backend/src/services/futures-sync.service.ts": "e6ba2e0febdf37ea85c0c1462d194b9f3933c17bc99ae9892603a9cb7ab5c234",
         "dashboard/backend/src/services/line-movement.service.ts": "3b38a93b56672a0c4204d39395993d0785d078147841f75dd7040350acc244c9",
         "dashboard/backend/src/services/line-movement.service.ts.bak": "9586277e788ff7af6d69e5e13bc84239608492b058b262aaa318526bf42eb1fd",
-        "dashboard/backend/src/services/market-consensus.service.ts": "38723da9841913f77f165bb2f9b51ef2d06071a358460ef9aa741fbe22558a99",
+        "dashboard/backend/src/services/market-consensus.service.ts": "6119676210ae214051f853cebff5264a77f28d7ec8cee95dcc1dab8142e030e6",
         "dashboard/backend/src/services/oauth.service.ts": "ad50fccd857ba18f9da9a8b02e5289484db6596653c105a97c95482c0149b161",
         "dashboard/backend/src/services/odds-sync.service.ts": "37e2c0e76b7a64e285d74cc7dc1ae383c879814bbba7a451a155e3a60baf3a06",
         "dashboard/backend/src/services/outcome-resolver.service.ts": "fd60db6a6c36571a5c702554451e75048ec2d1551d306ec0bf426bae5e74c38a",
