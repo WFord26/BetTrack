@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.2] - 2026-05-12
+
 ### Fixed
 
 - **Movement stats timeframe out of sync with page filter** (`src/components/analytics/LineMovementPerformance.tsx`): `useState(hoursBack)` only captures the initial prop value, so when the parent page changed the `hoursBack` prop (e.g. switching from 24h to 7d or 30d), the internal `timeframe` state kept its original value. The sidebar continued dispatching `fetchMovementStats` for the old window while the chart and results reflected the newly selected range, showing mismatched totals. Fixed by adding `useEffect(() => { setTimeframe(hoursBack); }, [hoursBack])` to keep `timeframe` in sync whenever the prop changes.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.5] - 2026-05-12
+
 ### Fixed
 
 - **Stale pregame opportunities shown for already-started games with delayed status updates** (`src/services/market-consensus.service.ts` — `findHighDisagreement`): The previous fix added `game.status = 'scheduled'` to exclude in-progress and completed games, but this is insufficient when the status job hasn't yet advanced a game from `'scheduled'` to `'in_progress'` after kickoff. During that lag window the game still passes the status filter and its last pregame consensus row continues to appear in `/analytics/disagreement/live` as a bettable opportunity. Fixed by adding `game.commenceTime > now()` alongside the status filter. A game that has already passed its scheduled start time is now excluded regardless of whether the status job has caught up.
