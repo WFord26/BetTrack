@@ -51,9 +51,13 @@ export function initLineMovementJob(prisma: PrismaClient): void {
       let totalMovementsDetected = 0;
 
       // Detect movements for each game
+      // Use 120 minutes (2 hours) lookback to capture gradual moves (which require
+      // timeElapsed > 3600 seconds = 1 hour). Even though the job runs every 5 minutes,
+      // a wider window is needed to detect slow drift over extended periods, while
+      // sinceTime prevents duplicate persistence on overlapping runs.
       for (const game of activeGames) {
         try {
-          const movements = await lineMovementService.detectMovements(game.id, 10, lastRunAt ?? undefined);
+          const movements = await lineMovementService.detectMovements(game.id, 120, lastRunAt ?? undefined);
 
           if (movements.length > 0) {
             lineMovementLogger.info(

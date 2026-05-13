@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Gradual line movements never detected by scheduled job** (`src/jobs/line-movement.job.ts`): The job called `detectMovements` with a 10-minute lookback window, but `classifyMovement` classifies a move as "gradual" only when `timeElapsed > 3600` seconds (1 hour). Since every snapshot pair bounded by 10 minutes had `timeElapsed < 3600`, gradual movements could never be persisted, leaving the gradual filter empty in the API and UI. Fixed by increasing the lookback to 120 minutes (2 hours), enabling detection of slow drift over extended periods. Duplicate persistence on overlapping runs is prevented by the existing `sinceTime` cursor mechanism.
 - **Live disagreement list shows stale pregame opportunities for in-progress/completed games** (`src/services/market-consensus.service.ts` — `findHighDisagreement`): The consensus job only calculates rows for `status: 'scheduled'` games before they start. After a game's status changes to `in_progress` or `completed`, new consensus rows stop being created, but the last pregame row can still fall within the 2-hour lookback window. This caused `/analytics/disagreement/live` and the Value Opportunities page to advertise stale betting opportunities for games that had already started or finished. Fixed by adding `game: { status: 'scheduled' }` filter to the query, so only pregame consensus rows are returned.
 
 ---
