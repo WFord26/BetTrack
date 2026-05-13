@@ -18,15 +18,28 @@ Changes that affect the entire project structure:
 
 ## [Unreleased]
 
-### Fixed
+---
 
-- **Phase 1 Bug Fixes (Line Movement & Bookmaker Disagreement)**: Comprehensive bug-fix batch for core analytics features
-  - **Line Movement Detection**: Fixed steam move classification (now requires 3+ books moving in same direction, not split markets), prevented duplicate rows from overlapping detection windows, fixed job to process live games and respect upper/lower time bounds
-  - **Bookmaker Disagreement**: Fixed stale/duplicate opportunities in live list (now uses latest consensus row per game+market), corrected bestValue detection to compare all market sides (away moneyline, under totals now surfaced)
-  - **Analytics Widgets**: Fixed SteamMoveAlert to use separate Redux state (no longer clobbers page filters), fixed modal breakdowns to fetch complete market data regardless of threshold filter
-  - **Team Navigation**: Fixed EnhancedGameCard team links to match updated route format
-  
-  See [dashboard/backend/CHANGELOG.md](dashboard/backend/CHANGELOG.md) and [dashboard/frontend/CHANGELOG.md](dashboard/frontend/CHANGELOG.md) for detailed fix descriptions.
+## [2026-05-12]
+
+### Release Summary
+
+Phase 1 complete: Line Movement Tracking feature shipped with full detection pipeline, analytics UI, and 10 follow-on bug fixes identified during post-implementation review. All filters (steam, gradual, normal), value-opportunity pages, and analytics widgets now operate correctly under default deployment settings.
+
+### Added
+- **Line Movement Analytics** (Phase 1): End-to-end feature for detecting steam moves, gradual drift, and bookmaker disagreement — backend service + scheduled job + REST API + full React UI at `/analytics/movements`
+
+### Fixed
+- Detection pipeline: steam classification from split markets, threshold misaligned with 10-min sync cadence, gradual moves never reaching `> 3600 s` threshold, duplicate rows from overlapping windows, live-game status filter, historical backlog re-processing
+- Bookmaker disagreement: stale/duplicate rows in live list, h2h away-price divergence ignored, `bestValue` always reporting home/over side, commenced-but-unupdated game status gap
+- Analytics UI: `SteamMoveAlert` clobbering page filter, `DisagreementBreakdown` omitting below-threshold markets, `MovementPerformance` timeframe desync, type errors, filter passthrough bug, team navigation 404s
+
+### Component Versions
+- Dashboard Backend: v0.3.6
+- Dashboard Frontend: v0.4.2
+- Dashboard Root: v0.2.5
+
+See [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for full details.
 
 ---
 
