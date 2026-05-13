@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.3] - 2026-05-12
+
 ### Fixed
 
 - **Gradual line movements never detected by scheduled job** (`src/jobs/line-movement.job.ts`): The job called `detectMovements` with a 10-minute lookback window, but `classifyMovement` classifies a move as "gradual" only when `timeElapsed > 3600` seconds (1 hour). Since every snapshot pair bounded by 10 minutes had `timeElapsed < 3600`, gradual movements could never be persisted, leaving the gradual filter empty in the API and UI. Fixed by increasing the lookback to 120 minutes (2 hours), enabling detection of slow drift over extended periods. Duplicate persistence on overlapping runs is prevented by the existing `sinceTime` cursor mechanism.
