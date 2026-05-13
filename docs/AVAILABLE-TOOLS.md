@@ -1,6 +1,6 @@
-# Sports Data MCP - Available Tools
+# BetTrack MCP Tools - Complete Reference
 
-Complete list of all MCP tools available for querying sports data and betting odds.
+Complete list of all 23 MCP tools available for querying sports data and betting odds through Claude Desktop.
 
 ## The Odds API Tools (Betting Data)
 

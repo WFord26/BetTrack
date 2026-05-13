@@ -16,8 +16,8 @@ This is the easiest method for most users.
 
 #### Step 1: Download Package
 
-1. Go to the [Releases page](https://github.com/WFord26/Sports-Odds-MCP/releases)
-2. Download the latest `.mcpb` file (e.g., `sports-data-mcp-v0.1.10.mcpb`)
+1. Go to the [Releases page](https://github.com/WFord26/BetTrack/releases)
+2. Download the latest `.mcpb` file (e.g., `sports-data-mcp-v0.2.1.mcpb`)
 
 #### Step 2: Install in Claude Desktop
 
@@ -56,8 +56,8 @@ For developers or users who want more control.
 #### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/WFord26/Sports-Odds-MCP.git
-cd Sports-Odds-MCP
+git clone https://github.com/WFord26/BetTrack.git
+cd BetTrack/mcp
 ```
 
 #### Step 2: Install Dependencies
@@ -95,7 +95,7 @@ Add the server configuration:
   "mcpServers": {
     "sports-data": {
       "command": "python",
-      "args": ["C:/path/to/Sports-Odds-MCP/sports_mcp_server.py"],
+      "args": ["C:/path/to/BetTrack/mcp/sports_mcp_server.py"],
       "env": {
         "ODDS_API_KEY": "your_api_key_here"
       }
@@ -223,7 +223,7 @@ Expected response: Current NBA games with scores (no API key needed)
 ### Manual Installation Method
 
 ```bash
-cd Sports-Odds-MCP
+cd BetTrack/mcp
 git pull
 pip install -r requirements.txt --upgrade
 ```
@@ -244,17 +244,17 @@ Restart Claude Desktop.
 ### Manual Installation Method
 
 1. Remove the MCP server entry from `claude_desktop_config.json`
-2. Delete the Sports-Odds-MCP directory
+2. Delete the BetTrack directory
 3. Restart Claude Desktop
 
 ---
 
 ## Next Steps
 
-- **[Usage Examples](Usage-Examples)** - Learn how to query sports data
-- **[API Tools Reference](API-Tools-Reference)** - Complete tool documentation
-- **[Configuration Guide](Configuration-Guide)** - Advanced settings
+- **[Quick Start](Quick-Start.md)** - Get running in 5 minutes
+- **[API Documentation](API-DOCUMENTATION.md)** - Complete tool reference
+- **[Getting API Key](Getting-API-Key.md)** - Detailed API key setup
 
 ---
 
-**Need Help?** Check the [Troubleshooting](Troubleshooting) page or [open an issue](https://github.com/WFord26/Sports-Odds-MCP/issues).
+**Need Help?** Check the [Troubleshooting](#troubleshooting-installation) section above or [open an issue](https://github.com/WFord26/BetTrack/issues).

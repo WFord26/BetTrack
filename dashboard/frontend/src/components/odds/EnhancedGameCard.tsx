@@ -34,6 +34,10 @@ interface Game {
   period?: string;
   clock?: string;
   timeRemaining?: string;
+  inningHalf?: string | null;  // "Top" or "Bot" for baseball
+  balls?: number | null;
+  strikes?: number | null;
+  outs?: number | null;
 }
 
 interface EnhancedGameCardProps {
@@ -316,7 +320,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               {game.awayScore ?? '--'}
             </div>
             <Link 
-              to={`/teams/${game.awayTeamName}`} 
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.awayTeamName)}`} 
               className="text-[9px] font-bold tracking-wide hover:text-[#38bdf8] transition-colors block px-1 leading-tight"
               style={{ minHeight: '28px' }}
             >
@@ -326,21 +330,35 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
           
           {/* Period/Clock Info */}
           <div className="text-center px-3">
-            {isLive && (game.period || game.clock) ? (
+            {isLive && (game.period || game.clock || game.inningHalf) ? (
               <div 
                 className={`px-3 py-2 rounded text-white font-bold ${
                   blinkOn ? 'bg-red-600' : 'bg-red-900'
                 } transition-colors border-2 border-red-500`}
               >
-                {game.period && (
-                  <div className="text-[8px] tracking-wider leading-tight">
-                    {game.period.match(/^\d+$/) ? `Q${game.period}` : game.period}
-                  </div>
-                )}
-                {game.clock && (
-                  <div className="text-[9px] tracking-wider leading-tight mt-0.5">
-                    {game.clock}
-                  </div>
+                {/* Baseball: Show Inning/Half and Count */}
+                {game.sportKey === 'baseball_mlb' && game.inningHalf ? (
+                  <>
+                    <div className="text-[8px] tracking-wider leading-tight">
+                      {game.inningHalf.startsWith('T') || game.inningHalf.startsWith('t') ? '▲' : '▼'} {game.period}
+                    </div>
+                    <div className="text-[7px] tracking-wider leading-tight mt-0.5 text-yellow-200">
+                      {game.balls ?? '-'}-{game.strikes ?? '-'}-{game.outs ?? '-'}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {game.period && (
+                      <div className="text-[8px] tracking-wider leading-tight">
+                        {game.period.match(/^\d+$/) ? `Q${game.period}` : game.period}
+                      </div>
+                    )}
+                    {game.clock && (
+                      <div className="text-[9px] tracking-wider leading-tight mt-0.5">
+                        {game.clock}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
@@ -354,7 +372,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               {game.homeScore ?? '--'}
             </div>
             <Link 
-              to={`/teams/${game.homeTeamName}`} 
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.homeTeamName)}`} 
               className="text-[9px] font-bold tracking-wide hover:text-[#f97316] transition-colors block px-1 leading-tight"
               style={{ minHeight: '28px' }}
             >
@@ -452,7 +470,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
 
       {/* View Details Button */}
       <Link
-        to={`/games/${game.id}`}
+        to={`/game/${game.id}`}
         className="block mt-2 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-center font-bold text-[10px] tracking-wider transition-all transform hover:scale-[1.02]"
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',

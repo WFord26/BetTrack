@@ -247,6 +247,19 @@ export class OutcomeResolverService {
       const period = competition.status.period != null ? `${competition.status.period}` : null;
       const clock = competition.status.displayClock ?? null;
 
+      // Extract baseball-specific game state
+      const sportKey = game.sport?.key || '';
+      let baseballData: any = {};
+      
+      if (sportKey === 'baseball_mlb') {
+        baseballData = {
+          inningHalf: competition.status.inningHalf ?? null,
+          balls: competition.status.balls ?? null,
+          strikes: competition.status.strikes ?? null,
+          outs: competition.status.outs ?? null
+        };
+      }
+
       // Check if completed
       if (!status.completed) {
         // Update to in_progress with live scores
@@ -259,6 +272,7 @@ export class OutcomeResolverService {
               awayScore: awayScore,
               period: period,
               clock: clock,
+              ...baseballData,
               updatedAt: new Date()
             }
           });
@@ -272,6 +286,7 @@ export class OutcomeResolverService {
               awayScore: awayScore,
               period: period,
               clock: clock,
+              ...baseballData,
               updatedAt: new Date()
             }
           });

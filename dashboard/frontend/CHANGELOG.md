@@ -9,6 +9,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.2] - 2026-05-12
+
+### Fixed
+
+- **Movement stats timeframe out of sync with page filter** (`src/components/analytics/LineMovementPerformance.tsx`): `useState(hoursBack)` only captures the initial prop value, so when the parent page changed the `hoursBack` prop (e.g. switching from 24h to 7d or 30d), the internal `timeframe` state kept its original value. The sidebar continued dispatching `fetchMovementStats` for the old window while the chart and results reflected the newly selected range, showing mismatched totals. Fixed by adding `useEffect(() => { setTimeframe(hoursBack); }, [hoursBack])` to keep `timeframe` in sync whenever the prop changes.
+
+---
+
+## [0.4.1] - 2026-05-12
+
+### Fixed
+
+- **DisagreementBreakdown modal omits markets below the live-list threshold** (`src/components/odds/DisagreementBreakdown.tsx`): When a game was clicked from the live list, the modal reused `game.consensus` from the parent — which only contained markets whose `disagreementScore` passed the live-list filter. Lower-score markets (e.g. spread/total when only the moneyline exceeded Min Score 60) were silently omitted. The `useEffect` now always fetches from `/analytics/disagreement/game/:gameId`, which returns the latest row per market type without any score threshold, so all available markets are always shown in the breakdown.
+- **SteamMoveAlert widget overwrites the page's filtered movement list** (`src/store/movementSlice.ts`, `src/components/analytics/SteamMoveAlert.tsx`): `fetchSteamMoves.fulfilled` wrote to `state.liveMovements` — the same slice field that `fetchLiveMovements.fulfilled` uses for the page's filter-driven results. When the widget auto-refreshed (every 60 s) or mounted alongside `LineMovementAnalytics`, it clobbered the page's selected filter (All Types, reverse, gradual, injury) with steam-only data. Fixed by adding a dedicated `steamMoves: LineMovement[]` field to `MovementState` and a `selectSteamMoves` selector. `fetchSteamMoves.fulfilled` now writes to `state.steamMoves`, `SteamMoveAlert` reads from `selectSteamMoves`, and `state.liveMovements` is owned exclusively by `fetchLiveMovements`.
+
+---
+
+## [0.4.0] - 2026-05-12
+
+### Added
+
+- **Line Movement Detection & Tracking — Phase 2** (Issue #5): Frontend analytics components for visualizing and analyzing detected line movements across bookmakers. Enables users to identify steam moves, track sharp action, and monitor movement patterns.
+  - `src/types/movements.types.ts`: Shared types (`LineMovement`, `MovementType`, `MarketType`, `MovementStats`, `MovementFilters`).
+  - `src/services/line-movement.service.ts`: API client for `/api/analytics/movements/*` endpoints with methods: `getLiveMovements()`, `getGameMovements()`, `getMovementHistory()`, `getBookmakerMovements()`, `getMovementStats()`, `getSteamMoves()`.
+  - `src/store/movementSlice.ts`: Redux slice with state management, async thunks (`fetchLiveMovements`, `fetchGameMovements`, `fetchMovementStats`, `fetchSteamMoves`), selectors, and actions.
+  - `src/store/index.ts`: Movement reducer registered in Redux store.
+  - `src/components/analytics/SteamMoveAlert.tsx`: Dashboard widget displaying live steam moves in real-time. Shows game matchup, market type, movement size, bookmaker count, severity badge, and time-to-move. Auto-refreshes every 60 seconds with pause/play control.
+  - `src/components/analytics/LineMovementChart.tsx`: Timeline visualization of line movements with before/after line comparison. Displays interactive timeline with hover tooltips, color-coded movement types (steam/reverse/gradual/injury), and detailed movement breakdown showing bookmaker line changes.
+  - `src/components/analytics/LineMovementPerformance.tsx`: Statistics dashboard showing movement frequency breakdown by type and market. Includes distribution charts, time-range selector (1d/1w/1m), and summary metrics. Compact mode for embedding in other pages.
+  - `src/pages/LineMovementAnalytics.tsx`: Full analytics page at `/analytics/movements` with filters (movement type, market type, time range), integrated widget components, performance statistics, quick tips, and severity legend.
+  - `src/App.tsx`: Route registered at `/analytics/movements`.
+
+### Fixed
+
+- **MovementFilters type system errors** (`src/types/movements.types.ts`, `src/store/movementSlice.ts`, `src/test/test-utils.tsx`): `MovementFilters` interface was missing the `movementType` property, causing 8 TypeScript compilation errors across the analytics components. Added `movementType?: MovementType | 'all'` to the interface, changed `averageMovement` from `number` to `number | string` to handle Prisma `Decimal` serialization in API responses, and added the `movements` reducer to the mock store configuration in test utilities.
+- **"All Types" movement filter forced to steam** (`src/pages/LineMovementAnalytics.tsx`): The filter dispatch was converting `movementType === 'all'` to `'steam'`, meaning selecting "All Types" in the UI returned only steam moves. Removed the conditional conversion so `movementType` is passed through as-is; the backend treats the absence of a type filter as "all types".
+- **EnhancedGameCard team links navigating to 404** (`src/components/odds/EnhancedGameCard.tsx`): After the team detail route was updated from `/teams/:teamName` to `/teams/:league/:teamName`, EnhancedGameCard still used the single-segment format (`/teams/${game.awayTeamName}`). Both team name links updated to the two-segment format (`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.teamName)}`), consistent with the existing GameCard component.
+
+---
+
+## [0.3.13] - 2026-05-08
+
+### Added
+
+- **Bookmaker Disagreement Detection — Phase 1** (Issue #4): New analytics feature to surface value opportunities where bookmakers strongly disagree.
+  - `src/types/disagreement.types.ts`: Shared types (`HighDisagreementGame`, `ConsensusResult`, `OutlierBookmaker`, `BestValue`) and category/colour helpers.
+  - `src/components/odds/HighDisagreementGames.tsx`: Dashboard widget listing top 5 high-disagreement games with scores and categories; auto-refreshes every 60 seconds.
+  - `src/components/odds/DisagreementBreakdown.tsx`: Modal showing per-market consensus line, standard deviation, outlier bookmakers (highlighted), and best-value indicator.
+  - `src/pages/ValueOpportunities.tsx`: Full page at `/analytics/disagreement` with filters (min score, sport, time-to-game) and sort controls.
+  - `src/App.tsx`: Route registered at `/analytics/disagreement`.
+
+### Fixed
+
+- **Game detail page blank on load** (`pages/GameDetail.tsx`): Page was setting the raw API response (`{ status, data }` envelope) as the game state instead of extracting `result.data`. Added proper data extraction, a loading spinner, and an error state with a "Go Back" button.
+- **Game detail API data mapping** (`pages/GameDetail.tsx`): Backend returns sport info as a nested `sport` object (`sport.key`, `sport.name`). Added a transform that flattens these into the `sportKey`/`sportName` fields expected by the component.
+- **EnhancedGameCard "VIEW DETAILS" link** (`components/odds/EnhancedGameCard.tsx`): Link pointed to `/games/:id` (with an "s") instead of the registered route `/game/:id`, causing navigation to a 404 route.
+- **Team page route redesign** (`App.tsx`, `pages/TeamDetail.tsx`, `components/stats/TeamStatsView.tsx`, `components/odds/GameCard.tsx`, `pages/GameDetail.tsx`): Team links previously used internal numeric IDs (`/team/:teamId`) that were unavailable from game data. Routes and all link sources updated to use `/teams/:league/:teamName` (e.g. `/teams/baseball_mlb/New%20York%20Yankees`) so any team can be navigated to directly from a game card.
+
+---
+
+## [0.3.12] - 2026-05-07
+
+### Fixed
+
+- **BetCard front/back bleed-through** (`components/bets/BetCard.tsx`): Replaced broken CSS 3D `rotateY` flip with opacity/visibility toggle so the front-face text no longer renders through the back face
+- **Header logo too small** (`components/Header.tsx`): Increased logo from `h-8` (32px) to `h-16` (64px) for better visibility
+- **Page scroll blocked** (`App.tsx`): Changed `<main>` wrapper from `overflow-hidden` to `overflow-y-auto` so all pages can scroll
+
+---
+
 ## [0.3.11] - 2026-05-07
 
 ### Added

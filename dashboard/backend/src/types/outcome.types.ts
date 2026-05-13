@@ -39,6 +39,10 @@ export interface EspnCompetitionStatus {
   };
   period?: number;
   displayClock?: string;
+  inningHalf?: string;  // "Top" or "Bottom" for baseball
+  balls?: number;
+  strikes?: number;
+  outs?: number;
 }
 
 export interface EspnEvent {

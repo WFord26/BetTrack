@@ -547,7 +547,7 @@ results = await asyncio.gather(
 
 ## Next Steps
 
-- [Frontend Documentation](Frontend-Guide)
-- [Backend API Reference](Backend-Guide)
-- [Database Schema](Database-Guide)
-- [Quick Start Guide](Quick-Start)
+- [Frontend Documentation](Frontend-Guide.md)
+- [Backend API Reference](Backend-Guide.md)
+- [Database Schema](Database-Guide.md)
+- [Quick Start Guide](Quick-Start.md)

@@ -3,19 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom';
 import TeamStatsView from '../components/stats/TeamStatsView';
 
 export default function TeamDetail() {
-  const { teamId } = useParams<{ teamId: string }>();
+  const { league, teamName } = useParams<{ league: string; teamName: string }>();
   const navigate = useNavigate();
 
-  if (!teamId) {
+  if (!league || !teamName) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-900/20 border border-red-500 rounded-lg p-6">
           <h3 className="text-red-400 font-bold mb-2">Invalid Team</h3>
-          <p className="text-red-300">No team ID provided</p>
+          <p className="text-red-300">League and team name are required</p>
         </div>
       </div>
     );
   }
+
+  const decodedTeamName = decodeURIComponent(teamName);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -41,7 +43,7 @@ export default function TeamDetail() {
       </button>
 
       {/* Team Stats Component */}
-      <TeamStatsView teamId={teamId} teamName="" />
+      <TeamStatsView league={league} teamName={decodedTeamName} />
     </div>
   );
 }

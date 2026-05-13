@@ -9,6 +9,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
 import betSlipReducer from '../store/betSlipSlice';
 import clvReducer from '../store/clvSlice';
+import movementReducer from '../store/movementSlice';
 import type { RootState } from '../store';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
@@ -31,6 +32,7 @@ export function renderWithProviders(
     reducer: {
       betSlip: betSlipReducer,
       clv: clvReducer,
+      movements: movementReducer,
     },
     preloadedState: preloadedState as RootState | undefined,
   });
@@ -56,6 +58,7 @@ export function createMockStore(preloadedState?: Partial<RootState>) {
     reducer: {
       betSlip: betSlipReducer,
       clv: clvReducer,
+      movements: movementReducer,
     },
     preloadedState: preloadedState as RootState | undefined,
   });

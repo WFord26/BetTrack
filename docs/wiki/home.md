@@ -8,10 +8,10 @@ Welcome to the **BetTrack** documentation! Complete sports betting data platform
 
 ## 🚀 Quick Links
 
-- **[Quick Start Guide](Quick-Start)** - Get up and running in 5 minutes
-- **[Getting API Key](Getting-API-Key)** - Obtain your free Odds API key
-- **[Installation Guide](Installation-Guide)** - Detailed installation instructions
-- **[API Documentation](API-DOCUMENTATION)** - Complete API reference
+- **[Quick Start Guide](Quick-Start.md)** - Get up and running in 5 minutes
+- **[Getting API Key](Getting-API-Key.md)** - Obtain your free Odds API key
+- **[Installation Guide](Installation-Guide.md)** - Detailed installation instructions
+- **[API Documentation](API-DOCUMENTATION.md)** - Complete API reference
 
 ## � Screenshots
 
@@ -35,10 +35,11 @@ Welcome to the **BetTrack** documentation! Complete sports betting data platform
 
 ## �📚 Component Guides
 
-- **[MCP Server Guide](MCP-Server-Guide)** - Architecture, tools, and development
-- **[Dashboard Guide](Dashboard-Guide)** - Full-stack React app for bet tracking
-- **[Database Guide](Database-Guide)** - Schema, migrations, and queries
-- **[Developer Guide](Developer-Guide)** - Contributing workflow and standards
+- **[MCP Server Guide](MCP-Server-Guide.md)** - Architecture, tools, and development
+- **[Dashboard Guide](Dashboard-Guide.md)** - Full-stack React app for bet tracking
+- **[Backend Guide](Backend-Guide.md)** - Node.js backend architecture
+- **[Frontend Guide](Frontend-Guide.md)** - React dashboard components
+- **[Database Guide](Database-Guide.md)** - Schema, migrations, and queries
 
 ## 📊 What is BetTrack?
 
@@ -117,20 +118,21 @@ Ask Claude natural language questions:
 ## 📚 Documentation Sections
 
 ### For New Users
-- **[Installation Guide](Installation-Guide)** - Step-by-step setup instructions
-- **[Configuration Guide](Configuration-Guide)** - Environment variables and settings
-- **[Usage Examples](Usage-Examples)** - Common queries and use cases
+- **[Quick Start](Quick-Start.md)** - Get running in 5 minutes
+- **[Installation Guide](Installation-Guide.md)** - Step-by-step setup instructions
+- **[Configuration Reference](Configuration-Reference.md)** - All environment variables
+- **[Getting API Key](Getting-API-Key.md)** - Detailed API key setup
 
 ### For Developers
-- **[API Tools Reference](API-Tools-Reference)** - Complete tool documentation
-- **[Building from Source](Building-from-Source)** - Development setup
-- **[Contributing Guide](Contributing-Guide)** - How to contribute
+- **[API Documentation](API-DOCUMENTATION.md)** - Complete MCP tool reference
+- **[Backend Guide](Backend-Guide.md)** - Node.js backend development
+- **[Frontend Guide](Frontend-Guide.md)** - React dashboard development
+- **[Database Guide](Database-Guide.md)** - Schema and migrations
 
-### Reference
-- **[Supported Sports List](Supported-Sports)** - All available sports and leagues
-- **[Team Reference Tables](Team-Reference)** - NFL/NBA/NHL team IDs and abbreviations
-- **[FAQ](FAQ)** - Frequently asked questions
-- **[Troubleshooting](Troubleshooting)** - Common issues and solutions
+### Reference & Troubleshooting
+- **[Troubleshooting](Troubleshooting.md)** - Common issues and solutions
+- **[Developer Guide](Developer-Guide.md)** - Contributing and code standards
+- **[MCP Server Guide](MCP-Server-Guide.md)** - MCP architecture and development
 
 ## 🎨 Output Formats
 

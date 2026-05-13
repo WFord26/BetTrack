@@ -1,29 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
-
-// Import version numbers from package.json
-const FRONTEND_VERSION = '0.3.2';
-const BACKEND_VERSION = '0.2.2';
+// Build-time: Vite bundles the version from the frontend package.json
+import { version as FRONTEND_VERSION } from '../../package.json';
 
 export default function Footer() {
   const [apiRequestsRemaining, setApiRequestsRemaining] = useState<number | null>(null);
+  const [backendVersion, setBackendVersion] = useState<string | null>(null);
   const isDevelopment = import.meta.env.DEV;
 
   useEffect(() => {
     const fetchHealthData = async () => {
       try {
         const response = await api.get('/admin/health');
-        if (response.data?.data?.apiRequestsRemaining !== undefined) {
-          setApiRequestsRemaining(response.data.data.apiRequestsRemaining);
+        const data = response.data?.data;
+        if (data?.apiRequestsRemaining !== undefined) {
+          setApiRequestsRemaining(data.apiRequestsRemaining);
+        }
+        if (data?.version) {
+          setBackendVersion(data.version);
         }
       } catch (error) {
         console.error('Failed to fetch health data:', error);
       }
     };
 
-    // Only fetch in development mode
+    // Fetch on mount always (for BE version), then poll in dev for API quota
+    fetchHealthData();
     if (isDevelopment) {
-      fetchHealthData();
       const interval = setInterval(fetchHealthData, 30000);
       return () => clearInterval(interval);
     }
@@ -43,7 +46,7 @@ export default function Footer() {
             <span className="text-gray-400">•</span>
             <span className="text-gray-400" title="Frontend Version">FE v{FRONTEND_VERSION}</span>
             <span className="text-gray-400">•</span>
-            <span className="text-gray-400" title="Backend Version">BE v{BACKEND_VERSION}</span>
+            <span className="text-gray-400" title="Backend Version">BE v{backendVersion ?? '...'}</span>
           </div>
 
           {/* Center: API Requests (Dev Only) */}

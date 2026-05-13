@@ -36,30 +36,31 @@ Detailed guides for each major component:
 
 ```
 docs/wiki/
-├── home.md                    # Wiki home page
-├── Quick-Start.md            # 5-minute quick start guide
-├── Installation-Guide.md     # Detailed installation
-├── API-DOCUMENTATION.md      # Complete API reference
-├── MCP-Server-Guide.md       # MCP server deep dive
-├── Frontend-Guide.md         # React frontend guide
-├── Backend-Guide.md          # Node.js backend guide
-├── Database-Guide.md         # PostgreSQL/Prisma guide
-├── Developer-Guide.md        # Contributing and development
-└── README.md                 # This file
+├── home.md                        # Wiki home page
+├── Quick-Start.md                 # 5-minute quick start guide
+├── Installation-Guide.md          # Detailed installation steps
+├── Getting-API-Key.md             # API key setup guide
+├── Configuration-Reference.md     # All environment variables
+├── Troubleshooting.md             # Common issues and solutions
+├── API-DOCUMENTATION.md           # Complete API reference
+├── MCP-Server-Guide.md            # MCP architecture and tools
+├── Dashboard-Guide.md             # Dashboard overview
+├── Frontend-Guide.md              # React frontend guide
+├── Backend-Guide.md               # Node.js backend guide
+├── Database-Guide.md              # PostgreSQL/Prisma guide
+├── Developer-Guide.md             # Contributing and development
+└── README.md                      # This file
 ```
 
-### Planned Files (TODO)
+### Planned Files (Future Enhancements)
 
 ```
 docs/wiki/
-├── Troubleshooting.md        # Common issues and solutions
-├── FAQ.md                    # Frequently asked questions
-├── Configuration-Guide.md    # Environment variables
-├── Supported-Sports.md       # Sport keys and codes
-├── Betting-Markets.md        # All 70+ markets
-├── Usage-Examples.md         # Common query examples
-├── Architecture.md           # System architecture
-└── Contributing-Guide.md     # Contribution workflow
+├── FAQ.md                         # Frequently asked questions
+├── Supported-Sports.md            # Sport keys and codes
+├── Betting-Markets.md             # All 70+ markets reference
+├── Usage-Examples.md              # Common query examples
+└── Architecture-Overview.md       # System architecture deep dive
 ```
 
 ## 📝 Documentation Standards
@@ -100,9 +101,14 @@ Content...
 
 ### Linking
 
-**Internal wiki links** (relative, no `.md` extension):
+**Internal wiki links** (relative with `.md` extension for GitHub Wiki compatibility):
 ```markdown
-See the [MCP Server Guide](MCP-Server-Guide)
+See the [MCP Server Guide](MCP-Server-Guide.md)
+```
+
+**Cross-page anchors** (with `.md` extension):
+```markdown
+See [Core Models](Database-Guide.md#core-models)
 ```
 
 **External docs** (relative paths with extension):
