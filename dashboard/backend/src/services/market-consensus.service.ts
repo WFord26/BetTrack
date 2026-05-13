@@ -147,19 +147,31 @@ export class MarketConsensusService {
         dev
       );
 
-      // Best home value = numerically highest price (most favorable for bettor)
+      // Best value = numerically highest price across both sides (most favorable for bettor)
       // Positive odds: +130 is better than +110
       // Negative odds: -105 is better than -150
       const bestHomeOdds = odds
         .filter((o) => o.homePrice !== null)
-        .sort((a, b) => b.homePrice! - a.homePrice!)[0]; // descending: highest first
+        .sort((a, b) => b.homePrice! - a.homePrice!)[0];
+      const bestAwayOdds = odds
+        .filter((o) => o.awayPrice !== null)
+        .sort((a, b) => b.awayPrice! - a.awayPrice!)[0];
 
-      const bestValue: BestValue = {
-        side: 'home',
-        bookmaker: bestHomeOdds.bookmaker,
-        line: bestHomeOdds.homePrice!,
-        impliedProb: americanToImpliedProb(bestHomeOdds.homePrice!),
-      };
+      // Pick whichever side has the better odds
+      const usesAway = bestAwayOdds && (!bestHomeOdds || bestAwayOdds.awayPrice! > bestHomeOdds.homePrice!);
+      const bestValue: BestValue = usesAway
+        ? {
+            side: 'away',
+            bookmaker: bestAwayOdds!.bookmaker,
+            line: bestAwayOdds!.awayPrice!,
+            impliedProb: americanToImpliedProb(bestAwayOdds!.awayPrice!),
+          }
+        : {
+            side: 'home',
+            bookmaker: bestHomeOdds!.bookmaker,
+            line: bestHomeOdds!.homePrice!,
+            impliedProb: americanToImpliedProb(bestHomeOdds!.homePrice!),
+          };
 
       return {
         gameId,
@@ -191,21 +203,35 @@ export class MarketConsensusService {
         dev
       );
 
-      // Best value = numerically highest spread price (most favorable for bettor)
+      // Best value = numerically highest spread price across both sides (most favorable for bettor)
       // Positive odds: +110 is better than -110
       // Negative odds: -105 is better than -150
-      const bestOdds = odds
+      const bestHomeSpread = odds
         .filter((o) => o.homeSpreadPrice !== null)
-        .sort((a, b) => b.homeSpreadPrice! - a.homeSpreadPrice!)[0]; // descending: highest first
+        .sort((a, b) => b.homeSpreadPrice! - a.homeSpreadPrice!)[0];
+      const bestAwaySpread = odds
+        .filter((o) => o.awaySpreadPrice !== null)
+        .sort((a, b) => b.awaySpreadPrice! - a.awaySpreadPrice!)[0];
 
-      const bestValue: BestValue = {
-        side: 'home',
-        bookmaker: bestOdds?.bookmaker ?? '',
-        line: bestOdds?.homeSpread ? parseFloat(bestOdds.homeSpread.toString()) : consensusLine,
-        impliedProb: bestOdds?.homeSpreadPrice
-          ? americanToImpliedProb(bestOdds.homeSpreadPrice)
-          : 0.5,
-      };
+      // Pick whichever side has the better odds
+      const usesAwaySpread = bestAwaySpread && (!bestHomeSpread || bestAwaySpread.awaySpreadPrice! > bestHomeSpread.homeSpreadPrice!);
+      const bestValue: BestValue = usesAwaySpread
+        ? {
+            side: 'away',
+            bookmaker: bestAwaySpread!.bookmaker,
+            line: bestAwaySpread?.awaySpread ? parseFloat(bestAwaySpread.awaySpread.toString()) : consensusLine,
+            impliedProb: bestAwaySpread?.awaySpreadPrice
+              ? americanToImpliedProb(bestAwaySpread.awaySpreadPrice)
+              : 0.5,
+          }
+        : {
+            side: 'home',
+            bookmaker: bestHomeSpread?.bookmaker ?? '',
+            line: bestHomeSpread?.homeSpread ? parseFloat(bestHomeSpread.homeSpread.toString()) : consensusLine,
+            impliedProb: bestHomeSpread?.homeSpreadPrice
+              ? americanToImpliedProb(bestHomeSpread.homeSpreadPrice)
+              : 0.5,
+          };
 
       return {
         gameId,
@@ -238,19 +264,31 @@ export class MarketConsensusService {
         dev
       );
 
-      // Best over value = numerically highest price (most favorable for bettor)
+      // Best value = numerically highest price across both sides (most favorable for bettor)
       // Positive odds: +110 is better than -110
       // Negative odds: -105 is better than -150
       const bestOver = odds
         .filter((o) => o.overPrice !== null)
-        .sort((a, b) => b.overPrice! - a.overPrice!)[0]; // descending: highest first
+        .sort((a, b) => b.overPrice! - a.overPrice!)[0];
+      const bestUnder = odds
+        .filter((o) => o.underPrice !== null)
+        .sort((a, b) => b.underPrice! - a.underPrice!)[0];
 
-      const bestValue: BestValue = {
-        side: 'over',
-        bookmaker: bestOver?.bookmaker ?? '',
-        line: bestOver?.totalLine ? parseFloat(bestOver.totalLine.toString()) : consensusLine,
-        impliedProb: bestOver?.overPrice ? americanToImpliedProb(bestOver.overPrice) : 0.5,
-      };
+      // Pick whichever side has the better odds
+      const usesUnder = bestUnder && (!bestOver || bestUnder.underPrice! > bestOver.overPrice!);
+      const bestValue: BestValue = usesUnder
+        ? {
+            side: 'under',
+            bookmaker: bestUnder!.bookmaker,
+            line: bestUnder?.totalLine ? parseFloat(bestUnder.totalLine.toString()) : consensusLine,
+            impliedProb: bestUnder?.underPrice ? americanToImpliedProb(bestUnder.underPrice) : 0.5,
+          }
+        : {
+            side: 'over',
+            bookmaker: bestOver?.bookmaker ?? '',
+            line: bestOver?.totalLine ? parseFloat(bestOver.totalLine.toString()) : consensusLine,
+            impliedProb: bestOver?.overPrice ? americanToImpliedProb(bestOver.overPrice) : 0.5,
+          };
 
       return {
         gameId,
