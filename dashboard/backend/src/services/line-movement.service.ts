@@ -69,7 +69,8 @@ export class LineMovementService {
           (a, b) => new Date(a).getTime() - new Date(b).getTime()
         );
 
-        // Compare consecutive sync cycles
+        // Pass 1: Compare consecutive sync cycles (~10-min pairs).
+        // This handles steam and normal moves which require a short timeElapsed.
         for (let i = 0; i < sortedTimes.length - 1; i++) {
           const beforeTime = sortedTimes[i];
           const afterTime = sortedTimes[i + 1];
@@ -100,6 +101,42 @@ export class LineMovementService {
             }
             const created = await this.persistMovement(movement);
             createdMovements.push(created);
+          }
+        }
+
+        // Pass 2: Gradual-detection pass.
+        // Consecutive pairs above span only one sync interval (~10 min, ~600 s),
+        // which is far below the classifyMovement 'gradual' threshold of
+        // timeElapsed > 3600 s. With a 120-min lookback the full window spans
+        // ~7200 s, so comparing the oldest batch directly against the newest
+        // batch satisfies the threshold and surfaces slow drift over time.
+        // We skip when there are only 2 batches because that pair was already
+        // evaluated by Pass 1 (identical comparison, no new information).
+        // We restrict persistence to 'gradual' results only so Pass 1's steam
+        // and normal classifications are never double-persisted for the boundary.
+        if (sortedTimes.length > 2) {
+          const oldestTime = sortedTimes[0];
+          const latestTime = sortedTimes[sortedTimes.length - 1];
+
+          if (!(sinceTime && new Date(latestTime) <= sinceTime)) {
+            const timeElapsed = Math.round(
+              (new Date(latestTime).getTime() - new Date(oldestTime).getTime()) / 1000
+            );
+
+            if (timeElapsed > 2) {
+              const movement = this.analyzeMovement(
+                gameId,
+                marketType as 'h2h' | 'spreads' | 'totals',
+                syncBatches.get(oldestTime)!,
+                syncBatches.get(latestTime)!,
+                timeElapsed
+              );
+
+              if (movement && movement.movementType === 'gradual') {
+                const created = await this.persistMovement(movement);
+                createdMovements.push(created);
+              }
+            }
           }
         }
       }
