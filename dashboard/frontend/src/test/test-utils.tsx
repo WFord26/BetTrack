@@ -10,6 +10,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import betSlipReducer from '../store/betSlipSlice';
 import clvReducer from '../store/clvSlice';
 import movementReducer from '../store/movementSlice';
+import sharpReducer from '../store/sharpSlice';
 import type { RootState } from '../store';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
@@ -33,6 +34,7 @@ export function renderWithProviders(
       betSlip: betSlipReducer,
       clv: clvReducer,
       movements: movementReducer,
+      sharp: sharpReducer,
     },
     preloadedState: preloadedState as RootState | undefined,
   });
@@ -59,6 +61,7 @@ export function createMockStore(preloadedState?: Partial<RootState>) {
       betSlip: betSlipReducer,
       clv: clvReducer,
       movements: movementReducer,
+      sharp: sharpReducer,
     },
     preloadedState: preloadedState as RootState | undefined,
   });
