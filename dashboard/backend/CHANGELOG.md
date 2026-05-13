@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Live disagreement list shows stale pregame opportunities for in-progress/completed games** (`src/services/market-consensus.service.ts` — `findHighDisagreement`): The consensus job only calculates rows for `status: 'scheduled'` games before they start. After a game's status changes to `in_progress` or `completed`, new consensus rows stop being created, but the last pregame row can still fall within the 2-hour lookback window. This caused `/analytics/disagreement/live` and the Value Opportunities page to advertise stale betting opportunities for games that had already started or finished. Fixed by adding `game: { status: 'scheduled' }` filter to the query, so only pregame consensus rows are returned.
+
 ---
 
 ## [0.3.2] - 2026-05-12

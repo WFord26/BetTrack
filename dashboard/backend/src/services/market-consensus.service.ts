@@ -421,17 +421,24 @@ export class MarketConsensusService {
     if (latestByMarket.length === 0) return [];
 
     // Step 2: fetch only those latest rows, applying the threshold on the
-    // current (not stale) score. This prevents old high-score rows from
-    // remaining visible after a recalculation drops below the threshold, and
-    // prevents duplicate entries for the same game+market pair.
+    // current (not stale) score. Also filter to only scheduled (pregame) games.
+    // The consensus job only calculates rows for 'scheduled' status, so stale
+    // pregame rows can linger in the 2-hour lookback after the game starts. By
+    // filtering on game.status = 'scheduled', we prevent advertising betting
+    // opportunities for in-progress or completed games.
     const records = await prisma.marketConsensus.findMany({
       where: {
-        OR: latestByMarket.map(t => ({
-          gameId: t.gameId,
-          marketType: t.marketType,
-          calculatedAt: t._max.calculatedAt!,
-        })),
-        disagreementScore: { gte: threshold },
+        AND: [
+          {
+            OR: latestByMarket.map(t => ({
+              gameId: t.gameId,
+              marketType: t.marketType,
+              calculatedAt: t._max.calculatedAt!,
+            })),
+          },
+          { disagreementScore: { gte: threshold } },
+          { game: { status: 'scheduled' } },
+        ],
       },
       include: {
         game: {
