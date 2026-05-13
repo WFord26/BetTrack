@@ -18,19 +18,15 @@ Changes that affect the entire project structure:
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- **Wiki documentation instructions** (`.github/instructions/wiki-docs.instructions.md`): Auto-attaches when editing `docs/wiki/**` files, enforcing `.md`-extension cross-page links, correct anchor syntax, image CDN URLs, and consistent page structure
-- **New wiki page prompt** (`.github/prompts/new-wiki-page.prompt.md`): Scaffolds a new wiki page with correct structure, TOC, and linking conventions via `/new-wiki-page` slash command
-- **GitHub roadmap setup script** (`docs/setup-github-roadmap.sh`): Automates creation of GitHub milestones ("Phase: Now" / "Phase: Next"), labels, and issues with acceptance criteria for the BetTrack project roadmap
-- **Project documentation** (`docs/PROJECT.md`, `docs/BUILDOUT_SUMMARY.md`, `docs/api/README.md`): Added project overview, build summary, and API README
-- **OpenAPI specifications** (`docs/api/openapi-external.yaml`, `docs/api/openapi-internal.yaml`): Full external and internal API specs
-- **CLV Analytics API documentation** (`docs/wiki/API-DOCUMENTATION.md`): Documented all 7 CLV endpoints (summary, by-sport, by-bookmaker, trends, report, calculate, update-stats)
-
-### Changed
-
-- **UI consistency and design tokens**: Refactored BetHistory, CLVAnalytics, EnhancedDashboard, Stats, and Header components to use Tailwind utility classes and new brand/semantic color tokens; replaced inline styles for better maintainability
-- **Loading and empty states**: Enhanced visual treatment across dashboard pages with improved indicators and retro pixel text-shadow utilities
+- **Phase 1 Bug Fixes (Line Movement & Bookmaker Disagreement)**: Comprehensive bug-fix batch for core analytics features
+  - **Line Movement Detection**: Fixed steam move classification (now requires 3+ books moving in same direction, not split markets), prevented duplicate rows from overlapping detection windows, fixed job to process live games and respect upper/lower time bounds
+  - **Bookmaker Disagreement**: Fixed stale/duplicate opportunities in live list (now uses latest consensus row per game+market), corrected bestValue detection to compare all market sides (away moneyline, under totals now surfaced)
+  - **Analytics Widgets**: Fixed SteamMoveAlert to use separate Redux state (no longer clobbers page filters), fixed modal breakdowns to fetch complete market data regardless of threshold filter
+  - **Team Navigation**: Fixed EnhancedGameCard team links to match updated route format
+  
+  See [dashboard/backend/CHANGELOG.md](dashboard/backend/CHANGELOG.md) and [dashboard/frontend/CHANGELOG.md](dashboard/frontend/CHANGELOG.md) for detailed fix descriptions.
 
 ---
 
