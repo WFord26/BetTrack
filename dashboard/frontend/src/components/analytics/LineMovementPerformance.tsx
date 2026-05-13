@@ -35,6 +35,13 @@ export default function MovementPerformance({
   const stats = useSelector(selectMovementStats);
   const [timeframe, setTimeframe] = useState(hoursBack);
 
+  // Keep internal timeframe in sync when the parent changes hoursBack.
+  // useState(hoursBack) only sets the initial value, so prop changes after
+  // mount are ignored without this effect.
+  useEffect(() => {
+    setTimeframe(hoursBack);
+  }, [hoursBack]);
+
   useEffect(() => {
     dispatch(fetchMovementStats(timeframe));
   }, [dispatch, timeframe]);
