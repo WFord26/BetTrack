@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.4] - 2026-05-12
+
 ### Fixed
 
 - **Gradual line movements never detected despite 120-minute lookback** (`src/services/line-movement.service.ts` — `detectMovements`): Even with the 120-minute lookback added in v0.3.3, `detectMovements` only compared consecutive sync batches (~10-minute intervals, ~600 s). Because `classifyMovement` requires `timeElapsed > 3600` seconds to classify a move as "gradual", every pair produced by the consecutive loop was far below the threshold, leaving the gradual filter empty during normal operation. Fixed by adding a dedicated gradual-detection pass (Pass 2) that compares the oldest batch in the lookback window directly against the newest batch (~7200 s across the full 120-minute window), satisfying the threshold. Persistence is restricted to `movementType === 'gradual'` results only, so Pass 1's steam and normal classifications are not double-persisted for the boundary pair. The `sinceTime` cursor is respected to prevent duplicate rows on overlapping job runs.
