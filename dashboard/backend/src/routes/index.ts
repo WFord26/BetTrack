@@ -11,6 +11,7 @@ import statsRoutes from './stats.routes';
 import analyticsCLVRoutes from './analytics-clv.routes';
 import analyticsDisagreementRoutes from './analytics-disagreement.routes';
 import { createLineMovementRoutes } from './analytics-movements.routes';
+import analyticsSharpRoutes from './analytics-sharp.routes';
 import authRoutes from './auth.routes';
 
 const router = Router();
@@ -28,5 +29,6 @@ router.use('/stats', statsRoutes);
 router.use('/analytics/clv', analyticsCLVRoutes);
 router.use('/analytics/disagreement', analyticsDisagreementRoutes);
 router.use('/analytics/movements', createLineMovementRoutes(prisma));
+router.use('/analytics/sharp', analyticsSharpRoutes);
 
 export default router;

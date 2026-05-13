@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Sharp vs Public Money Indicators — Phase 2** (Issue #8): Detects and stores indicators showing which side professional ("sharp") bettors are backing vs. recreational ("public") money. A scheduled job runs every 15 minutes, derives sharp-side signals from existing line movement data, and persists confidence-rated indicators.
+  - `prisma/schema.prisma`: New `SharpMoneyIndicator` model (`sharp_money_indicators` table) storing `lineMovement`, `sharpSide`, `publicSide`, `sharpConfidence` (1-10), `contraindicators`, and optional `publicBettingPct`/`publicMoneyPct` fields. Linked to `Game` via `gameId`. Migration: `20260513000001_add_sharp_money_indicators`.
+  - `src/services/sharp-indicator.service.ts`: `SharpIndicatorService` with `detectSharpSide()` (analyses steam/reverse/gradual line movements per game+market, votes on direction), `calculateConfidence()` (scores 1-10 from steam count, bookmaker coverage, recency, consistency), `findContrarianOpportunities()` (returns scheduled games where sharp money opposes the crowd with `sharpConfidence ≥ threshold`), `getLatestIndicators()`, `getIndicatorsForGame()`, and `getStats()`.
+  - `src/routes/analytics-sharp.routes.ts`: Four authenticated REST endpoints under `/api/analytics/sharp`: `GET /live` (current indicators), `GET /game/:gameId` (per-game breakdown), `GET /contrarian` (fade-the-public opportunities), `GET /stats` (summary counts / avg confidence).
+  - `src/jobs/sharp-indicator.job.ts`: `startSharpIndicatorJob()` cron (every 15 min, `America/New_York`) with immediate startup run, idle-guard, and status helpers.
+  - `src/routes/index.ts`: Mounted `/analytics/sharp` router.
+  - `src/server.ts`: `startSharpIndicatorJob()` called alongside existing scheduled jobs.
+
 ---
 
 ## [0.3.7] - 2026-05-12

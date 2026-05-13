@@ -17,6 +17,7 @@ Comprehensive API reference for MCP tools, Backend HTTP endpoints, and Frontend 
    - [MCP Integration API](#mcp-integration-api-apimcp)
    - [Stats API](#stats-api-apistats)
    - [Analytics CLV API](#analytics-clv-api-apianalyticsclv)
+   - [Analytics Sharp Money API](#analytics-sharp-money-api-apianalyticssharp)
    - [Admin API](#admin-api-apiadmin)
 3. [Frontend Architecture](#frontend-architecture)
 
@@ -1365,6 +1366,183 @@ Update aggregated CLV stats for the current user. Recalculates `UserCLVStats` re
 - Requires `ENABLE_CLOSING_LINE_CAPTURE=true` environment variable
 - CLV formula: `((Closing Implied Prob - Opening Implied Prob) / Opening Implied Prob) × 100`
 - Categories: positive (>1%), negative (<-1%), neutral (between)
+
+---
+
+### Analytics Sharp Money API (`/api/analytics/sharp`)
+
+Sharp vs Public Money indicator endpoints. These detect which side professional ("sharp") bettors are backing vs recreational ("public") money by analysing line movement data. Indicators are recalculated every 15 minutes.
+
+All endpoints require session authentication (or bypass in standalone mode with `AUTH_MODE=none`).
+
+#### `GET /api/analytics/sharp/live`
+Current sharp-money indicators for upcoming scheduled games.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | number | 20 | Max indicators returned (1-100) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "indicators": [
+      {
+        "id": "uuid",
+        "gameId": "uuid",
+        "marketType": "h2h",
+        "calculatedAt": "2026-05-13T17:00:00Z",
+        "lineMovement": "steam",
+        "sharpSide": "away",
+        "publicSide": "home",
+        "sharpConfidence": 8,
+        "contraindicators": [],
+        "publicBettingPct": null,
+        "publicMoneyPct": null,
+        "game": {
+          "id": "uuid",
+          "homeTeamName": "Los Angeles Lakers",
+          "awayTeamName": "Boston Celtics",
+          "commenceTime": "2026-05-13T20:00:00Z",
+          "sport": { "key": "basketball_nba", "name": "NBA" }
+        }
+      }
+    ],
+    "count": 12
+  }
+}
+```
+
+**Sharp Confidence Scale:**
+- **8-10**: High confidence — multiple steam moves, 5+ books, recent signal
+- **6-7**: Medium confidence — single steam move or reverse line
+- **1-5**: Low confidence — gradual movement only, stale data, or mixed signals
+
+#### `GET /api/analytics/sharp/game/:gameId`
+All sharp indicators for a specific game (latest per market type).
+
+**Path Parameters:**
+- `gameId` (UUID): Game ID
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "game": {
+      "id": "uuid",
+      "matchup": "Boston Celtics vs Los Angeles Lakers",
+      "sport": "NBA",
+      "sportKey": "basketball_nba",
+      "commenceTime": "2026-05-13T20:00:00Z",
+      "status": "scheduled"
+    },
+    "indicators": [
+      {
+        "id": "uuid",
+        "marketType": "h2h",
+        "lineMovement": "steam",
+        "sharpSide": "away",
+        "publicSide": "home",
+        "sharpConfidence": 8,
+        "contraindicators": []
+      },
+      {
+        "id": "uuid",
+        "marketType": "spreads",
+        "lineMovement": "reverse",
+        "sharpSide": "away",
+        "publicSide": "home",
+        "sharpConfidence": 6,
+        "contraindicators": ["single_market_only"]
+      }
+    ]
+  }
+}
+```
+
+#### `GET /api/analytics/sharp/contrarian`
+Games where sharp money opposes the likely public side (fade-the-public picks). Returns upcoming scheduled games with `sharpConfidence ≥ minConfidence`.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `minConfidence` | number | 6 | Minimum sharp confidence score (1-10) |
+| `limit` | number | 20 | Max games returned (1-100) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "opportunities": [
+      {
+        "gameId": "uuid",
+        "homeTeamName": "Los Angeles Lakers",
+        "awayTeamName": "Boston Celtics",
+        "commenceTime": "2026-05-13T20:00:00Z",
+        "sportKey": "basketball_nba",
+        "maxConfidence": 8,
+        "indicators": [
+          {
+            "gameId": "uuid",
+            "marketType": "h2h",
+            "lineMovement": "steam",
+            "sharpSide": "away",
+            "publicSide": "home",
+            "sharpConfidence": 8,
+            "contraindicators": []
+          }
+        ]
+      }
+    ],
+    "count": 5,
+    "minConfidence": 6
+  }
+}
+```
+
+#### `GET /api/analytics/sharp/stats`
+Summary statistics for sharp indicators over a time window.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `hoursBack` | number | 24 | Look-back window in hours (1-168) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "byMarket": { "h2h": 34, "spreads": 28, "totals": 21 },
+    "bySharpSide": { "home": 45, "away": 38 },
+    "byLineMovement": { "steam": 42, "reverse": 25, "gradual": 16, "no_movement": 0 },
+    "avgConfidence": 6.8,
+    "totalIndicators": 83,
+    "period": "Last 24 hours"
+  }
+}
+```
+
+**Line Movement Categories:**
+| Value | Description |
+|-------|-------------|
+| `steam` | 3+ books moved quickly in same direction — classic sharp action |
+| `reverse` | Line moved against the public betting side |
+| `gradual` | Slow drift over several hours — moderate signal |
+| `no_movement` | No detectable line movement |
+
+**Contraindicator Values:**
+| Value | Description |
+|-------|-------------|
+| `no_signal` | No movement or sharp side detected |
+| `low_bookmaker_count` | Fewer than 3 bookmakers moved — weak signal |
+| `mixed_signals` | Steam moves pointing in different directions |
+| `gradual_movement_only` | Only gradual movement, no steam or reverse |
+| `stale_data` | No line movements in the last 4 hours |
 
 ---
 
