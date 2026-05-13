@@ -421,11 +421,14 @@ export class MarketConsensusService {
     if (latestByMarket.length === 0) return [];
 
     // Step 2: fetch only those latest rows, applying the threshold on the
-    // current (not stale) score. Also filter to only scheduled (pregame) games.
-    // The consensus job only calculates rows for 'scheduled' status, so stale
-    // pregame rows can linger in the 2-hour lookback after the game starts. By
-    // filtering on game.status = 'scheduled', we prevent advertising betting
-    // opportunities for in-progress or completed games.
+    // current (not stale) score. Also filter to only genuinely pregame games:
+    //   - game.status = 'scheduled': excludes in_progress/completed games
+    //   - game.commenceTime > now(): guards against delayed status-job updates.
+    //     If the status job hasn't advanced a game from 'scheduled' to
+    //     'in_progress' yet, the status filter alone won't exclude it. Bounding
+    //     by commenceTime ensures games that have already started are never
+    //     shown as bettable value opportunities regardless of status lag.
+    const now = new Date();
     const records = await prisma.marketConsensus.findMany({
       where: {
         AND: [
@@ -437,7 +440,7 @@ export class MarketConsensusService {
             })),
           },
           { disagreementScore: { gte: threshold } },
-          { game: { status: 'scheduled' } },
+          { game: { status: 'scheduled', commenceTime: { gt: now } } },
         ],
       },
       include: {

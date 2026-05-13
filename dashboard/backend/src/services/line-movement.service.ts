@@ -340,12 +340,18 @@ export class LineMovementService {
     timeElapsed: number
   ): { type: 'steam' | 'reverse' | 'gradual' | 'injury' | 'normal'; cause?: string } {
     // Steam move thresholds
+    // The odds sync job runs every 10 minutes by default, so consecutive sync
+    // batches produce timeElapsed ≈ 600 s. A strict <120 s threshold would
+    // downgrade every coordinated multi-book move to 'normal' under normal
+    // operation. We use <900 s (15 min) to accommodate the default 10-minute
+    // sync interval plus reasonable timing variance, while still distinguishing
+    // steam (rapid, within one sync window) from gradual (timeElapsed > 3600 s).
     const isSpreadOrTotal = marketType === 'spreads' || marketType === 'totals';
     const steamThreshold = isSpreadOrTotal ? 1.5 : 15; // points vs cents
     const isSteam =
       bookmakerCount >= 3 &&
       avgMovement >= steamThreshold &&
-      timeElapsed < 120; // under 2 minutes
+      timeElapsed < 900; // within one ~10-min sync window (with buffer)
 
     if (isSteam) {
       return { type: 'steam', cause: 'Rapid line movement across multiple bookmakers' };

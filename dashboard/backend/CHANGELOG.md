@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Stale pregame opportunities shown for already-started games with delayed status updates** (`src/services/market-consensus.service.ts` — `findHighDisagreement`): The previous fix added `game.status = 'scheduled'` to exclude in-progress and completed games, but this is insufficient when the status job hasn't yet advanced a game from `'scheduled'` to `'in_progress'` after kickoff. During that lag window the game still passes the status filter and its last pregame consensus row continues to appear in `/analytics/disagreement/live` as a bettable opportunity. Fixed by adding `game.commenceTime > now()` alongside the status filter. A game that has already passed its scheduled start time is now excluded regardless of whether the status job has caught up.
+- **Steam moves never classified during normal operation** (`src/services/line-movement.service.ts` — `classifyMovement`): The steam condition required `timeElapsed < 120` seconds (under 2 minutes), but the odds sync job runs every 10 minutes by default, so consecutive sync batches produce `timeElapsed ≈ 600 s`. Every coordinated multi-book move detected between normal sync cycles failed the time check and was downgraded to `'normal'`, making the steam filter effectively empty in production. Fixed by relaxing the threshold to `timeElapsed < 900` seconds (15 minutes) to accommodate the default 10-minute sync interval plus timing variance, while still distinguishing rapid (steam) from slow drift (gradual, `> 3600 s`).
+
 ---
 
 ## [0.3.4] - 2026-05-12
