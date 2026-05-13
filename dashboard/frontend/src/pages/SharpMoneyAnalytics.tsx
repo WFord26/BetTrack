@@ -189,12 +189,12 @@ export default function SharpMoneyAnalytics() {
   const [limit, setLimit] = useState(20);
 
   useEffect(() => {
-    dispatch(fetchLiveIndicators(limit));
-    dispatch(fetchContrarianOpportunities({ minConfidence, limit }));
+    // Initial load: fetch stats once (not dependent on tab/filter changes)
     dispatch(fetchSharpStats(24));
   }, [dispatch]);
 
   useEffect(() => {
+    // Re-fetch tab data whenever tab, minConfidence, or limit changes
     if (activeTab === 'live') {
       dispatch(fetchLiveIndicators(limit));
     } else {

@@ -67,7 +67,7 @@ router.get('/game/:gameId', async (req: AuthenticatedRequest, res: Response) => 
       data: {
         game: {
           id: game.id,
-          matchup: `${game.homeTeamName} vs ${game.awayTeamName}`,
+          matchup: `${game.awayTeamName} @ ${game.homeTeamName}`,
           sport: game.sport.name,
           sportKey: game.sport.key,
           commenceTime: game.commenceTime,

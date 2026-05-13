@@ -257,7 +257,7 @@ export class SharpIndicatorService {
     if (steamMoves.length > 1) {
       const sides = steamMoves.map((m: any) =>
         inferSteamSide(
-          params.lineMovement === 'steam' ? ('h2h' as MarketType) : ('spreads' as MarketType),
+          m.marketType as MarketType,
           m.linesBefore as Record<string, any>,
           m.linesAfter as Record<string, any>
         )
