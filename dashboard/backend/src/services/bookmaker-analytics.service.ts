@@ -38,7 +38,7 @@ function snapshotHourKey(timestamp: Date): string {
 
 function getComparableLine(odds: CurrentOdds, consensus: MarketConsensus): number | null {
   if (odds.marketType === 'h2h') {
-    return odds.homePrice;
+    return odds.homePrice ?? null;
   }
 
   if (odds.marketType === 'spreads') {
@@ -56,6 +56,25 @@ function getComparableLine(odds: CurrentOdds, consensus: MarketConsensus): numbe
 
 export class BookmakerAnalyticsService {
   private readonly LOOKBACK_DAYS = 30;
+  private readonly EFFICIENCY_MARGIN_MULTIPLIER = 10;
+  private readonly EFFICIENCY_OUTLIER_WEIGHT = 0.5;
+  private readonly SHARPNESS_WEIGHTS = {
+    firstMoverFrequency: 0.5,
+    bestOddsFrequency: 0.3,
+    marketEfficiency: 0.2,
+  } as const;
+  private readonly RECOMMENDATION_WEIGHTS = {
+    value: 0.4,
+    reliability: 0.35,
+    coverage: 0.15,
+    sharpness: 0.1,
+  } as const;
+  private readonly COVERAGE_MARKET_TARGET = 200;
+  private readonly SHARP_RATING_HIGH_THRESHOLD = 8;
+  private readonly SHARP_RATING_MEDIUM_THRESHOLD = 5;
+  private readonly MAX_BET_HIGH_LIMIT = 5000;
+  private readonly MAX_BET_MEDIUM_LIMIT = 1500;
+  private readonly MAX_BET_LOW_LIMIT = 500;
 
   async calculateBookmakerMetrics(bookmaker: string): Promise<BookmakerAnalytics> {
     const normalizedBookmaker = bookmaker.trim().toLowerCase();
@@ -199,13 +218,29 @@ export class BookmakerAnalyticsService {
       new Set(currentOdds.map((row) => row.marketType))
     ).sort();
 
-    const marketEfficiency = clamp(100 - marginVsConsensus * 10 - outlierFrequency * 0.5, 0, 100);
-
-    const sharpBookRating = Math.round(
-      clamp((firstMoverFrequency * 0.5 + bestOddsFrequency * 0.3 + marketEfficiency * 0.2) / 10, 1, 10)
+    const marketEfficiency = clamp(
+      100 -
+        marginVsConsensus * this.EFFICIENCY_MARGIN_MULTIPLIER -
+        outlierFrequency * this.EFFICIENCY_OUTLIER_WEIGHT,
+      0,
+      100
     );
 
-    const snapshotHours = new Set(snapshots.map((snapshot) => snapshotHourKey(snapshot.capturedAt))).size;
+    const sharpBookRating = Math.round(
+      clamp(
+        (firstMoverFrequency * this.SHARPNESS_WEIGHTS.firstMoverFrequency +
+          bestOddsFrequency * this.SHARPNESS_WEIGHTS.bestOddsFrequency +
+          marketEfficiency * this.SHARPNESS_WEIGHTS.marketEfficiency) /
+          10,
+        1,
+        10
+      )
+    );
+
+    const snapshotHourKeys = snapshots.map((snapshot) =>
+      snapshotHourKey(snapshot.capturedAt)
+    );
+    const snapshotHours = new Set(snapshotHourKeys).size;
     const earliestSnapshot = snapshots[0]?.capturedAt;
     const spanHours = earliestSnapshot
       ? Math.max(1, Math.ceil((now.getTime() - earliestSnapshot.getTime()) / (60 * 60 * 1000)))
@@ -235,15 +270,43 @@ export class BookmakerAnalyticsService {
 
     const averageCLVOffered = bestOddsFrequency - outlierFrequency;
 
-    const limitProfile = sharpBookRating >= 8 ? 'high' : sharpBookRating >= 5 ? 'medium' : 'low';
+    const limitProfile =
+      sharpBookRating >= this.SHARP_RATING_HIGH_THRESHOLD
+        ? 'high'
+        : sharpBookRating >= this.SHARP_RATING_MEDIUM_THRESHOLD
+          ? 'medium'
+          : 'low';
     const estimatedMaxBet =
-      limitProfile === 'high' ? 5000 : limitProfile === 'medium' ? 1500 : 500;
+      limitProfile === 'high'
+        ? this.MAX_BET_HIGH_LIMIT
+        : limitProfile === 'medium'
+          ? this.MAX_BET_MEDIUM_LIMIT
+          : this.MAX_BET_LOW_LIMIT;
 
-    const valueScore = (bestOddsFrequency + (100 - clamp(marginVsConsensus * 10, 0, 100))) / 2;
+    const valueScore =
+      (bestOddsFrequency +
+        (100 -
+          clamp(
+            marginVsConsensus * this.EFFICIENCY_MARGIN_MULTIPLIER,
+            0,
+            100
+          ))) /
+      2;
     const reliabilityScore = (uptimePercentage + marketEfficiency) / 2;
-    const coverageScore = clamp((totalMarketsOffered / 200) * 100, 0, 100);
+    const coverageScore = clamp(
+      (totalMarketsOffered / this.COVERAGE_MARKET_TARGET) * 100,
+      0,
+      100
+    );
     const recommendationScore = Math.round(
-      clamp(valueScore * 0.4 + reliabilityScore * 0.35 + coverageScore * 0.15 + sharpBookRating * 10 * 0.1, 1, 100)
+      clamp(
+        valueScore * this.RECOMMENDATION_WEIGHTS.value +
+          reliabilityScore * this.RECOMMENDATION_WEIGHTS.reliability +
+          coverageScore * this.RECOMMENDATION_WEIGHTS.coverage +
+          sharpBookRating * 10 * this.RECOMMENDATION_WEIGHTS.sharpness,
+        1,
+        100
+      )
     );
 
     const analytics = await prisma.bookmakerAnalytics.upsert({
