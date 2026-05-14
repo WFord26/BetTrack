@@ -962,18 +962,32 @@ function Invoke-FullRelease {
     Write-ColorOutput "Step 1/7: Cleaning build artifacts..." -Type Info
     Clean-BuildArtifacts
     
-    # Step 3: Build Dashboard
-    Write-ColorOutput "Step 2/7: Building Dashboard..." -Type Info
+    # Step 3: Bump versions (must happen before builds so version numbers are embedded in artifacts)
+    Write-ColorOutput "Step 2/7: Bumping versions..." -Type Info
+    $versions = Update-ComponentVersions `
+        -BumpType $VersionBump `
+        -IsBeta $false `
+        -BumpMCP $true `
+        -BumpDashboard $true `
+        -BumpBackend $true `
+        -BumpFrontend $true
+    
+    # Step 4: Build Dashboard (now picks up the bumped versions from source package.json files)
+    Write-ColorOutput "Step 3/7: Building Dashboard..." -Type Info
     $dashboardSuccess = Build-Dashboard
     if (-not $dashboardSuccess) {
         Write-ColorOutput "Dashboard build failed, aborting release" -Type Error
         exit 1
     }
     
-    # Step 4: Build MCP
-    Write-ColorOutput "Step 3/7: Building MCP..." -Type Info
-    $manifestPath = Join-Path $MCPRoot "manifest.json"
-    $mcpVersion = Get-VersionFromFile -FilePath $manifestPath -FileType "manifest"
+    # Step 5: Build MCP (manifest.json already contains the bumped version)
+    Write-ColorOutput "Step 4/7: Building MCP..." -Type Info
+    $mcpVersion = $versions.MCP
+    if (-not $mcpVersion) {
+        # Fallback: read from manifest in case bump was a no-op
+        $manifestPath = Join-Path $MCPRoot "manifest.json"
+        $mcpVersion = Get-VersionFromFile -FilePath $manifestPath -FileType "manifest"
+    }
     
     if (-not $mcpVersion) {
         Write-ColorOutput "Failed to get MCP version, aborting release" -Type Error
@@ -986,16 +1000,6 @@ function Invoke-FullRelease {
         exit 1
     }
     
-    # Step 5: Bump versions
-    Write-ColorOutput "Step 4/7: Bumping versions..." -Type Info
-    $versions = Update-ComponentVersions `
-        -BumpType $VersionBump `
-        -IsBeta $false `
-        -BumpMCP $true `
-        -BumpDashboard $true `
-        -BumpBackend $true `
-        -BumpFrontend $true
-    
     # Get the dashboard version for ZIPs and Docker
     $dashboardVersion = $versions.Dashboard
     if (-not $dashboardVersion) {
@@ -1003,7 +1007,7 @@ function Invoke-FullRelease {
         $dashboardVersion = Get-VersionFromFile -FilePath $dashboardPackagePath -FileType "package"
     }
     
-    # Step 6: Create distribution ZIPs
+    # Step 5: Create distribution ZIPs
     Write-ColorOutput "Step 5/7: Creating distribution ZIPs..." -Type Info
     $zipPaths = New-DistributionZip -Version $dashboardVersion -Backend -Frontend
     
@@ -1015,7 +1019,7 @@ function Invoke-FullRelease {
         Write-ColorOutput "Warning: No ZIPs created" -Type Warning
     }
     
-    # Step 7: Build and push Docker images
+    # Step 6: Build and push Docker images
     Write-ColorOutput "Step 6/7: Building Docker images..." -Type Info
     $dockerScriptPath = Join-Path (Split-Path -Parent $PSCommandPath) "docker-build.ps1"
     
@@ -1040,7 +1044,7 @@ function Invoke-FullRelease {
         Write-ColorOutput "docker-build.ps1 not found, skipping Docker builds" -Type Warning
     }
     
-    # Step 8: Create GitHub release
+    # Step 7: Create GitHub release
     Write-ColorOutput "Step 7/7: Creating GitHub release..." -Type Info
     
     # Collect all artifacts
