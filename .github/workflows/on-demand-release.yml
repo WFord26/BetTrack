@@ -203,7 +203,14 @@ jobs:
 
       - name: Publish backend to GHCR NPM
         working-directory: ./dashboard/backend
-        run: npm publish --access public
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          PKG_NAME=$(node -p "require('./package.json').name")
+          if npm view "${PKG_NAME}@${PKG_VERSION}" --registry https://npm.pkg.github.com version 2>/dev/null | grep -q "${PKG_VERSION}"; then
+            echo "ℹ️ ${PKG_NAME}@${PKG_VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -215,7 +222,14 @@ jobs:
 
       - name: Publish frontend to GHCR NPM
         working-directory: ./dashboard/frontend
-        run: npm publish --access public
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          PKG_NAME=$(node -p "require('./package.json').name")
+          if npm view "${PKG_NAME}@${PKG_VERSION}" --registry https://npm.pkg.github.com version 2>/dev/null | grep -q "${PKG_VERSION}"; then
+            echo "ℹ️ ${PKG_NAME}@${PKG_VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
