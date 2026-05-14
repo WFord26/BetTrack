@@ -16,7 +16,7 @@ UPDATE "market_consensus"
 SET
   "consensus_price" = CASE
     WHEN "market_type" = 'h2h' THEN ROUND("consensus_line")::INTEGER
-    ELSE -110
+    ELSE 0
   END,
   "median_line" = "consensus_line",
   "mean_line" = "consensus_line",

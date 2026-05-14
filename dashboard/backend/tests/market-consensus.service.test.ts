@@ -111,7 +111,8 @@ describe('MarketConsensusService', () => {
 
       expect(result).not.toBeNull();
       expect(result!.marketType).toBe('h2h');
-      expect(result!.consensusPrice).toEqual(result!.consensusLine);
+      expect(result!.consensusLine).toBe(-115);
+      expect(result!.consensusPrice).toBe(-115);
       expect(result!.medianLine).toBe(-115);
       expect(result!.meanLine).toBe(-115);
       expect(result!.modeLine).toBeNull();
