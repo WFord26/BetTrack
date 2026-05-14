@@ -178,17 +178,26 @@ model MarketConsensus {
 
   // Consensus metrics
   consensusLine     Decimal  @map("consensus_line") @db.Decimal(8, 2)
+  consensusPrice    Int      @map("consensus_price")
+  medianLine        Decimal  @map("median_line") @db.Decimal(8, 2)
+  meanLine          Decimal  @map("mean_line") @db.Decimal(8, 2)
+  modeLine          Decimal? @map("mode_line") @db.Decimal(8, 2)
   standardDeviation Decimal  @map("standard_deviation") @db.Decimal(8, 2)
+  range             Decimal  @db.Decimal(8, 2)
+  interquartileRange Decimal @map("interquartile_range") @db.Decimal(8, 2)
   outlierBookmakers Json     @map("outlier_bookmakers")    // [{bookmaker, line, deviation}]
+  bestValueSide     String   @map("best_value_side") @db.VarChar(20)
+  bestValueBookmaker String  @map("best_value_bookmaker") @db.VarChar(50)
+  bestValueLine     Decimal  @map("best_value_line") @db.Decimal(8, 2)
   bookmakerCount    Int      @map("bookmaker_count")
-
-  // Value indicators
+  sharpBookWeight   Decimal  @map("sharp_book_weight") @db.Decimal(5, 2)
   disagreementScore Int      @map("disagreement_score")    // 1-100
-  bestValue         Json     @map("best_value")            // {side, bookmaker, line, impliedProb}
+  bestValue         Json     @map("best_value")            // compatibility payload
 
   game              Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@index([gameId])
+  @@index([marketType])
   @@index([disagreementScore])
   @@index([calculatedAt])
   @@map("market_consensus")

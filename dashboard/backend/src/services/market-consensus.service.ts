@@ -28,13 +28,25 @@ export interface BestValue {
   impliedProb: number;
 }
 
+type MarketType = 'h2h' | 'spreads' | 'totals';
+
 export interface ConsensusResult {
   gameId: string;
-  marketType: string;
+  marketType: MarketType;
   consensusLine: number;
+  consensusPrice: number;
+  medianLine: number;
+  meanLine: number;
+  modeLine: number | null;
   standardDeviation: number;
+  range: number;
+  interquartileRange: number;
   outlierBookmakers: OutlierBookmaker[];
+  bestValueSide: BestValue['side'];
+  bestValueBookmaker: string;
+  bestValueLine: number;
   bookmakerCount: number;
+  sharpBookWeight: number;
   disagreementScore: number;
   bestValue: BestValue;
 }
@@ -69,6 +81,55 @@ function stdDev(values: number[]): number {
   return Math.sqrt(variance);
 }
 
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+function mode(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const counts = new Map<number, number>();
+  for (const value of values) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+
+  let topCount = 0;
+  let topValue: number | null = null;
+  let tie = false;
+
+  for (const [value, count] of counts.entries()) {
+    if (count > topCount) {
+      topCount = count;
+      topValue = value;
+      tie = false;
+    } else if (count === topCount) {
+      tie = true;
+    }
+  }
+
+  return topCount > 1 && !tie ? topValue : null;
+}
+
+function quantile(values: number[], percentile: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = (sorted.length - 1) * percentile;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+}
+
+function interquartileRange(values: number[]): number {
+  if (values.length < 2) return 0;
+  return quantile(values, 0.75) - quantile(values, 0.25);
+}
+
+function valueRange(values: number[]): number {
+  if (values.length === 0) return 0;
+  return Math.max(...values) - Math.min(...values);
+}
+
 /**
  * Convert American moneyline to implied probability (no vig)
  */
@@ -93,6 +154,14 @@ function impliedProbToAmerican(prob: number): number {
 
 export class MarketConsensusService {
   private readonly MIN_BOOKMAKERS = 2; // Minimum bookmakers required for consensus
+  private readonly SHARP_BOOKMAKERS = new Set([
+    'pinnacle',
+    'circa',
+    'bookmaker',
+    'bookmaker.eu',
+    'betcris',
+    'betonlineag',
+  ]);
 
   /**
    * Calculate consensus and disagreement score for one game + market type.
@@ -100,7 +169,7 @@ export class MarketConsensusService {
    */
   async calculateConsensus(
     gameId: string,
-    marketType: 'h2h' | 'spreads' | 'totals'
+    marketType: MarketType
   ): Promise<ConsensusResult | null> {
     const odds = await prisma.currentOdds.findMany({
       where: { gameId, marketType },
@@ -129,6 +198,9 @@ export class MarketConsensusService {
 
       const homeProbs = homeEntries.map((e) => e.value);
       const awayProbs = awayEntries.map((e) => e.value);
+      const homeAmericanPrices = odds
+        .filter((o) => o.homePrice !== null)
+        .map((o) => o.homePrice as number);
 
       const consensusHomeProb = median(homeProbs);
       const consensusAwayProb = median(awayProbs);
@@ -187,13 +259,33 @@ export class MarketConsensusService {
             impliedProb: americanToImpliedProb(bestHomeOdds!.homePrice!),
           };
 
+      const consensusPrice = consensusAmerican;
+      const outlierBookmakers = outliers;
+      const sharpBookWeight = this.calculateSharpBookWeight(odds.map((o) => o.bookmaker));
+      const medianPrice = homeAmericanPrices.length ? median(homeAmericanPrices) : consensusAmerican;
+      const meanPrice = homeAmericanPrices.length ? mean(homeAmericanPrices) : consensusAmerican;
+      const modePrice = mode(homeAmericanPrices);
+      const combinedProbabilityRange = [...homeProbs, ...awayProbs];
+
       return {
         gameId,
         marketType,
         consensusLine: consensusAmerican,
+        consensusPrice,
+        medianLine: parseFloat(medianPrice.toFixed(2)),
+        meanLine: parseFloat(meanPrice.toFixed(2)),
+        modeLine: modePrice === null ? null : parseFloat(modePrice.toFixed(2)),
         standardDeviation: parseFloat((reportedDev * 100).toFixed(2)), // as percentage points
-        outlierBookmakers: outliers,
+        range: parseFloat(valueRange(combinedProbabilityRange).toFixed(2)),
+        interquartileRange: parseFloat(
+          Math.max(interquartileRange(homeProbs), interquartileRange(awayProbs)).toFixed(2)
+        ),
+        outlierBookmakers,
+        bestValueSide: bestValue.side,
+        bestValueBookmaker: bestValue.bookmaker,
+        bestValueLine: bestValue.line,
         bookmakerCount: odds.length,
+        sharpBookWeight,
         disagreementScore: score,
         bestValue,
       };
@@ -247,13 +339,35 @@ export class MarketConsensusService {
               : 0.5,
           };
 
+      const medianLine = consensusLine;
+      const meanLine = mean(homeLines);
+      const modeLine = mode(homeLines);
+      const dispersionRange = valueRange(homeLines);
+      const iqr = interquartileRange(homeLines);
+      const consensusPrice = Math.round(median(
+        odds
+          .filter((o) => o.homeSpreadPrice !== null)
+          .map((o) => o.homeSpreadPrice as number)
+      ) || 0);
+      const sharpBookWeight = this.calculateSharpBookWeight(odds.map((o) => o.bookmaker));
+
       return {
         gameId,
         marketType,
         consensusLine,
+        consensusPrice,
+        medianLine: parseFloat(medianLine.toFixed(2)),
+        meanLine: parseFloat(meanLine.toFixed(2)),
+        modeLine: modeLine === null ? null : parseFloat(modeLine.toFixed(2)),
         standardDeviation: parseFloat(dev.toFixed(2)),
+        range: parseFloat(dispersionRange.toFixed(2)),
+        interquartileRange: parseFloat(iqr.toFixed(2)),
         outlierBookmakers: outliers,
+        bestValueSide: bestValue.side,
+        bestValueBookmaker: bestValue.bookmaker,
+        bestValueLine: bestValue.line,
         bookmakerCount: odds.length,
+        sharpBookWeight,
         disagreementScore: score,
         bestValue,
       };
@@ -304,13 +418,35 @@ export class MarketConsensusService {
             impliedProb: bestOver?.overPrice ? americanToImpliedProb(bestOver.overPrice) : 0.5,
           };
 
+      const medianLine = consensusLine;
+      const meanLine = mean(totalLines);
+      const modeLine = mode(totalLines);
+      const dispersionRange = valueRange(totalLines);
+      const iqr = interquartileRange(totalLines);
+      const consensusPrice = Math.round(median(
+        odds
+          .filter((o) => o.overPrice !== null)
+          .map((o) => o.overPrice as number)
+      ) || 0);
+      const sharpBookWeight = this.calculateSharpBookWeight(odds.map((o) => o.bookmaker));
+
       return {
         gameId,
         marketType,
         consensusLine,
+        consensusPrice,
+        medianLine: parseFloat(medianLine.toFixed(2)),
+        meanLine: parseFloat(meanLine.toFixed(2)),
+        modeLine: modeLine === null ? null : parseFloat(modeLine.toFixed(2)),
         standardDeviation: parseFloat(dev.toFixed(2)),
+        range: parseFloat(dispersionRange.toFixed(2)),
+        interquartileRange: parseFloat(iqr.toFixed(2)),
         outlierBookmakers: outliers,
+        bestValueSide: bestValue.side,
+        bestValueBookmaker: bestValue.bookmaker,
+        bestValueLine: bestValue.line,
         bookmakerCount: odds.length,
+        sharpBookWeight,
         disagreementScore: score,
         bestValue,
       };
@@ -343,6 +479,15 @@ export class MarketConsensusService {
       .filter((e) => Math.abs(e.deviation) > 2);
   }
 
+  private calculateSharpBookWeight(bookmakers: string[]): number {
+    if (bookmakers.length === 0) return 0;
+    const normalized = new Set(bookmakers.map((b) => b.toLowerCase()));
+    const sharpCount = Array.from(normalized).filter((b) =>
+      this.SHARP_BOOKMAKERS.has(b)
+    ).length;
+    return parseFloat(((sharpCount / normalized.size) * 100).toFixed(2));
+  }
+
   /**
    * Persist a ConsensusResult to the database (upsert per game+market).
    */
@@ -352,9 +497,19 @@ export class MarketConsensusService {
         gameId: result.gameId,
         marketType: result.marketType,
         consensusLine: result.consensusLine,
+        consensusPrice: result.consensusPrice,
+        medianLine: result.medianLine,
+        meanLine: result.meanLine,
+        modeLine: result.modeLine,
         standardDeviation: result.standardDeviation,
+        range: result.range,
+        interquartileRange: result.interquartileRange,
         outlierBookmakers: result.outlierBookmakers as any,
+        bestValueSide: result.bestValueSide,
+        bestValueBookmaker: result.bestValueBookmaker,
+        bestValueLine: result.bestValueLine,
         bookmakerCount: result.bookmakerCount,
+        sharpBookWeight: result.sharpBookWeight,
         disagreementScore: result.disagreementScore,
         bestValue: result.bestValue as any,
       },
@@ -378,6 +533,26 @@ export class MarketConsensusService {
         );
       }
     }
+  }
+
+  /**
+   * Identify consensus outliers for all core market types in a game.
+   */
+  async identifyOutliers(gameId: string): Promise<
+    { marketType: MarketType; outlierBookmakers: OutlierBookmaker[] }[]
+  > {
+    const results = await Promise.all(
+      (['h2h', 'spreads', 'totals'] as const).map(async (marketType) => {
+        const consensus = await this.calculateConsensus(gameId, marketType);
+        if (!consensus) return null;
+        return {
+          marketType,
+          outlierBookmakers: consensus.outlierBookmakers,
+        };
+      })
+    );
+
+    return results.filter((r): r is { marketType: MarketType; outlierBookmakers: OutlierBookmaker[] } => r !== null);
   }
 
   /**
@@ -477,13 +652,30 @@ export class MarketConsensusService {
       const existing = gameMap.get(r.gameId);
       const consensus: ConsensusResult = {
         gameId: r.gameId,
-        marketType: r.marketType,
+        marketType: r.marketType as MarketType,
         consensusLine: parseFloat(r.consensusLine.toString()),
+        consensusPrice: r.consensusPrice,
+        medianLine: parseFloat(r.medianLine.toString()),
+        meanLine: parseFloat(r.meanLine.toString()),
+        modeLine: r.modeLine !== null ? parseFloat(r.modeLine.toString()) : null,
         standardDeviation: parseFloat(r.standardDeviation.toString()),
+        range: parseFloat(r.range.toString()),
+        interquartileRange: parseFloat(r.interquartileRange.toString()),
         outlierBookmakers: r.outlierBookmakers as unknown as OutlierBookmaker[],
+        bestValueSide: r.bestValueSide as BestValue['side'],
+        bestValueBookmaker: r.bestValueBookmaker,
+        bestValueLine: parseFloat(r.bestValueLine.toString()),
         bookmakerCount: r.bookmakerCount,
+        sharpBookWeight: parseFloat(r.sharpBookWeight.toString()),
         disagreementScore: r.disagreementScore,
-        bestValue: r.bestValue as unknown as BestValue,
+        bestValue: {
+          side: r.bestValueSide as BestValue['side'],
+          bookmaker: r.bestValueBookmaker,
+          line: parseFloat(r.bestValueLine.toString()),
+          impliedProb:
+            (r.bestValue as unknown as { impliedProb?: number } | null)?.impliedProb ??
+            0.5,
+        },
       };
 
       if (existing) {
@@ -530,13 +722,30 @@ export class MarketConsensusService {
       })
       .map((r) => ({
         gameId: r.gameId,
-        marketType: r.marketType,
+        marketType: r.marketType as MarketType,
         consensusLine: parseFloat(r.consensusLine.toString()),
+        consensusPrice: r.consensusPrice,
+        medianLine: parseFloat(r.medianLine.toString()),
+        meanLine: parseFloat(r.meanLine.toString()),
+        modeLine: r.modeLine !== null ? parseFloat(r.modeLine.toString()) : null,
         standardDeviation: parseFloat(r.standardDeviation.toString()),
+        range: parseFloat(r.range.toString()),
+        interquartileRange: parseFloat(r.interquartileRange.toString()),
         outlierBookmakers: r.outlierBookmakers as unknown as OutlierBookmaker[],
+        bestValueSide: r.bestValueSide as BestValue['side'],
+        bestValueBookmaker: r.bestValueBookmaker,
+        bestValueLine: parseFloat(r.bestValueLine.toString()),
         bookmakerCount: r.bookmakerCount,
+        sharpBookWeight: parseFloat(r.sharpBookWeight.toString()),
         disagreementScore: r.disagreementScore,
-        bestValue: r.bestValue as unknown as BestValue,
+        bestValue: {
+          side: r.bestValueSide as BestValue['side'],
+          bookmaker: r.bestValueBookmaker,
+          line: parseFloat(r.bestValueLine.toString()),
+          impliedProb:
+            (r.bestValue as unknown as { impliedProb?: number } | null)?.impliedProb ??
+            0.5,
+        },
       }));
   }
 
