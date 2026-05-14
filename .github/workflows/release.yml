@@ -188,7 +188,7 @@ jobs:
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/bettrack-backend
+          images: ghcr.io/${{ github.repository_owner }}/bettrack/backend
           tags: |
             type=raw,value=${{ steps.versions.outputs.tag }}
             type=raw,value=latest
@@ -209,7 +209,7 @@ jobs:
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/bettrack-frontend
+          images: ghcr.io/${{ github.repository_owner }}/bettrack/frontend
           tags: |
             type=raw,value=${{ steps.versions.outputs.tag }}
             type=raw,value=latest
@@ -248,12 +248,12 @@ jobs:
             
             ```bash
             # Backend
-            docker pull ghcr.io/${{ github.repository_owner }}/bettrack-backend:${{ steps.versions.outputs.tag }}
-            docker pull ghcr.io/${{ github.repository_owner }}/bettrack-backend:latest
+            docker pull ghcr.io/${{ github.repository_owner }}/bettrack/backend:${{ steps.versions.outputs.tag }}
+            docker pull ghcr.io/${{ github.repository_owner }}/bettrack/backend:latest
             
-            # Frontend images
-            docker pull ghcr.io/${{ github.repository_owner }}/bettrack-frontend:${{ steps.versions.outputs.tag }}
-            docker pull ghcr.io/${{ github.repository_owner }}/bettrack-frontend:latest
+            # Frontend
+            docker pull ghcr.io/${{ github.repository_owner }}/bettrack/frontend:${{ steps.versions.outputs.tag }}
+            docker pull ghcr.io/${{ github.repository_owner }}/bettrack/frontend:latest
             ```
             
             ## Installation
