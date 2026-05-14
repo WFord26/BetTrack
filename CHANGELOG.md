@@ -18,9 +18,6 @@ Changes that affect the entire project structure:
 
 ## [Unreleased]
 
----
-
-## [2026-05-12]
 
 ### Release Summary
 

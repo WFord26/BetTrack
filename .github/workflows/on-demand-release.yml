@@ -288,61 +288,55 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Update root CHANGELOG.md
         id: changelog
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.release_tag }}
+          MCP_VERSION: ${{ steps.versions.outputs.mcp }}
+          BACKEND_VERSION: ${{ steps.versions.outputs.backend }}
+          FRONTEND_VERSION: ${{ steps.versions.outputs.frontend }}
         run: |
-          RELEASE_TAG="${{ steps.tag.outputs.release_tag }}"
-          MCP_VERSION="${{ steps.versions.outputs.mcp }}"
-          BACKEND_VERSION="${{ steps.versions.outputs.backend }}"
-          FRONTEND_VERSION="${{ steps.versions.outputs.frontend }}"
-
-          # Extract the Unreleased content (between ## [Unreleased] and next ## heading)
-          UNRELEASED=$(awk '
-            /^## \[Unreleased\]/ { found=1; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md | sed '/^[[:space:]]*$/d')
-
-          if [[ -z "$UNRELEASED" ]]; then
-            echo "❌ Aborted: No unreleased changes found in CHANGELOG.md."
-            exit 1
-          fi
-
-          # Build the new version block
-          NEW_BLOCK="## [${RELEASE_TAG}]
-
-### Packages
-- **Frontend:** v${FRONTEND_VERSION}
-- **Backend:** v${BACKEND_VERSION}
-- **MCP:** v${MCP_VERSION}
-
-### Changes
-${UNRELEASED}"
-
-          # Save release notes for the GitHub release (multiline output)
-          {
-            echo 'release_notes<<RELEASE_NOTES_EOF'
-            echo "$NEW_BLOCK"
-            echo 'RELEASE_NOTES_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-          # Write the new block to a temp file so Python can read it
-          echo "$NEW_BLOCK" > /tmp/new_block.md
-
-          # Rewrite CHANGELOG.md: clear Unreleased body, insert new versioned block
           python3 - <<'PYEOF'
-          import re
+          import re, os, sys
+
+          release_tag      = os.environ['RELEASE_TAG']
+          mcp_version      = os.environ['MCP_VERSION']
+          backend_version  = os.environ['BACKEND_VERSION']
+          frontend_version = os.environ['FRONTEND_VERSION']
+          github_output    = os.environ.get('GITHUB_OUTPUT', '')
 
           path = 'CHANGELOG.md'
           content = open(path).read()
-          new_block = open('/tmp/new_block.md').read()
 
-          # Remove existing Unreleased body (keep only the header line)
+          # Extract the Unreleased section body
+          m = re.search(r'## \[Unreleased\]\n([\s\S]*?)(?=\n## \[)', content)
+          unreleased = m.group(1).strip() if m else ''
+          if not unreleased:
+              print('Aborted: No unreleased changes found in CHANGELOG.md.')
+              sys.exit(1)
+
+          # Build the new versioned block
+          new_block = (
+              f'## [{release_tag}]\n\n'
+              f'### Packages\n'
+              f'- **Frontend:** v{frontend_version}\n'
+              f'- **Backend:** v{backend_version}\n'
+              f'- **MCP:** v{mcp_version}\n\n'
+              f'### Changes\n'
+              f'{unreleased}'
+          )
+
+          # Write release notes to GITHUB_OUTPUT
+          if github_output:
+              with open(github_output, 'a') as fh:
+                  fh.write(f'release_notes<<RELEASE_NOTES_EOF\n{new_block}\nRELEASE_NOTES_EOF\n')
+
+          # Clear the Unreleased body
           content = re.sub(
               r'(## \[Unreleased\])\n[\s\S]*?(?=\n## \[)',
               r'\1\n\n',
               content
           )
 
-          # Insert versioned block immediately after the cleared Unreleased header
+          # Insert the new versioned block below the cleared Unreleased header
           content = content.replace(
               '## [Unreleased]\n\n',
               f'## [Unreleased]\n\n---\n\n{new_block}\n\n---\n\n',
@@ -350,7 +344,7 @@ ${UNRELEASED}"
           )
 
           open(path, 'w').write(content)
-          print("CHANGELOG.md updated")
+          print('CHANGELOG.md updated successfully')
           PYEOF
 
       # -----------------------------------------------------------------------
@@ -371,12 +365,11 @@ ${UNRELEASED}"
                   mcp/CHANGELOG.md dashboard/backend/CHANGELOG.md \
                   dashboard/frontend/CHANGELOG.md 2>/dev/null || true
 
-          git diff --cached --quiet && echo "Nothing to commit" || \
-            git commit -m "chore(release): ${RELEASE_TAG}
+          COMMIT_MSG=$(printf 'chore(release): %s\n\n- MCP Server: v%s\n- Backend: v%s\n- Frontend: v%s' \
+            "${RELEASE_TAG}" "${MCP_VERSION}" "${BACKEND_VERSION}" "${FRONTEND_VERSION}")
 
-- MCP Server: v${MCP_VERSION}
-- Backend: v${BACKEND_VERSION}
-- Frontend: v${FRONTEND_VERSION}"
+          git diff --cached --quiet && echo "Nothing to commit" || \
+            git commit -m "$COMMIT_MSG"
 
           git tag -a "${RELEASE_TAG}" -m "Release ${RELEASE_TAG}"
           git push origin HEAD
@@ -387,7 +380,7 @@ ${UNRELEASED}"
       # -----------------------------------------------------------------------
       - name: Create GitHub Release
         id: gh_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           name: Release ${{ steps.tag.outputs.release_tag }}
