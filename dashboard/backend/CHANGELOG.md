@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.9] - 2026-05-13
+
+### Added
+- **`prisma/migrations/20260513000002_add_admin_settings_table`**: Creates the `admin_settings` table that the `AdminSettings` Prisma model maps to. The model and its `prisma.adminSettings.upsert` calls in `/api/admin/settings` and `getAdviceContext` were already present but the corresponding `CREATE TABLE` migration was missing, causing runtime "table does not exist" errors on freshly migrated databases.
+
+### Fixed
+- **`package.json` `build` script**: Changed from `tsc` to `prisma generate && tsc` so the Prisma client is always regenerated before TypeScript compilation. Prevents stale-client `TS2339` errors (e.g. `Property 'sharpMoneyIndicator' does not exist`) when the schema has been updated but `prisma generate` has not been run manually.
+
+---
+
 ## [0.3.8] - 2026-05-13
 
 ### Added

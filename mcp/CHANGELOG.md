@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.2] - 2026-05-13
+
+### Fixed
+- **`scripts/build.sh` `full_release()`**: Version bump now runs as Step 2 (immediately after clean), before the Dashboard and MCPB builds. Previously the bump ran as Step 4 after both builds, causing ZIP and MCPB artifacts to contain the pre-bump versions while the release tag and notes advertised the bumped versions.
+- **`scripts/build.ps1` `Invoke-FullRelease`**: Same ordering fix — `Update-ComponentVersions` moved to Step 2 before `Build-Dashboard` and `Build-MCPBPackage`, with the MCPB filename now sourced from `$versions.MCP` rather than re-reading `manifest.json` after the bump.
+
+---
+
 ## [0.3.1] - 2026-05-13
 
 ### Added

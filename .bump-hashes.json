@@ -3,14 +3,14 @@
   "packages": {
     "mcp": {
       "name": "sports-data-mcp",
-      "hash": "bdbf5abe6461bb7df218d62a1b9c926220578dc2db7ad1228553e0d44d13168d",
+      "hash": "aa15411b73582195fb657ed4374af601ba2bc733daddcc704a0903e5ccd69d49",
       "files": {
         "mcp/.env.example": "e0aa68ebfbb53281afce1ed552f768a8e90dec64f4bffee0a050e90145fb26a6",
         "mcp/.mcpbignore": "52fb5b93afa01bb1acad28e896112dae0ed91f8d38503294463a93e77d619604",
         "mcp/build/sports-data-mcp/.env.example": "e0aa68ebfbb53281afce1ed552f768a8e90dec64f4bffee0a050e90145fb26a6",
         "mcp/build/sports-data-mcp/dashboard_mcp_server.py": "1f7adffcb159f60cd307f9ede7392b2543707c1316244e18b90058ca6acb20bd",
         "mcp/build/sports-data-mcp/INSTALL_INSTRUCTIONS.md": "1d5b3fec9c8fd76515071018e623fae07faaeb3ef62124722b12f0f4e2c3255b",
-        "mcp/build/sports-data-mcp/manifest.json": "a978484430a0313550ecb696ce798e300d35585dde0fa13ce669548fad4e94a1",
+        "mcp/build/sports-data-mcp/manifest.json": "7c2b77eedbdd7e5dca40de036ebe17ff6fa4552e22a36e9233df9011d22f5116",
         "mcp/build/sports-data-mcp/mcpb_bootstrap.py": "58fd2a5d7267be6cc1501e711890e2530f9c3802fa6bafa505ed280ea69abed8",
         "mcp/build/sports-data-mcp/requirements.txt": "ab5d7f0f39753dbdca2fa6b89554ec4011c8edd6fceef7924b558d367b4542fa",
         "mcp/build/sports-data-mcp/setup.py": "89cc811c3c166b2e6725c0a4b8bbf1965e9f8f3c56fbc259ec71c9ccda1f5ebd",
@@ -24,12 +24,13 @@
         "mcp/espn-api-spec.json": "d220e675759399c13dd57697da5350e38fc370df0682bb0efd99531fa875f832",
         "mcp/icon.png": "6f2c14a78513cb43045fce510e899af7490cc20b5776fed3864d8e863435f61a",
         "mcp/INSTALL_INSTRUCTIONS.md": "1d5b3fec9c8fd76515071018e623fae07faaeb3ef62124722b12f0f4e2c3255b",
-        "mcp/manifest.json": "a978484430a0313550ecb696ce798e300d35585dde0fa13ce669548fad4e94a1",
+        "mcp/manifest.json": "af3b7b6f6fabec9171c2e79707f48ac1de641b61357971ffd590631c4cf09898",
         "mcp/mcpb_bootstrap.py": "58fd2a5d7267be6cc1501e711890e2530f9c3802fa6bafa505ed280ea69abed8",
         "mcp/odds-api-spec.json": "ed1a4443b0480f6fcf7d916b3d745dfc7147ed453809dede69c0f97741e0a731",
         "mcp/README.md": "9634b31a85f19392b9b6150bab9e1b213a58f78ecbe5768688f6af554a3ed9d6",
         "mcp/releases/sports-data-mcp-v0.2.1.mcpb": "756dc4594869947f9c3d3db0129441df08ff17ee3323828d47f2e37ff422fc14",
         "mcp/releases/sports-data-mcp-v0.3.0.mcpb": "4f5e2bfa83dfc137f072615e5c08e2d8ed0f7908a6f47e2a5ea1a3a6be37e857",
+        "mcp/releases/sports-data-mcp-v0.3.2.mcpb": "2deac647a3aff5c0148431c5eed940728c789a757ab8b9e7d35553e9750f0860",
         "mcp/requirements.txt": "ab5d7f0f39753dbdca2fa6b89554ec4011c8edd6fceef7924b558d367b4542fa",
         "mcp/setup.py": "89cc811c3c166b2e6725c0a4b8bbf1965e9f8f3c56fbc259ec71c9ccda1f5ebd",
         "mcp/sports_api/__init__.py": "160143aa2aea8ab4e2c4c7399af068d560c866e9b7f233987f0625cdde74fcd4",
@@ -42,7 +43,7 @@
     },
     "dashboard/backend": {
       "name": "@wford26/bettrack-backend",
-      "hash": "47306b05e60649239bb67899f9e36b280f43f5629c1a867dd8356463a5ab7629",
+      "hash": "ca71f09b6e6297c31a3fbd0d2c4b85d2cb20b07dee8d393ece1c1c66d86a938e",
       "files": {
         "dashboard/backend/.dockerignore": "3e9dfe9f05211b9b2cb2775e9861b5f4e2fa614a0773a6c71283404498391d8e",
         "dashboard/backend/.env": "6dcbf3bc590016abc2351c795620c9e80789655cc3930aa219736eef9dd8440b",
@@ -69,6 +70,7 @@
         "dashboard/backend/prisma/migrations/20260507190004_add_baseball_game_state/migration.sql": "a1341dfb968be83c96e241a332b807de196e46a56fca34af5b1344296bf8316e",
         "dashboard/backend/prisma/migrations/20260509040701_add_line_movement_tracking/migration.sql": "28b9b3764d39aae114db1f33342b8c08940250e7fd362f394eaab8cc957c3d5f",
         "dashboard/backend/prisma/migrations/20260513000001_add_sharp_money_indicators/migration.sql": "ae69ca335fd27b71014c1782d948a6e6115cc34a3b5b37351f7119d7c4a7334d",
+        "dashboard/backend/prisma/migrations/20260513000002_add_admin_settings_table/migration.sql": "f5a9c93d2cd56971b0a7e755245a39aa035248af38484f82e6e495f54a061923",
         "dashboard/backend/prisma/migrations/manual_api_keys.sql": "e911b025f48cd84edc9921a28fbf0217406d94cdac7570e4585a07b474af5b96",
         "dashboard/backend/prisma/migrations/migration_lock.toml": "693566b52c49db47a2b0901d12400aa3d710d13a49f4a2a154b80c0505ed737c",
         "dashboard/backend/prisma/schema.prisma": "18b5bb5688476639321a7d98492f4e0d1a26eb77d24295fa8381fc82a7473149",
