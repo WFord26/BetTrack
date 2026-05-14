@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { betService } from '../services/bet.service';
+import { BetResponse, BetLegResponse, BetStats, BetStatus } from '../types/bet.types';
 import { logger } from '../config/logger';
 
 /**
@@ -16,7 +18,10 @@ import { logger } from '../config/logger';
  */
 export async function getActiveBets(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = await betService.getBets({ status: 'pending' });
+    const userId = req.apiKey?.userId ?? undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+
+    const result = await betService.getBets({ status: 'pending', userId, limit });
 
     // Format for AI consumption
     const formattedBets = result.bets.map(bet => ({
@@ -43,10 +48,12 @@ export async function getActiveBets(req: Request, res: Response, next: NextFunct
     const totalAtRisk = formattedBets.reduce((sum, bet) => sum + bet.stake, 0);
 
     res.json({
-      success: true,
-      bets: formattedBets,
-      total_at_risk: totalAtRisk,
-      count: formattedBets.length
+      status: 'success',
+      data: {
+        bets: formattedBets,
+        total_at_risk: totalAtRisk,
+        count: formattedBets.length
+      }
     });
   } catch (error) {
     logger.error('Error fetching active bets:', error);
@@ -60,33 +67,36 @@ export async function getActiveBets(req: Request, res: Response, next: NextFunct
  */
 export async function getBettingSummary(req: Request, res: Response, next: NextFunction) {
   try {
+    const userId = req.apiKey?.userId ?? undefined;
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     // Get active bets
-    const activeBets = await betService.getBets({ status: 'pending' });
+    const activeBets = await betService.getBets({ status: 'pending', userId });
     const activeStake = activeBets.bets.reduce((sum, bet) => sum + bet.stake.toNumber(), 0);
     const activePotential = activeBets.bets.reduce((sum, bet) => sum + (bet.potentialPayout?.toNumber() || 0), 0);
 
     // Get today's stats
     const todayStats = await betService.getStats({
       startDate: todayStart,
-      endDate: now
+      endDate: now,
+      userId
     });
 
     // Get this week's stats
     const weekStats = await betService.getStats({
       startDate: weekStart,
-      endDate: now
+      endDate: now,
+      userId
     });
 
     // Get all-time stats
-    const allTimeStats = await betService.getStats();
+    const allTimeStats = await betService.getStats({ userId });
 
     res.json({
-      success: true,
-      summary: {
+      status: 'success',
+      data: {
         active: {
           count: activeBets.total,
           total_stake: activeStake,
@@ -123,17 +133,21 @@ export async function getBettingSummary(req: Request, res: Response, next: NextF
  */
 export async function getAdviceContext(req: Request, res: Response, next: NextFunction) {
   try {
+    const userId = req.apiKey?.userId ?? undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+
     // Get active bets
-    const activeBets = await betService.getBets({ status: 'pending' });
+    const activeBets = await betService.getBets({ status: 'pending', userId, limit });
 
     // Get recent settled bets (last 10)
     const recentBets = await betService.getBets({
       status: ['won', 'lost', 'push'],
-      limit: 10
+      limit: 10,
+      userId
     });
 
     // Get all-time stats
-    const stats = await betService.getStats();
+    const stats = await betService.getStats({ userId });
 
     // Calculate bankroll exposure
     const totalAtRisk = activeBets.bets.reduce((sum, bet) => sum + bet.stake.toNumber(), 0);
@@ -150,11 +164,16 @@ export async function getAdviceContext(req: Request, res: Response, next: NextFu
     }
 
     // Analyze risk
-    const analysis = analyzeRisk(activeBets.bets, recentBets.bets, stats, totalAtRisk);
+    const settings = await prisma.adminSettings.upsert({
+      where: { id: 'singleton' },
+      update: {},
+      create: { id: 'singleton' }
+    });
+    const analysis = analyzeRisk(activeBets.bets, recentBets.bets, stats, totalAtRisk, settings);
 
     res.json({
-      success: true,
-      context: {
+      status: 'success',
+      data: {
         active_bets: activeBets.bets.map(formatBetForAdvice),
         recent_results: recentBets.bets.map(formatBetForAdvice),
         bankroll_exposure: totalAtRisk,
@@ -174,16 +193,18 @@ export async function getAdviceContext(req: Request, res: Response, next: NextFu
  */
 export async function getGamesWithExposure(req: Request, res: Response, next: NextFunction) {
   try {
+    const userId = req.apiKey?.userId ?? undefined;
     const sportKey = req.query.sport as string | undefined;
 
-    // Get today's games
-    const today = new Date();
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    // Get today's games anchored to midnight so earlier-today games are included
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    const where: any = {
+    const where: Prisma.GameWhereInput = {
       commenceTime: {
-        gte: today,
-        lt: tomorrow
+        gte: todayStart,
+        lt: tomorrowStart
       },
       status: {
         in: ['scheduled', 'in_progress']
@@ -201,7 +222,8 @@ export async function getGamesWithExposure(req: Request, res: Response, next: Ne
         betLegs: {
           where: {
             bet: {
-              status: 'pending'
+              status: 'pending',
+              ...(userId ? { userId } : {})
             }
           },
           include: {
@@ -241,10 +263,12 @@ export async function getGamesWithExposure(req: Request, res: Response, next: Ne
       : gamesWithExposure;
 
     res.json({
-      success: true,
-      games: filtered,
-      total_games: filtered.length,
-      total_exposure: filtered.reduce((sum, g) => sum + g.total_exposure, 0)
+      status: 'success',
+      data: {
+        games: filtered,
+        total_games: filtered.length,
+        total_exposure: filtered.reduce((sum, g) => sum + g.total_exposure, 0)
+      }
     });
   } catch (error) {
     logger.error('Error fetching games with exposure:', error);
@@ -258,15 +282,8 @@ export async function getGamesWithExposure(req: Request, res: Response, next: Ne
  */
 export async function quickCreateBet(req: Request, res: Response, next: NextFunction) {
   try {
+    const userId = req.apiKey?.userId ?? undefined;
     const { game_id, selection_type, selection, stake, name, line, odds } = req.body;
-
-    // Validate required fields
-    if (!game_id || !selection_type || !selection || !stake || !odds) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: game_id, selection_type, selection, stake, odds'
-      });
-    }
 
     // Get game info for name generation
     const game = await prisma.game.findUnique({
@@ -276,7 +293,7 @@ export async function quickCreateBet(req: Request, res: Response, next: NextFunc
 
     if (!game) {
       return res.status(404).json({
-        success: false,
+        status: 'error',
         error: 'Game not found'
       });
     }
@@ -284,7 +301,7 @@ export async function quickCreateBet(req: Request, res: Response, next: NextFunc
     // Auto-generate name if not provided
     const betName = name || generateBetName(game, selection_type, selection, line);
 
-    // Create bet
+    // Create bet scoped to the calling API key's user
     const bet = await betService.createBet({
       name: betName,
       betType: 'single',
@@ -298,12 +315,11 @@ export async function quickCreateBet(req: Request, res: Response, next: NextFunc
           odds
         }
       ]
-    });
+    }, userId);
 
     res.status(201).json({
-      success: true,
-      message: 'Bet created successfully',
-      bet: {
+      status: 'success',
+      data: {
         id: bet.id,
         name: bet.name,
         stake: bet.stake.toNumber(),
@@ -313,11 +329,10 @@ export async function quickCreateBet(req: Request, res: Response, next: NextFunc
     });
   } catch (error) {
     logger.error('Error creating quick bet:', error);
-    
-    // Provide helpful error message
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({
-      success: false,
+      status: 'error',
       error: errorMessage,
       hint: 'Check that the game exists and hasn\'t started yet'
     });
@@ -331,7 +346,7 @@ export async function quickCreateBet(req: Request, res: Response, next: NextFunc
 /**
  * Format bet for advice context
  */
-function formatBetForAdvice(bet: any) {
+function formatBetForAdvice(bet: BetResponse) {
   return {
     name: bet.name,
     type: bet.betType,
@@ -341,7 +356,7 @@ function formatBetForAdvice(bet: any) {
     placed_at: bet.placedAt.toISOString(),
     settled_at: bet.settledAt?.toISOString() || null,
     profit: bet.actualPayout ? bet.actualPayout.toNumber() - bet.stake.toNumber() : null,
-    legs: bet.legs.map((leg: any) => ({
+    legs: bet.legs.map((leg: BetLegResponse) => ({
       game: `${leg.game.awayTeamName} @ ${leg.game.homeTeamName}`,
       sport: leg.game.sport.name,
       pick: `${leg.selectionType} ${leg.selection}`,
@@ -351,28 +366,35 @@ function formatBetForAdvice(bet: any) {
 }
 
 /**
- * Analyze betting risk and provide insights
+ * Analyze betting risk and provide insights.
+ * Thresholds are read from AdminSettings (deployment-configurable).
  */
-function analyzeRisk(activeBets: any[], recentBets: any[], stats: any, totalAtRisk: number) {
+function analyzeRisk(
+  activeBets: BetResponse[],
+  recentBets: BetResponse[],
+  stats: BetStats,
+  totalAtRisk: number,
+  settings: { riskHighThreshold: number; riskModerateThreshold: number; winRateLow: number; winRateHigh: number }
+) {
   // Determine risk level based on exposure and recent performance
   let riskLevel: 'LOW' | 'MODERATE' | 'HIGH' = 'LOW';
   const suggestions: string[] = [];
 
-  // Check exposure (arbitrary thresholds)
+  // Check exposure against configurable thresholds
   const exposurePercentage = stats.totalStaked > 0
     ? (totalAtRisk / stats.totalStaked * 100).toFixed(1)
     : '0.0';
 
-  if (totalAtRisk > 1000) {
+  if (totalAtRisk > settings.riskHighThreshold) {
     riskLevel = 'HIGH';
     suggestions.push('High exposure detected. Consider reducing active bet count.');
-  } else if (totalAtRisk > 500) {
+  } else if (totalAtRisk > settings.riskModerateThreshold) {
     riskLevel = 'MODERATE';
   }
 
   // Check diversification
-  const sports = new Set(activeBets.flatMap(bet => 
-    bet.legs.map((leg: any) => leg.game.sport.key)
+  const sports = new Set(activeBets.flatMap(bet =>
+    bet.legs.map((leg: BetLegResponse) => leg.game.sport.key)
   ));
   const isDiversified = sports.size > 1;
 
@@ -403,11 +425,11 @@ function analyzeRisk(activeBets: any[], recentBets: any[], stats: any, totalAtRi
     }
   }
 
-  // Win rate analysis
+  // Win rate analysis against configurable thresholds
   if (stats.totalBets >= 20) {
-    if (stats.winRate < 45) {
-      suggestions.push('Win rate below 45%. Review betting strategy and selection criteria.');
-    } else if (stats.winRate > 55) {
+    if (stats.winRate < settings.winRateLow) {
+      suggestions.push('Win rate below threshold. Review betting strategy and selection criteria.');
+    } else if (stats.winRate > settings.winRateHigh) {
       suggestions.push('Strong win rate! Maintain current strategy.');
     }
   }
@@ -433,24 +455,238 @@ function analyzeRisk(activeBets: any[], recentBets: any[], stats: any, totalAtRi
 /**
  * Generate bet name from game and selection
  */
-function generateBetName(game: any, selectionType: string, selection: string, line?: number): string {
+function generateBetName(
+  game: { homeTeamName: string; awayTeamName: string },
+  selectionType: string,
+  selection: string,
+  line?: number
+): string {
   const teams = `${game.awayTeamName} @ ${game.homeTeamName}`;
-  
+
   if (selectionType === 'moneyline') {
     const team = selection === 'home' ? game.homeTeamName : game.awayTeamName;
     return `${team} ML`;
   }
-  
+
   if (selectionType === 'spread') {
     const team = selection === 'home' ? game.homeTeamName : game.awayTeamName;
     const lineStr = line ? ` ${line > 0 ? '+' : ''}${line}` : '';
     return `${team}${lineStr}`;
   }
-  
+
   if (selectionType === 'total') {
     const lineStr = line ? ` ${line}` : '';
     return `${teams} ${selection.toUpperCase()}${lineStr}`;
   }
-  
+
   return `${teams} - ${selectionType}`;
+}
+
+// ============================================================================
+// PHASE 2: ADDITIONAL MCP ROUTES (rewired from /api/* session routes)
+// ============================================================================
+
+/**
+ * GET /api/mcp/games
+ * List upcoming games for MCP (apiKeyAuth, no session required)
+ */
+export async function getMcpGames(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { sport, status } = req.query;
+
+    const where: Prisma.GameWhereInput = {};
+    if (sport) where.sport = { key: sport as string };
+    if (status) where.status = status as string;
+
+    const games = await prisma.game.findMany({
+      where,
+      include: { sport: true },
+      orderBy: { commenceTime: 'asc' },
+      take: 50
+    });
+
+    res.json({
+      status: 'success',
+      data: {
+        games: games.map(g => ({
+          id: g.id,
+          matchup: `${g.awayTeamName} @ ${g.homeTeamName}`,
+          home_team: g.homeTeamName,
+          away_team: g.awayTeamName,
+          sport: g.sport.name,
+          sport_key: g.sport.key,
+          commence_time: g.commenceTime.toISOString(),
+          status: g.status,
+          home_score: g.homeScore,
+          away_score: g.awayScore
+        })),
+        count: games.length
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching MCP games:', error);
+    next(error);
+  }
+}
+
+/**
+ * GET /api/mcp/bets
+ * List bets with optional status filter for MCP
+ */
+export async function getMcpBets(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.apiKey?.userId ?? undefined;
+    const { status, limit: limitStr } = req.query;
+    const limit = limitStr ? parseInt(limitStr as string) : 50;
+
+    const result = await betService.getBets({
+      ...(userId ? { userId } : {}),
+      ...(status ? { status: status as BetStatus } : {}),
+      limit
+    });
+
+    res.json({
+      status: 'success',
+      data: {
+        bets: result.bets,
+        total: result.total,
+        limit: result.limit,
+        offset: result.offset
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching MCP bets:', error);
+    next(error);
+  }
+}
+
+/**
+ * GET /api/mcp/bets/:id
+ * Get a single bet by ID, scoped to the calling user
+ */
+export async function getMcpBetById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.apiKey?.userId ?? undefined;
+    const { id } = req.params;
+
+    const bet = await prisma.bet.findFirst({
+      where: {
+        id,
+        ...(userId ? { userId } : {})
+      },
+      include: {
+        legs: {
+          include: {
+            game: {
+              include: { sport: { select: { key: true, name: true } } }
+            }
+          }
+        }
+      }
+    });
+
+    if (!bet) {
+      return res.status(404).json({
+        status: 'error',
+        error: 'Bet not found'
+      });
+    }
+
+    res.json({
+      status: 'success',
+      data: { bet }
+    });
+  } catch (error) {
+    logger.error('Error fetching MCP bet by id:', error);
+    next(error);
+  }
+}
+
+/**
+ * GET /api/mcp/games/:id/odds
+ * Get current odds for a specific game
+ */
+export async function getMcpGameOdds(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const game = await prisma.game.findUnique({
+      where: { id },
+      include: { sport: true }
+    });
+
+    if (!game) {
+      return res.status(404).json({
+        status: 'error',
+        error: 'Game not found'
+      });
+    }
+
+    const odds = await prisma.currentOdds.findMany({
+      where: { gameId: id },
+      orderBy: { bookmaker: 'asc' }
+    });
+
+    res.json({
+      status: 'success',
+      data: {
+        game: {
+          id: game.id,
+          matchup: `${game.awayTeamName} @ ${game.homeTeamName}`,
+          sport: game.sport.name,
+          commence_time: game.commenceTime.toISOString(),
+          status: game.status
+        },
+        odds
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching MCP game odds:', error);
+    next(error);
+  }
+}
+
+/**
+ * GET /api/mcp/teams/search?q=
+ * Search teams by name (case-insensitive)
+ */
+export async function searchTeams(req: Request, res: Response, next: NextFunction) {
+  try {
+    const q = (req.query.q as string | undefined)?.trim();
+
+    if (!q) {
+      return res.status(400).json({
+        status: 'error',
+        error: 'Query parameter "q" is required'
+      });
+    }
+
+    const teams = await prisma.team.findMany({
+      where: {
+        name: {
+          contains: q,
+          mode: 'insensitive'
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        abbreviation: true,
+        sport: true,
+        logoUrl: true
+      },
+      take: 20
+    });
+
+    res.json({
+      status: 'success',
+      data: {
+        teams,
+        count: teams.length
+      }
+    });
+  } catch (error) {
+    logger.error('Error searching teams:', error);
+    next(error);
+  }
 }

@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.3] - 2026-05-13
+
+### Added
+
+- **Sharp vs Public Money Analytics page** (Issue #8): New page at `/analytics/sharp` that displays sharp-action indicators and contrarian ("fade-the-public") picks derived from line-movement data.
+  - `src/pages/SharpMoneyAnalytics.tsx`: Two-tab UI — **Live Indicators** (grid of per-game indicator cards showing sharp side, public side, movement type, and confidence badge) and **Contrarian Picks** (games where sharp money opposes the crowd, with a min-confidence filter). Includes stats summary bar and legend.
+  - `src/types/sharp.types.ts`: TypeScript types `SharpIndicator`, `ContrarianOpportunity`, `SharpStats`, and API response wrappers.
+  - `src/services/sharp.service.ts`: API client wrapping `GET /analytics/sharp/live`, `/game/:id`, `/contrarian`, and `/stats`.
+  - `src/store/sharpSlice.ts`: Redux slice with async thunks (`fetchLiveIndicators`, `fetchGameIndicators`, `fetchContrarianOpportunities`, `fetchSharpStats`) and selectors.
+  - `src/store/index.ts`: `sharp` reducer registered.
+  - `src/App.tsx`: Route `/analytics/sharp` added.
+  - `src/components/Header.tsx`: "Sharp Money" nav item with shark icon added to primary navigation.
+
+---
+
 ## [0.4.2] - 2026-05-12
 
 ### Fixed

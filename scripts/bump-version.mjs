@@ -11,6 +11,8 @@ const PACKAGE_CONFIGS = [
   {
     key: "mcp",
     manifestPath: "mcp/package.json",
+    // manifest.json is read by Claude Desktop and must stay in sync with package.json
+    extraVersionFiles: ["mcp/manifest.json"],
     trackedDirs: ["mcp"],
   },
   {
@@ -207,6 +209,9 @@ function loadPackageManifests() {
       manifestPathAbs,
       manifest,
       trackedDirs: config.trackedDirs,
+      extraVersionFiles: (config.extraVersionFiles ?? []).map((rel) =>
+        path.join(ROOT_DIR, rel)
+      ),
     };
   });
 }
@@ -636,6 +641,11 @@ async function main() {
       for (const [key, newVersion] of bumpedByKey) {
         const pkg = packages.find((p) => p.key === key);
         console.log(`   ${pkg?.manifestPath}: ${pkg?.manifest.version} → ${newVersion}`);
+        for (const extraPath of pkg?.extraVersionFiles ?? []) {
+          if (existsSync(extraPath)) {
+            console.log(`   ${relFromRoot(extraPath)}: (synced from ${pkg.manifestPath})`);
+          }
+        }
       }
       console.log("\nWould update CHANGELOG.md files:");
       const today = getTodayDate();
@@ -659,6 +669,16 @@ async function main() {
         if (pkg) {
           pkg.manifest.version = newVersion;
           writeJson(pkg.manifestPathAbs, pkg.manifest);
+
+          // Sync version to any extra manifest files (e.g. mcp/manifest.json)
+          for (const extraPath of pkg.extraVersionFiles ?? []) {
+            if (existsSync(extraPath)) {
+              const extra = readJson(extraPath);
+              extra.version = newVersion;
+              writeJson(extraPath, extra);
+              console.log(`   synced version to ${relFromRoot(extraPath)}`);
+            }
+          }
 
           // Update CHANGELOG.md now that we are confirmed not in dry-run
           const changelogPath = path.join(path.dirname(pkg.manifestPathAbs), "CHANGELOG.md");

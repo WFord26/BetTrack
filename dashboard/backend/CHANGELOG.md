@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.8] - 2026-05-13
+
+### Added
+
+- **Sharp vs Public Money Indicators — Phase 2** (Issue #8): Detects and stores indicators showing which side professional ("sharp") bettors are backing vs. recreational ("public") money. A scheduled job runs every 15 minutes, derives sharp-side signals from existing line movement data, and persists confidence-rated indicators.
+  - `prisma/schema.prisma`: New `SharpMoneyIndicator` model (`sharp_money_indicators` table) storing `lineMovement`, `sharpSide`, `publicSide`, `sharpConfidence` (1-10), `contraindicators`, and optional `publicBettingPct`/`publicMoneyPct` fields. Linked to `Game` via `gameId`. Migration: `20260513000001_add_sharp_money_indicators`.
+  - `src/services/sharp-indicator.service.ts`: `SharpIndicatorService` with `detectSharpSide()` (analyses steam/reverse/gradual line movements per game+market, votes on direction), `calculateConfidence()` (scores 1-10 from steam count, bookmaker coverage, recency, consistency), `findContrarianOpportunities()` (returns scheduled games where sharp money opposes the crowd with `sharpConfidence ≥ threshold`), `getLatestIndicators()`, `getIndicatorsForGame()`, and `getStats()`.
+  - `src/routes/analytics-sharp.routes.ts`: Four authenticated REST endpoints under `/api/analytics/sharp`: `GET /live` (current indicators), `GET /game/:gameId` (per-game breakdown), `GET /contrarian` (fade-the-public opportunities), `GET /stats` (summary counts / avg confidence).
+  - `src/jobs/sharp-indicator.job.ts`: `startSharpIndicatorJob()` cron (every 15 min, `America/New_York`) with immediate startup run, idle-guard, and status helpers.
+  - `src/routes/index.ts`: Mounted `/analytics/sharp` router.
+  - `src/server.ts`: `startSharpIndicatorJob()` called alongside existing scheduled jobs.
+
+---
+
+## [0.3.7] - 2026-05-12
+
+### Added
+- **5 new `/api/mcp/*` routes** for full MCP tool coverage:
+  - `GET /api/mcp/games` — lists upcoming games (up to 50), used by `get_active_games` tool
+  - `GET /api/mcp/bets` — lists user's bets with optional `status` filter, scoped to `userId`
+  - `GET /api/mcp/bets/:id` — fetches a single bet by ID, scoped to `userId`
+  - `GET /api/mcp/games/:id/odds` — returns current odds snapshot for a game
+  - `GET /api/mcp/teams/search?q=` — searches teams by name using `ILIKE`, returns `{id, name, abbreviation, sport, logoUrl}`
+- **`AdminSettings` Prisma model** (`prisma/schema.prisma`): Singleton row (`id = 'singleton'`) storing configurable risk thresholds — `riskHighThreshold` (default 1000), `riskModerateThreshold` (default 500), `winRateLow` (default 45), `winRateHigh` (default 55). Persisted to `admin_settings` table.
+- **`GET /api/admin/settings`** — returns (or upserts with defaults) the `AdminSettings` singleton.
+- **`PATCH /api/admin/settings`** — updates one or more risk thresholds; all fields optional, validated with Zod.
+- **MCP controller tests** (`tests/mcp.controller.test.ts`): 12 new tests covering multi-tenant isolation, permission enforcement (403 for missing permissions), Zod validation errors (invalid odds, missing `game_id`, non-UUID), date-window correctness for `getGamesWithExposure`, and `userId` attribution on `quickCreateBet`.
+- **`get_advice_context` and `get_games_with_exposure` controller handlers**: `getAdviceContext` accepts `?limit=` (default 100) and returns pending bets, recent results, stats, and risk analysis. `getGamesWithExposure` accepts `?sport=` and `?only_with_bets=` filters.
+
+### Changed
+- **Permission enforcement on all MCP routes** (`src/routes/mcp.routes.ts`): `requirePermission` now applied to every route — `'bets'` for bet reads, `'write'` + `'bets'` for `quick-create`, `'stats'` for summary and advice-context.
+- **`userId` threaded through all MCP controller handlers** (`src/controllers/mcp.controller.ts`): Every handler now extracts `const userId = req.apiKey?.userId ?? undefined` and passes it to all `betService.*` calls and Prisma queries, preventing cross-user data leakage.
+- **Date window fix in `getGamesWithExposure`**: Replaced `new Date()` (current moment) with midnight-anchored `todayStart` / `tomorrowStart` so games earlier in the same calendar day are correctly included.
+- **`limit` param added to `getActiveBets` and `getAdviceContext`** (default 100): Prevents unbounded Prisma queries returning thousands of rows.
+- **American odds validation in `quickCreateBetSchema`**: `odds` field now requires `Math.abs(o) >= 100`; rejects values like `50` that are not valid American odds format.
+- **Dead validation block removed from `quickCreateBet` controller**: Manual `Missing required fields` check removed — Zod schema already enforces all required fields before the handler runs.
+- **`any` types replaced in MCP controller helpers**: `formatBetForAdvice`, `analyzeRisk`, and `generateBetName` now use `BetResponse`, `BetLegResponse`, and `BetStats` types from `bet.types`.
+- **`analyzeRisk` reads thresholds from `AdminSettings`**: Thresholds sourced from `prisma.adminSettings.upsert` instead of hardcoded `$1000` / `$500` / `45%` / `55%` literals.
+- **All MCP controller responses standardized to `{status: 'success', data: {...}}`**: Error responses use `{status: 'error', error: ...}`.
+- **Parlay decimal odds guard in `ai-bets.routes.ts`**: Added `isFinite(rawTotalDecimalOdds) && rawTotalDecimalOdds > 1.0` check before conversion to American odds; returns `400` with descriptive error instead of producing `NaN` or `Infinity`.
+
+---
+
 ## [0.3.6] - 2026-05-12
 
 ### Fixed

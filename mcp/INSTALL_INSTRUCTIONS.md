@@ -67,6 +67,19 @@ Try asking Claude:
 - Make sure there are no extra spaces or quotes around the key
 - Verify your API key hasn't expired
 
+## Dashboard Integration (Optional)
+
+The dashboard MCP server (`dashboard_mcp_server.py`) connects Claude to your self-hosted BetTrack dashboard. Configure it with:
+
+```bash
+DASHBOARD_API_KEY=sk_your_api_key_here
+DASHBOARD_API_URL=https://your-dashboard.example.com
+```
+
+> **Security:** `DASHBOARD_API_URL` **must** use `https://` for any hosted or production deployment.
+> Using plain `http://` exposes your API key and bet data to network interception.
+> `http://localhost:3001` is acceptable **only** for local development on your own machine.
+
 ## Support
 
 For issues or questions:
