@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Market Consensus & Deviations — Phase 2**: Expanded market consensus analytics with richer consensus and dispersion metrics plus explicit best-value fields for bookmaker outlier workflows.
+  - `prisma/schema.prisma`: Enhanced `MarketConsensus` model with `consensusPrice`, `medianLine`, `meanLine`, `modeLine`, `range`, `interquartileRange`, `bestValueSide`, `bestValueBookmaker`, `bestValueLine`, `sharpBookWeight`, and a `marketType` index.
+  - `prisma/migrations/20260514000001_enhance_market_consensus_phase2/migration.sql`: Adds/backfills new `market_consensus` columns and creates an index on `market_type`.
+  - `src/services/market-consensus.service.ts`: `calculateConsensus()` now computes additional phase-2 market-truth metrics and persists them; added `identifyOutliers(gameId)` for per-market outlier discovery.
+  - `tests/market-consensus.service.test.ts`: New unit tests covering phase-2 spreads consensus calculations and outlier identification behavior.
+
 ---
 
 ## [0.3.10] - 2026-05-14
