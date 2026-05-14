@@ -198,6 +198,9 @@ export class MarketConsensusService {
 
       const homeProbs = homeEntries.map((e) => e.value);
       const awayProbs = awayEntries.map((e) => e.value);
+      const homeAmericanLines = odds
+        .filter((o) => o.homePrice !== null)
+        .map((o) => o.homePrice as number);
 
       const consensusHomeProb = median(homeProbs);
       const consensusAwayProb = median(awayProbs);
@@ -259,21 +262,21 @@ export class MarketConsensusService {
       const consensusPrice = consensusAmerican;
       const outlierBookmakers = outliers;
       const sharpBookWeight = this.calculateSharpBookWeight(odds.map((o) => o.bookmaker));
+      const medianLine = homeAmericanLines.length ? median(homeAmericanLines) : consensusAmerican;
+      const meanLine = homeAmericanLines.length ? mean(homeAmericanLines) : consensusAmerican;
+      const modeLine = mode(homeAmericanLines);
+      const combinedProbabilityRange = [...homeProbs, ...awayProbs];
 
       return {
         gameId,
         marketType,
         consensusLine: consensusAmerican,
         consensusPrice,
-        medianLine: consensusAmerican,
-        meanLine: impliedProbToAmerican(mean(homeProbs)),
-        modeLine: null,
+        medianLine: parseFloat(medianLine.toFixed(2)),
+        meanLine: parseFloat(meanLine.toFixed(2)),
+        modeLine: modeLine === null ? null : parseFloat(modeLine.toFixed(2)),
         standardDeviation: parseFloat((reportedDev * 100).toFixed(2)), // as percentage points
-        range: parseFloat(
-          (
-            Math.max(...homeProbs, ...awayProbs) - Math.min(...homeProbs, ...awayProbs)
-          ).toFixed(2)
-        ),
+        range: parseFloat(valueRange(combinedProbabilityRange).toFixed(2)),
         interquartileRange: parseFloat(
           Math.max(interquartileRange(homeProbs), interquartileRange(awayProbs)).toFixed(2)
         ),

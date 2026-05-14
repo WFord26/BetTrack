@@ -14,7 +14,10 @@ ALTER TABLE "market_consensus"
 -- Backfill new columns from existing values where possible
 UPDATE "market_consensus"
 SET
-  "consensus_price" = ROUND("consensus_line")::INTEGER,
+  "consensus_price" = CASE
+    WHEN ABS("consensus_line") >= 100 THEN ROUND("consensus_line")::INTEGER
+    ELSE -110
+  END,
   "median_line" = "consensus_line",
   "mean_line" = "consensus_line",
   "range" = 0,
