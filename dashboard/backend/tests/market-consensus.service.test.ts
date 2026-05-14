@@ -99,6 +99,44 @@ describe('MarketConsensusService', () => {
       );
       expect(result!.disagreementScore).toBeGreaterThan(0);
     });
+
+    it('calculates phase-2 consensus metrics for h2h', async () => {
+      mockPrisma.currentOdds.findMany.mockResolvedValue([
+        { bookmaker: 'pinnacle', marketType: 'h2h', homePrice: -120, awayPrice: 105 },
+        { bookmaker: 'fanduel', marketType: 'h2h', homePrice: -115, awayPrice: 100 },
+        { bookmaker: 'draftkings', marketType: 'h2h', homePrice: -110, awayPrice: -102 },
+      ] as any);
+
+      const result = await service.calculateConsensus('game-1', 'h2h');
+
+      expect(result).not.toBeNull();
+      expect(result!.marketType).toBe('h2h');
+      expect(result!.consensusPrice).toEqual(result!.consensusLine);
+      expect(result!.medianLine).toBe(-115);
+      expect(result!.meanLine).toBe(-115);
+      expect(result!.modeLine).toBeNull();
+      expect(result!.bestValueBookmaker).toBe('pinnacle');
+      expect(result!.bestValueLine).toBe(105);
+    });
+
+    it('calculates phase-2 consensus metrics for totals', async () => {
+      mockPrisma.currentOdds.findMany.mockResolvedValue([
+        { bookmaker: 'pinnacle', marketType: 'totals', totalLine: 46.5, overPrice: -110, underPrice: -110 },
+        { bookmaker: 'fanduel', marketType: 'totals', totalLine: 47, overPrice: -108, underPrice: -112 },
+        { bookmaker: 'draftkings', marketType: 'totals', totalLine: 46.5, overPrice: -105, underPrice: -115 },
+      ] as any);
+
+      const result = await service.calculateConsensus('game-1', 'totals');
+
+      expect(result).not.toBeNull();
+      expect(result!.marketType).toBe('totals');
+      expect(result!.consensusLine).toBe(46.5);
+      expect(result!.consensusPrice).toBe(-108);
+      expect(result!.modeLine).toBe(46.5);
+      expect(result!.interquartileRange).toBe(0.25);
+      expect(result!.bestValueSide).toBe('over');
+      expect(result!.bestValueBookmaker).toBe('draftkings');
+    });
   });
 
   describe('identifyOutliers', () => {

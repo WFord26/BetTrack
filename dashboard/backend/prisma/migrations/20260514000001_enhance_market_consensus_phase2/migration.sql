@@ -15,7 +15,7 @@ ALTER TABLE "market_consensus"
 UPDATE "market_consensus"
 SET
   "consensus_price" = CASE
-    WHEN ABS("consensus_line") >= 100 THEN ROUND("consensus_line")::INTEGER
+    WHEN "market_type" = 'h2h' THEN ROUND("consensus_line")::INTEGER
     ELSE -110
   END,
   "median_line" = "consensus_line",
