@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.3] - 2026-05-13
+
 ### Added
 
 - **Sharp vs Public Money Analytics page** (Issue #8): New page at `/analytics/sharp` that displays sharp-action indicators and contrarian ("fade-the-public") picks derived from line-movement data.

@@ -254,65 +254,41 @@ clean_artifacts() {
 }
 
 # ---------------------------------------------------------------------------
-# Bump component versions
+# Bump component versions via npm run bump
+# Delegates to bump-version.mjs which handles hashing, changelogs, and
+# mcp/manifest.json sync. --force <type> bumps all packages unconditionally.
+# For beta, versions are handled separately after npm bump completes.
 # ---------------------------------------------------------------------------
 bump_component_versions() {
     local bump_type="$1"
     local is_beta="$2"
 
-    # MCP
-    if [[ "$OPT_BUMP_MCP" -eq 1 && "$OPT_MCP" -eq 1 ]]; then
-        local manifest="$MCP_ROOT/manifest.json"
-        local cur; cur=$(get_version "$manifest")
-        if [[ -n "$cur" ]]; then
-            log_info "MCP current version: $cur"
-            local new_base; new_base=$(bump_version "$cur" "$bump_type")
-            if [[ "$is_beta" -eq 1 ]]; then
-                MCP_VERSION=$(get_next_beta_version "$new_base")
-                log_ok "MCP new beta version: $MCP_VERSION"
-            else
-                MCP_VERSION="$new_base"
-                log_ok "MCP new version: $MCP_VERSION"
-            fi
-            update_version "$manifest" "$new_base" "mcp/manifest.json"
-            update_version "$MCP_ROOT/package.json" "$new_base" "mcp/package.json"
-        fi
+    if ! command -v node &>/dev/null; then
+        log_error "Node.js not found — required for npm run bump"
+        exit 1
     fi
 
-    # Dashboard root
-    if [[ "$OPT_BUMP_DASHBOARD" -eq 1 && "$OPT_DASHBOARD" -eq 1 ]]; then
-        local pkg="$DASHBOARD_ROOT/package.json"
-        local cur; cur=$(get_version "$pkg")
-        if [[ -n "$cur" ]]; then
-            log_info "Dashboard current version: $cur"
-            local new; new=$(bump_version "$cur" "$bump_type")
-            update_version "$pkg" "$new" "dashboard/package.json"
-            DASHBOARD_VERSION="$new"
-        fi
-    fi
+    log_info "Running npm run bump -- --force $bump_type ..."
+    pushd "$DASHBOARD_ROOT" > /dev/null
+    npm run bump -- --force "$bump_type"
+    popd > /dev/null
 
-    # Backend
-    if [[ "$OPT_BUMP_BACKEND" -eq 1 && "$OPT_DASHBOARD" -eq 1 ]]; then
-        local pkg="$DASHBOARD_ROOT/backend/package.json"
-        local cur; cur=$(get_version "$pkg")
-        if [[ -n "$cur" ]]; then
-            log_info "Backend current version: $cur"
-            local new; new=$(bump_version "$cur" "$bump_type")
-            update_version "$pkg" "$new" "dashboard/backend/package.json"
-            BACKEND_VERSION="$new"
-        fi
-    fi
+    # Read the new versions written by bump-version.mjs
+    MCP_VERSION=$(get_version "$MCP_ROOT/manifest.json")
+    DASHBOARD_VERSION=$(get_version "$DASHBOARD_ROOT/package.json")
+    BACKEND_VERSION=$(get_version "$DASHBOARD_ROOT/backend/package.json")
+    FRONTEND_VERSION=$(get_version "$DASHBOARD_ROOT/frontend/package.json")
 
-    # Frontend
-    if [[ "$OPT_BUMP_FRONTEND" -eq 1 && "$OPT_DASHBOARD" -eq 1 ]]; then
-        local pkg="$DASHBOARD_ROOT/frontend/package.json"
-        local cur; cur=$(get_version "$pkg")
-        if [[ -n "$cur" ]]; then
-            log_info "Frontend current version: $cur"
-            local new; new=$(bump_version "$cur" "$bump_type")
-            update_version "$pkg" "$new" "dashboard/frontend/package.json"
-            FRONTEND_VERSION="$new"
-        fi
+    log_ok "Versions after bump:"
+    log_info "  MCP      : $MCP_VERSION"
+    log_info "  Dashboard: $DASHBOARD_VERSION"
+    log_info "  Backend  : $BACKEND_VERSION"
+    log_info "  Frontend : $FRONTEND_VERSION"
+
+    # Apply beta suffix to MCP version (in-memory only; MCPB filename uses this)
+    if [[ "$is_beta" -eq 1 && -n "$MCP_VERSION" ]]; then
+        MCP_VERSION=$(get_next_beta_version "$MCP_VERSION")
+        log_info "  MCP beta : $MCP_VERSION"
     fi
 }
 

@@ -13,7 +13,7 @@
 # Flags:
 #   --backend              Build backend image
 #   --frontend             Build frontend image
-#   --version <tag>        Version tag (default: auto-detected from package.json)
+#   --version <tag>        Override version for both images (default: each component's package.json)
 #   --push                 Push to GHCR (requires GITHUB_TOKEN env var)
 #   --platform <list>      Target platform(s) (default: linux/amd64,linux/arm64)
 #   --owner <user>         GitHub owner (default: auto-detected from git remote)
@@ -21,8 +21,8 @@
 #   -h|--help              Show this help
 #
 # Resulting image names:
-#   ghcr.io/<owner>/<repository>-backend:<version>
-#   ghcr.io/<owner>/<repository>-frontend:<version>
+#   ghcr.io/<owner>/<repository>/backend:<version>
+#   ghcr.io/<owner>/<repository>/frontend:<version>
 #
 # Example full build + push:
 #   GITHUB_TOKEN=ghp_xxx ./docker-build.sh --backend --frontend --version 2026.05.13 --push
@@ -150,6 +150,7 @@ build_image() {
         -f "$dockerfile" \
         -t "$local_tag" \
         --platform "$OPT_PLATFORM" \
+        --label "org.opencontainers.image.source=https://github.com/WFord26/BetTrack" \
         "$context"
 
     log_ok "Built $name → $local_tag"
@@ -180,6 +181,33 @@ push_image() {
     log_ok "Pushed $image_name"
 }
 
+# Set a GHCR container package to public via the GitHub API.
+# Package name must be the path after the owner, e.g. "bettrack/backend".
+set_package_public() {
+    local owner="$1"      # e.g. wford26
+    local pkg_name="$2"   # e.g. bettrack/backend  (will be URL-encoded)
+
+    # URL-encode the package name (replace / with %2F)
+    local encoded_pkg="${pkg_name//\//%2F}"
+    local api_url="https://api.github.com/user/packages/container/${encoded_pkg}"
+
+    log_info "Setting ghcr.io/${owner}/${pkg_name} visibility → public..."
+
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X PATCH "$api_url" \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        -d '{"visibility":"public"}')
+
+    if [[ "$http_code" == "200" ]]; then
+        log_ok "Package ${pkg_name} is now public"
+    else
+        log_warn "Could not set ${pkg_name} to public (HTTP ${http_code}). Set manually: GitHub → Packages → ${pkg_name} → Package settings → Change visibility"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -192,20 +220,28 @@ main() {
         exit 1
     fi
 
-    # Auto-detect version if not provided
-    if [[ -z "$OPT_VERSION" ]]; then
-        log_info "Version not specified, auto-detecting..."
-        if [[ "$OPT_BACKEND" -eq 1 ]]; then
-            OPT_VERSION=$(get_package_version "$DASHBOARD_ROOT/backend/package.json")
-        fi
-        if [[ -z "$OPT_VERSION" && "$OPT_FRONTEND" -eq 1 ]]; then
-            OPT_VERSION=$(get_package_version "$DASHBOARD_ROOT/frontend/package.json")
-        fi
-        if [[ -z "$OPT_VERSION" ]]; then
-            log_error "Could not auto-detect version. Specify --version"
+    # Resolve per-component versions.
+    # If --version was explicitly provided, use it for both.
+    # Otherwise read each component's own package.json.
+    local backend_version="$OPT_VERSION"
+    local frontend_version="$OPT_VERSION"
+
+    if [[ "$OPT_BACKEND" -eq 1 && -z "$backend_version" ]]; then
+        backend_version=$(get_package_version "$DASHBOARD_ROOT/backend/package.json")
+        if [[ -z "$backend_version" ]]; then
+            log_error "Could not detect backend version. Specify --version"
             exit 1
         fi
-        log_info "Using version: $OPT_VERSION"
+        log_info "Backend version  : $backend_version"
+    fi
+
+    if [[ "$OPT_FRONTEND" -eq 1 && -z "$frontend_version" ]]; then
+        frontend_version=$(get_package_version "$DASHBOARD_ROOT/frontend/package.json")
+        if [[ -z "$frontend_version" ]]; then
+            log_error "Could not detect frontend version. Specify --version"
+            exit 1
+        fi
+        log_info "Frontend version : $frontend_version"
     fi
 
     # Auto-detect owner
@@ -218,7 +254,10 @@ main() {
         log_info "Detected GitHub owner: $OPT_OWNER"
     fi
 
-    local registry="ghcr.io/${OPT_OWNER}"
+    # GHCR requires lowercase registry paths
+    local owner_lc
+    owner_lc=$(echo "$OPT_OWNER" | tr '[:upper:]' '[:lower:]')
+    local registry="ghcr.io/${owner_lc}/${OPT_REPOSITORY}"
 
     # Check Docker
     check_docker
@@ -232,12 +271,13 @@ main() {
 
     # ---- Backend ----
     if [[ "$OPT_BACKEND" -eq 1 ]]; then
-        local backend_tag="${OPT_REPOSITORY}-backend:${OPT_VERSION}"
+        local backend_tag="backend:${backend_version}"
         local backend_dockerfile="$DASHBOARD_ROOT/backend/Dockerfile"
 
         if build_image "backend" "$DASHBOARD_ROOT" "$backend_dockerfile" "$backend_tag"; then
             if [[ "$OPT_PUSH" -eq 1 ]]; then
-                push_image "$backend_tag" "$registry" "${OPT_REPOSITORY}-backend" "$OPT_VERSION" || success=0
+                push_image "$backend_tag" "$registry" "backend" "$backend_version" || success=0
+                set_package_public "$owner_lc" "${OPT_REPOSITORY}/backend"
             fi
         else
             success=0
@@ -246,12 +286,13 @@ main() {
 
     # ---- Frontend ----
     if [[ "$OPT_FRONTEND" -eq 1 ]]; then
-        local frontend_tag="${OPT_REPOSITORY}-frontend:${OPT_VERSION}"
+        local frontend_tag="frontend:${frontend_version}"
         local frontend_dockerfile="$DASHBOARD_ROOT/frontend/Dockerfile"
 
         if build_image "frontend" "$DASHBOARD_ROOT" "$frontend_dockerfile" "$frontend_tag"; then
             if [[ "$OPT_PUSH" -eq 1 ]]; then
-                push_image "$frontend_tag" "$registry" "${OPT_REPOSITORY}-frontend" "$OPT_VERSION" || success=0
+                push_image "$frontend_tag" "$registry" "frontend" "$frontend_version" || success=0
+                set_package_public "$owner_lc" "${OPT_REPOSITORY}/frontend"
             fi
         else
             success=0
@@ -264,9 +305,9 @@ main() {
         if [[ "$OPT_PUSH" -eq 1 ]]; then
             log_info "Images available at:"
             [[ "$OPT_BACKEND" -eq 1 ]] && \
-                log_info "  docker pull ${registry}/${OPT_REPOSITORY}-backend:${OPT_VERSION}"
+                log_info "  docker pull ${registry}/backend:${backend_version}"
             [[ "$OPT_FRONTEND" -eq 1 ]] && \
-                log_info "  docker pull ${registry}/${OPT_REPOSITORY}-frontend:${OPT_VERSION}"
+                log_info "  docker pull ${registry}/frontend:${frontend_version}"
         else
             log_info "Images built locally. Use --push to publish to GHCR."
         fi

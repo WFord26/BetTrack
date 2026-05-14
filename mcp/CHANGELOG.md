@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.1] - 2026-05-13
+
+### Added
+- **`scripts/build.sh`**: Bash equivalent of `build.ps1` for macOS / Linux. Full feature parity — `--mcp`, `--dashboard`, `--version-bump`, `--bump-mcp/dashboard/backend/frontend`, `--beta` (git-hash or incremental), `--release`, `--full-release`, `--push-docker`, `--clean`. Automatically selects Python 3.10+ from Homebrew or system PATH; safe on externally-managed Homebrew environments (non-fatal dependency check).
+- **`scripts/docker-build.sh`**: Bash equivalent of `docker-build.ps1`. Builds and pushes backend/frontend Docker images to GitHub Container Registry (`ghcr.io`). Each component uses its own `package.json` version independently (backend and frontend can have different version tags). Owner auto-detected from git remote and lowercased to satisfy GHCR's lowercase-only requirement. Supports `--version` override, `--platform`, `--owner`, `--repository`, and `--push` flags.
+
+---
+
 ## [0.2.7] - 2026-05-12
 
 ### Added

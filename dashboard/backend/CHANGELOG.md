@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.8] - 2026-05-13
+
 ### Added
 
 - **Sharp vs Public Money Indicators — Phase 2** (Issue #8): Detects and stores indicators showing which side professional ("sharp") bettors are backing vs. recreational ("public") money. A scheduled job runs every 15 minutes, derives sharp-side signals from existing line movement data, and persists confidence-rated indicators.
