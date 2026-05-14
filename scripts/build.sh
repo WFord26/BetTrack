@@ -515,24 +515,24 @@ full_release() {
     log_info "Step 1/7: Cleaning artefacts..."
     clean_artifacts 0 0
 
-    # Step 2: Build Dashboard
-    log_info "Step 2/7: Building Dashboard..."
-    OPT_DASHBOARD=1
-    build_dashboard
-
-    # Step 3: Build MCP
-    log_info "Step 3/7: Building MCP..."
-    OPT_MCP=1
-    MCP_VERSION=$(get_version "$MCP_ROOT/manifest.json")
-    build_mcpb "$MCP_VERSION"
-
-    # Step 4: Bump versions
-    log_info "Step 4/7: Bumping versions..."
+    # Step 2: Bump versions (must happen before builds so version numbers are embedded in artifacts)
+    log_info "Step 2/7: Bumping versions..."
     MCP_VERSION="" DASHBOARD_VERSION="" BACKEND_VERSION="" FRONTEND_VERSION=""
     OPT_BUMP_MCP=1; OPT_BUMP_DASHBOARD=1; OPT_BUMP_BACKEND=1; OPT_BUMP_FRONTEND=1
     bump_component_versions "$bump_type" 0
 
     local dash_ver="${DASHBOARD_VERSION:-$(get_version "$DASHBOARD_ROOT/package.json")}"
+
+    # Step 3: Build Dashboard (picks up bumped package.json versions)
+    log_info "Step 3/7: Building Dashboard..."
+    OPT_DASHBOARD=1
+    build_dashboard
+
+    # Step 4: Build MCP (manifest.json already contains the bumped version)
+    log_info "Step 4/7: Building MCP..."
+    OPT_MCP=1
+    MCP_VERSION=$(get_version "$MCP_ROOT/manifest.json")
+    build_mcpb "$MCP_VERSION"
 
     # Step 5: Distribution ZIPs
     log_info "Step 5/7: Creating distribution ZIPs..."

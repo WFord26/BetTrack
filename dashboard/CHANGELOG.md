@@ -10,6 +10,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.5] - 2026-05-12
+
+### Added
+
+- **Line Movement Analytics** (Phase 1): Full-stack feature for detecting and visualizing betting line movements across bookmakers
+  - Backend: `LineMovementService` with steam/gradual/normal classification, multi-bookmaker sync-batch grouping, and duplicate-safe persistence via `sinceTime` cursor
+  - Backend: `/api/analytics/movements/*` REST endpoints (live, by game, history, by bookmaker, stats, steam)
+  - Backend: Scheduled job (`line-movement.job.ts`) running every 5 minutes with 120-minute lookback
+  - Frontend: Redux slice (`movementSlice.ts`) with 4 async thunks and dedicated `steamMoves` state field
+  - Frontend: `SteamMoveAlert` dashboard widget with 60-second auto-refresh
+  - Frontend: `LineMovementChart` timeline visualization with per-bookmaker change breakdown
+  - Frontend: `LineMovementPerformance` statistics panel (1d/1w/1m selector)
+  - Frontend: Full analytics page at `/analytics/movements`
+
+### Fixed
+
+- **Line movement detection — 10 critical fixes across detection pipeline, consensus scoring, and analytics UI**:
+
+  *Detection & classification*
+  - Steam moves classified from split/opposing bookmaker movements: partitioned movers by direction before computing thresholds; steam now requires ≥3 books moving the **same** direction
+  - Steam threshold too strict for 10-minute sync interval: relaxed from `timeElapsed < 120 s` to `< 900 s` to match default odds-sync cadence
+  - Gradual moves never detected (lookback window mismatch): increased job lookback from 10 min to 120 min; added Pass 2 comparing oldest vs. newest batch in window (`timeElapsed ≈ 7200 s`) to satisfy `> 3600 s` gradual threshold
+  - Duplicate `LineMovement` rows from overlapping detection windows: `lastRunAt` cursor passed as `sinceTime`; already-processed pairs skipped
+  - Line movement job missed live games: added `'in_progress'` to status filter
+  - Job re-processed entire historical backlog: added `commenceTime >= sixHoursAgo` lower bound
+
+  *Bookmaker disagreement*
+  - `/analytics/disagreement/live` showed stale and duplicate opportunities: two-step `groupBy` + fetch approach surfaces only the latest row per game+market pair
+  - h2h moneyline disagreement ignored away-price divergence: score now computed independently for both sides; `max(homeScore, awayScore)` persisted
+  - `bestValue` always reported home/over side: both sides compared per market type; side field now reflects actual best-value position
+  - Stale pregame opportunities persisted for started games: added `game.status = 'scheduled'` AND `game.commenceTime > now()` guards
+
+  *Analytics UI*
+  - `SteamMoveAlert` widget clobbered page's movement filter: dedicated `steamMoves` Redux field; widget reads `selectSteamMoves`, page filter owns `liveMovements`
+  - `DisagreementBreakdown` modal omitted below-threshold markets: always fetches from `/analytics/disagreement/game/:gameId` (no score filter)
+  - `MovementPerformance` timeframe out of sync with page filter: `useEffect` propagates `hoursBack` prop changes into internal state
+  - `MovementFilters` type errors (8 TypeScript errors): added `movementType` to interface; `averageMovement` widened to `number | string`
+  - "All Types" filter forced to steam: removed conditional conversion; type passed through as-is
+  - Team navigation links navigating to 404: updated `EnhancedGameCard` to two-segment route format
+
+### Component Versions
+
+- **Backend**: v0.3.6
+- **Frontend**: v0.4.2
+
+---
+
 ## [0.2.4] - 2026-01-13
 
 ### Added

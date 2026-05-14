@@ -1,0 +1,428 @@
+name: On-Demand Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Semantic version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Full Release
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Setup
+      # -----------------------------------------------------------------------
+      - name: Guard — must run on main
+        run: |
+          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+            echo "❌ Aborted: Must run release from main branch. Current ref: ${{ github.ref }}"
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@wford26'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: mcp/requirements.txt
+
+      - name: Install dashboard dependencies
+        working-directory: ./dashboard
+        run: npm ci
+
+      - name: Install Python dependencies
+        working-directory: ./mcp
+        run: pip install -r requirements.txt
+
+      # -----------------------------------------------------------------------
+      # Step 1 — Determine release tag (yyyy.mm.dd, increment suffix if needed)
+      # -----------------------------------------------------------------------
+      - name: Determine release tag
+        id: tag
+        run: |
+          TODAY=$(date -u +"%Y.%m.%d")
+          EXISTING=$(git tag --list "${TODAY}*" | sort -V)
+
+          if [[ -z "$EXISTING" ]]; then
+            RELEASE_TAG="$TODAY"
+          else
+            COUNT=$(echo "$EXISTING" | wc -l | tr -d ' ')
+            RELEASE_TAG="${TODAY}-${COUNT}"
+          fi
+
+          # Guard: refuse if tag already exists on remote
+          if git ls-remote --tags origin "refs/tags/${RELEASE_TAG}" | grep -q "${RELEASE_TAG}"; then
+            echo "❌ Aborted: Tag ${RELEASE_TAG} already exists on the remote."
+            exit 1
+          fi
+
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved release tag: ${RELEASE_TAG}"
+
+      # -----------------------------------------------------------------------
+      # Step 2 — Bump versions (before builds so they are embedded in artifacts)
+      # -----------------------------------------------------------------------
+      - name: Bump component versions
+        id: versions
+        run: |
+          BUMP="${{ github.event.inputs.version_bump }}"
+          node scripts/bump-version.mjs --force "$BUMP"
+
+          MCP_VERSION=$(node -p "require('./mcp/package.json').version")
+          BACKEND_VERSION=$(node -p "require('./dashboard/backend/package.json').version")
+          FRONTEND_VERSION=$(node -p "require('./dashboard/frontend/package.json').version")
+          DASHBOARD_VERSION=$(node -p "require('./dashboard/package.json').version")
+
+          echo "mcp=${MCP_VERSION}"           >> "$GITHUB_OUTPUT"
+          echo "backend=${BACKEND_VERSION}"   >> "$GITHUB_OUTPUT"
+          echo "frontend=${FRONTEND_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "dashboard=${DASHBOARD_VERSION}" >> "$GITHUB_OUTPUT"
+
+          echo "Versions — MCP: ${MCP_VERSION} | Backend: ${BACKEND_VERSION} | Frontend: ${FRONTEND_VERSION}"
+
+      # -----------------------------------------------------------------------
+      # Step 3 — Tests (fail fast before any publish or tagging)
+      # -----------------------------------------------------------------------
+      - name: Deploy test database
+        working-directory: ./dashboard
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        run: |
+          npm run prisma:deploy --workspace=backend
+          npm run prisma:generate --workspace=backend
+
+      - name: Run backend tests
+        working-directory: ./dashboard
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          NODE_ENV: test
+          ODDS_API_KEY: test-key
+          JWT_SECRET: test-secret
+          SESSION_SECRET: test-session-secret
+        run: npm run test:ci --workspace=backend
+
+      - name: Run frontend tests
+        working-directory: ./dashboard
+        run: npm run test:ci --workspace=frontend
+
+      - name: Validate MCP server starts
+        working-directory: ./mcp
+        env:
+          ODDS_API_KEY: test-key
+        run: timeout 10s python sports_mcp_server.py || code=$?; if [[ $code -ne 124 && $code -ne 0 ]]; then exit $code; fi
+
+      # -----------------------------------------------------------------------
+      # Step 4 — Build all packages
+      # -----------------------------------------------------------------------
+      - name: Build backend
+        working-directory: ./dashboard
+        run: npm run build:backend
+
+      - name: Build frontend
+        working-directory: ./dashboard
+        run: npm run build:frontend
+
+      - name: Build MCPB package
+        run: |
+          MCP_VERSION="${{ steps.versions.outputs.mcp }}"
+          BUILD_DIR="mcp/build/sports-data-mcp"
+          mkdir -p "$BUILD_DIR" mcp/releases
+
+          for f in sports_mcp_server.py dashboard_mcp_server.py manifest.json \
+                    requirements.txt mcpb_bootstrap.py setup.py .env.example \
+                    INSTALL_INSTRUCTIONS.md; do
+            [[ -f "mcp/$f" ]] && cp "mcp/$f" "$BUILD_DIR/"
+          done
+
+          cp -r mcp/sports_api "$BUILD_DIR/"
+          find "$BUILD_DIR" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+          MCPB_PATH="mcp/releases/sports-data-mcp-v${MCP_VERSION}.mcpb"
+          cd "$BUILD_DIR" && zip -r "../../../${MCPB_PATH}" . -x "*.pyc"
+          echo "mcpb_path=${MCPB_PATH}" >> "$GITHUB_OUTPUT"
+          echo "Built MCPB: ${MCPB_PATH}"
+        id: mcpb
+
+      # -----------------------------------------------------------------------
+      # Step 5 — Publish to GitHub Package Registry
+      # -----------------------------------------------------------------------
+      - name: Dry run — backend publish
+        working-directory: ./dashboard/backend
+        run: npm publish --access public --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish backend to GHCR NPM
+        working-directory: ./dashboard/backend
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          PKG_NAME=$(node -p "require('./package.json').name")
+          if npm view "${PKG_NAME}@${PKG_VERSION}" --registry https://npm.pkg.github.com version 2>/dev/null | grep -q "${PKG_VERSION}"; then
+            echo "ℹ️ ${PKG_NAME}@${PKG_VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Dry run — frontend publish
+        working-directory: ./dashboard/frontend
+        run: npm publish --access public --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish frontend to GHCR NPM
+        working-directory: ./dashboard/frontend
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          PKG_NAME=$(node -p "require('./package.json').name")
+          if npm view "${PKG_NAME}@${PKG_VERSION}" --registry https://npm.pkg.github.com version 2>/dev/null | grep -q "${PKG_VERSION}"; then
+            echo "ℹ️ ${PKG_NAME}@${PKG_VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------------------------------------------------
+      # Step 6 — Create distribution ZIPs
+      # -----------------------------------------------------------------------
+      - name: Assemble dist directory
+        run: |
+          mkdir -p dashboard/dist/backend dashboard/dist/frontend
+          cp -r dashboard/backend/dist/. dashboard/dist/backend/
+          cp    dashboard/backend/package.json dashboard/dist/backend/
+          cp    dashboard/backend/.env.example dashboard/dist/backend/ 2>/dev/null || true
+          cp -r dashboard/backend/prisma       dashboard/dist/backend/
+          cp -r dashboard/frontend/dist/.      dashboard/dist/frontend/
+          cp    dashboard/README.md   dashboard/dist/ 2>/dev/null || true
+          cp    dashboard/DEPLOYMENT.md dashboard/dist/ 2>/dev/null || true
+
+      - name: Create distribution ZIPs
+        id: zips
+        run: |
+          DASH_VER="${{ steps.versions.outputs.dashboard }}"
+          BACKEND_ZIP="mcp/releases/backend.v${DASH_VER}.zip"
+          FRONTEND_ZIP="mcp/releases/frontend.v${DASH_VER}.zip"
+          (cd dashboard/dist && zip -r "../../${BACKEND_ZIP}"  backend/)
+          (cd dashboard/dist && zip -r "../../${FRONTEND_ZIP}" frontend/)
+          echo "backend_zip=${BACKEND_ZIP}"   >> "$GITHUB_OUTPUT"
+          echo "frontend_zip=${FRONTEND_ZIP}" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      # Step 7 — Build & push Docker images
+      # -----------------------------------------------------------------------
+      - name: Set lowercase registry owner
+        id: registry
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./dashboard
+          file: ./dashboard/backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/backend:${{ steps.tag.outputs.release_tag }}
+            ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./dashboard
+          file: ./dashboard/frontend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/frontend:${{ steps.tag.outputs.release_tag }}
+            ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # -----------------------------------------------------------------------
+      # Step 8 — Update root CHANGELOG.md
+      # -----------------------------------------------------------------------
+      - name: Update root CHANGELOG.md
+        id: changelog
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.release_tag }}
+          MCP_VERSION: ${{ steps.versions.outputs.mcp }}
+          BACKEND_VERSION: ${{ steps.versions.outputs.backend }}
+          FRONTEND_VERSION: ${{ steps.versions.outputs.frontend }}
+        run: |
+          python3 - <<'PYEOF'
+          import re, os, sys
+
+          release_tag      = os.environ['RELEASE_TAG']
+          mcp_version      = os.environ['MCP_VERSION']
+          backend_version  = os.environ['BACKEND_VERSION']
+          frontend_version = os.environ['FRONTEND_VERSION']
+          github_output    = os.environ.get('GITHUB_OUTPUT', '')
+
+          path = 'CHANGELOG.md'
+          content = open(path).read()
+
+          # Extract the Unreleased section body
+          m = re.search(r'## \[Unreleased\]\n([\s\S]*?)(?=\n## \[)', content)
+          unreleased = m.group(1).strip() if m else ''
+          if not unreleased:
+              print('Aborted: No unreleased changes found in CHANGELOG.md.')
+              sys.exit(1)
+
+          # Build the new versioned block
+          new_block = (
+              f'## [{release_tag}]\n\n'
+              f'### Packages\n'
+              f'- **Frontend:** v{frontend_version}\n'
+              f'- **Backend:** v{backend_version}\n'
+              f'- **MCP:** v{mcp_version}\n\n'
+              f'### Changes\n'
+              f'{unreleased}'
+          )
+
+          # Write release notes to GITHUB_OUTPUT
+          if github_output:
+              with open(github_output, 'a') as fh:
+                  fh.write(f'release_notes<<RELEASE_NOTES_EOF\n{new_block}\nRELEASE_NOTES_EOF\n')
+
+          # Clear the Unreleased body
+          content = re.sub(
+              r'(## \[Unreleased\])\n[\s\S]*?(?=\n## \[)',
+              r'\1\n\n',
+              content
+          )
+
+          # Insert the new versioned block below the cleared Unreleased header
+          content = content.replace(
+              '## [Unreleased]\n\n',
+              f'## [Unreleased]\n\n---\n\n{new_block}\n\n---\n\n',
+              1
+          )
+
+          open(path, 'w').write(content)
+          print('CHANGELOG.md updated successfully')
+          PYEOF
+
+      # -----------------------------------------------------------------------
+      # Step 9 — Commit, tag, push
+      # -----------------------------------------------------------------------
+      - name: Commit and tag release
+        run: |
+          RELEASE_TAG="${{ steps.tag.outputs.release_tag }}"
+          MCP_VERSION="${{ steps.versions.outputs.mcp }}"
+          BACKEND_VERSION="${{ steps.versions.outputs.backend }}"
+          FRONTEND_VERSION="${{ steps.versions.outputs.frontend }}"
+
+          git add CHANGELOG.md mcp/manifest.json mcp/package.json \
+                  dashboard/package.json \
+                  dashboard/backend/package.json \
+                  dashboard/frontend/package.json \
+                  .bump-hashes.json \
+                  mcp/CHANGELOG.md dashboard/backend/CHANGELOG.md \
+                  dashboard/frontend/CHANGELOG.md 2>/dev/null || true
+
+          COMMIT_MSG=$(printf 'chore(release): %s\n\n- MCP Server: v%s\n- Backend: v%s\n- Frontend: v%s' \
+            "${RELEASE_TAG}" "${MCP_VERSION}" "${BACKEND_VERSION}" "${FRONTEND_VERSION}")
+
+          git diff --cached --quiet && echo "Nothing to commit" || \
+            git commit -m "$COMMIT_MSG"
+
+          git tag -a "${RELEASE_TAG}" -m "Release ${RELEASE_TAG}"
+          git push origin HEAD
+          git push origin "${RELEASE_TAG}"
+
+      # -----------------------------------------------------------------------
+      # Step 10 — Create GitHub Release
+      # -----------------------------------------------------------------------
+      - name: Create GitHub Release
+        id: gh_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          name: Release ${{ steps.tag.outputs.release_tag }}
+          body: ${{ steps.changelog.outputs.release_notes }}
+          files: |
+            ${{ steps.mcpb.outputs.mcpb_path }}
+            ${{ steps.zips.outputs.backend_zip }}
+            ${{ steps.zips.outputs.frontend_zip }}
+          draft: false
+          prerelease: false
+          make_latest: true
+
+      # -----------------------------------------------------------------------
+      # Step 11 — Summary
+      # -----------------------------------------------------------------------
+      - name: Release summary
+        run: |
+          echo ""
+          echo "╔══════════════════════════════════════════╗"
+          echo "║           ✅ Release Complete            ║"
+          echo "╠══════════════════════════════════════════╣"
+          printf "║  Tag:      %-30s║\n" "${{ steps.tag.outputs.release_tag }}"
+          printf "║  Frontend: v%-29s║\n" "${{ steps.versions.outputs.frontend }}"
+          printf "║  Backend:  v%-29s║\n" "${{ steps.versions.outputs.backend }}"
+          printf "║  MCP:      v%-29s║\n" "${{ steps.versions.outputs.mcp }}"
+          printf "║  GitHub:   %-30s║\n" "${{ steps.gh_release.outputs.url }}"
+          echo "╚══════════════════════════════════════════╝"

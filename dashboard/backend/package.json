@@ -1,12 +1,12 @@
 {
   "name": "@wford26/bettrack-backend",
-  "version": "0.3.8",
+  "version": "0.3.10",
   "description": "Backend API for sports betting tracker dashboard",
   "main": "dist/server.js",
   "types": "dist/server.d.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "clean": "rimraf dist",
     "lint": "eslint src --ext .ts",
