@@ -18,7 +18,16 @@ Changes that affect the entire project structure:
 
 ## [Unreleased]
 
+---
 
+## [2026.05.14]
+
+### Packages
+- **Frontend:** v0.4.4
+- **Backend:** v0.3.10
+- **MCP:** v0.3.4
+
+### Changes
 ### Release Summary
 
 Phase 1 complete: Line Movement Tracking feature shipped with full detection pipeline, analytics UI, and 10 follow-on bug fixes identified during post-implementation review. All filters (steam, gradual, normal), value-opportunity pages, and analytics widgets now operate correctly under default deployment settings.
@@ -39,6 +48,9 @@ Phase 1 complete: Line Movement Tracking feature shipped with full detection pip
 See [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for full details.
 
 ---
+
+---
+
 
 ## [2026-02-03] 
 
