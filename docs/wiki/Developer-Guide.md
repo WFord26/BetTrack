@@ -78,8 +78,10 @@ BetTrack/
 │       │   └── pages/          # Page components
 │       └── tests/              # Vitest tests
 ├── scripts/                    # Build scripts
-│   ├── build.ps1               # Main build script
-│   └── docker-build.ps1        # Docker builds
+│   ├── build.ps1               # Main build script (Windows/PowerShell)
+│   ├── build.sh                # Main build script (macOS/Linux)
+│   ├── docker-build.ps1        # Docker image builds (Windows/PowerShell)
+│   └── docker-build.sh         # Docker image builds (macOS/Linux)
 ├── docs/                       # Documentation
 │   ├── wiki/                   # GitHub wiki pages
 │   └── *.md                    # Various docs
@@ -415,6 +417,7 @@ describe('GameCard', () => {
 
 ### Local Builds
 
+**Windows (PowerShell):**
 ```powershell
 cd scripts
 
@@ -431,30 +434,63 @@ cd scripts
 .\build.ps1 -Beta
 ```
 
+**macOS / Linux (Bash):**
+```bash
+cd scripts
+
+# MCP server only
+./build.sh --mcp --version-bump patch
+
+# Dashboard only
+./build.sh --dashboard --bump-backend --bump-frontend
+
+# Everything
+./build.sh --dashboard --mcp --version-bump patch --bump-backend --bump-frontend
+
+# Beta build (testing)
+./build.sh --mcp --beta
+```
+
+The bash script automatically selects Python 3.10+ from Homebrew or the system PATH and is safe on externally-managed Homebrew environments (non-fatal dependency check).
+
 ### Release Process
 
+**Windows:**
 ```powershell
 # Full release (bumps version, creates GitHub release)
 .\build.ps1 -VersionBump minor -Release
-
-# What happens:
-# 1. Version bumped in manifest.json and package.json
-# 2. Git tag created (e.g., v0.2.0)
-# 3. MCPB package built
-# 4. GitHub release created with changelog
-# 5. Tag pushed to GitHub
 ```
+
+**macOS / Linux:**
+```bash
+./build.sh --mcp --version-bump minor --release
+```
+
+**What happens:**
+1. Version bumped in `manifest.json` and `package.json`
+2. Git tag created (e.g., `v0.2.0`)
+3. MCPB package built
+4. GitHub release created with changelog
+5. Tag pushed to GitHub
 
 ### Docker Builds
 
+**Windows:**
 ```powershell
 .\docker-build.ps1 -Version "2026.01.12" -Backend -Frontend -Push
-
-# Builds:
-# - ghcr.io/wford26/bettrack-backend:2026.01.12
-# - ghcr.io/wford26/bettrack-frontend:2026.01.12
-# - Both tagged as :latest
 ```
+
+**macOS / Linux:**
+```bash
+./docker-build.sh --version 2026.01.12 --backend --frontend --push
+```
+
+**Builds:**
+- `ghcr.io/wford26/bettrack-backend:<version>`
+- `ghcr.io/wford26/bettrack-frontend:<version>`
+- Both tagged as `:latest`
+
+The bash script auto-detects the repository owner from the git remote and lowercases it to satisfy GHCR's lowercase-only requirement.
 
 ---
 

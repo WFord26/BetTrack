@@ -1,4 +1,4 @@
-# Sports-Odds-MCP - Complete API Documentation
+# BetTrack - Complete API Documentation
 
 Comprehensive API reference for MCP tools, Backend HTTP endpoints, and Frontend architecture.
 
@@ -7,6 +7,11 @@ Comprehensive API reference for MCP tools, Backend HTTP endpoints, and Frontend 
 ## Table of Contents
 
 1. [MCP API (Claude Desktop Integration)](#mcp-api-claude-desktop-integration)
+   - [The Odds API Tools](#the-odds-api-tools)
+   - [ESPN API Tools](#espn-api-tools)
+   - [Combined Tools](#combined-tools)
+   - [Utility Tools](#utility-tools)
+   - [Dashboard Integration Tools](#dashboard-integration-tools)
 2. [Backend REST API (Dashboard)](#backend-rest-api-dashboard)
    - [Authentication API](#authentication-api-apiauth)
    - [API Keys API](#api-keys-api-apikeys)
@@ -268,6 +273,84 @@ Get quick reference table of team IDs, abbreviations, and divisions.
 #### `find_team_id_by_name(team_name, sport)`
 Fuzzy match team name to ESPN ID.
 
+### Dashboard Integration Tools
+
+Tools provided by `dashboard_mcp_server.py`. Require `DASHBOARD_API_KEY` (API key with `sk_` prefix) and `DASHBOARD_API_URL` environment variables. All routes authenticate via `Authorization: Bearer sk_<key>`.
+
+#### `create_bet(game_id, selection_type, selection, stake, odds, line=None, name=None)`
+Create a single straight bet on the dashboard.
+
+**Parameters:**
+- `game_id` (str): Game UUID from `get_active_games()`
+- `selection_type` (str): `"moneyline"`, `"spread"`, or `"total"`
+- `selection` (str): `"home"`, `"away"`, `"over"`, or `"under"`
+- `stake` (float): Dollar amount to wager (positive)
+- `odds` (int): American odds — must be ≤ −100 or ≥ +100 (e.g. −110, +150)
+- `line` (float, optional): Spread or total line (e.g. −3.5, 215.5)
+- `name` (str, optional): Human-readable bet name (auto-generated if omitted)
+
+**Note:** Parlay bets require the dashboard web UI — parlay MCP support is not yet implemented.
+
+#### `get_active_games(sport=None, status=None)`
+Get games available for betting.
+
+**Parameters:**
+- `sport` (str, optional): Sport key filter (e.g. `"basketball_nba"`)
+- `status` (str, optional): Status filter (e.g. `"scheduled"`, `"in_progress"`)
+
+**Returns:** `{status, data: {games: [...], count}}`
+
+#### `get_my_bets(status="all")`
+Get the user's betting history. Scoped to the API key owner.
+
+**Parameters:**
+- `status` (str): `"all"`, `"pending"`, `"won"`, `"lost"`, or `"push"` (default: `"all"`)
+
+**Returns:** `{status, data: {bets: [...], total, limit, offset}}`
+
+#### `get_bet_details(bet_id)`
+Get detailed information about a specific bet. Returns 404 if the bet does not belong to the API key owner.
+
+**Parameters:**
+- `bet_id` (str): UUID of the bet
+
+**Returns:** `{status, data: {bet: {...legs, game details, timeline}}}`
+
+#### `get_game_odds(game_id)`
+Get current bookmaker odds for a specific game.
+
+**Parameters:**
+- `game_id` (str): UUID of the game
+
+**Returns:** `{status, data: {game: {...}, odds: [{bookmaker, marketType, homePrice, awayPrice, homeSpread, ...}]}}`
+
+#### `search_teams(query)`
+Search for teams by name or abbreviation.
+
+**Parameters:**
+- `query` (str): Search term (e.g. `"Lakers"`, `"LAL"`, `"Los Angeles"`) — min 1 character
+
+**Returns:** `{status, data: {teams: [{id, name, abbr, sport, logoUrl}], count}}`
+
+#### `get_dashboard_stats()`
+Get betting statistics and performance summary for the current user. Scoped to the API key owner.
+
+**Returns:** `{status, data: {active: {count, total_stake, potential_return}, today: {bets, won, lost, pnl}, this_week: {bets, win_rate, pnl}, all_time: {total_bets, win_rate, total_pnl, roi}}}`
+
+#### `get_advice_context()`
+Get full betting context for AI advice generation. Returns up to 100 active bets, last 10 settled bets, all-time stats, sport breakdown, and a risk analysis. Scoped to the API key owner.
+
+**Returns:** `{status, data: {active_bets, recent_results, bankroll_exposure, sport_breakdown}, analysis: {risk_level, exposure_percentage, is_diversified, current_streak, suggestions}}`
+
+#### `get_games_with_exposure(sport=None, only_with_bets=False)`
+Get today's games annotated with the user's existing betting exposure. Game window spans midnight-to-midnight so earlier-today games are included.
+
+**Parameters:**
+- `sport` (str, optional): Sport key filter (e.g. `"basketball_nba"`)
+- `only_with_bets` (bool): If True, returns only games where the user has bets
+
+**Returns:** `{status, data: {games: [{id, matchup, sport, commence_time, status, my_bets: [...], total_exposure}], total_games, total_exposure}}`
+
 ---
 
 ## Backend REST API (Dashboard)
@@ -276,10 +359,13 @@ Express + TypeScript REST API for the web dashboard. Base URL: `http://localhost
 
 ### Authentication
 
-All `/api/mcp/*` routes require authentication via Bearer token:
+**Session routes** (`/api/auth`, `/api/bets`, `/api/games`, etc.) use cookie-based session authentication via OAuth2 (Microsoft/Google).
+
+**MCP routes** (`/api/mcp/*`) use API key authentication — pass the `sk_`-prefixed key as a Bearer token:
 ```http
-Authorization: Bearer <token>
+Authorization: Bearer sk_<your-api-key>
 ```
+API keys are created via the dashboard under **Settings → API Keys** and scoped with per-resource permissions (`bets`, `stats`, `write`).
 
 ### Response Format
 
@@ -1656,7 +1742,42 @@ Detailed health check with database connectivity test.
 }
 ```
 
-#### `GET /api/games/:id/odds`
+#### `GET /api/admin/settings`
+Get deployment-wide MCP risk thresholds. Creates the singleton settings row with defaults if it does not yet exist.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "singleton",
+    "riskHighThreshold": 1000,
+    "riskModerateThreshold": 500,
+    "winRateLow": 45,
+    "winRateHigh": 55,
+    "updatedAt": "2026-01-09T15:30:00Z"
+  }
+}
+```
+
+#### `PATCH /api/admin/settings`
+Update one or more deployment-wide MCP risk thresholds. All fields are optional; omitted fields retain their current values. These thresholds control the risk analysis returned by `GET /api/mcp/bets/advice-context`.
+
+**Request Body** (all fields optional):
+```json
+{
+  "riskHighThreshold": 2000,
+  "riskModerateThreshold": 750,
+  "winRateLow": 40,
+  "winRateHigh": 60
+}
+```
+
+**Field constraints:** All values must be positive numbers. `winRateLow` and `winRateHigh` must be between 0 and 100.
+
+**Response:** Same shape as `GET /api/admin/settings`.
+
+
 Get current odds for a specific game.
 
 **Query Parameters:**
@@ -1816,7 +1937,132 @@ Simplified bet creation for MCP.
 }
 ```
 
-### Admin API (`/api/admin`)
+**Validation:** `odds` must satisfy `Math.abs(odds) >= 100` (valid American odds format). `selection_type` must be `moneyline`, `spread`, or `total`. `selection` must be `home`, `away`, `over`, or `under`.
+
+#### `GET /api/mcp/games`
+List upcoming games (general-purpose replacement for `/api/games` for MCP callers).
+
+**Permission required:** `bets`
+
+**Query Parameters:**
+- `sport` (string, optional): Filter by sport key (e.g. `basketball_nba`)
+- `status` (string, optional): Filter by status (e.g. `scheduled`, `in_progress`)
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "games": [
+      {
+        "id": "uuid",
+        "matchup": "Boston Celtics @ Los Angeles Lakers",
+        "homeTeam": "Los Angeles Lakers",
+        "awayTeam": "Boston Celtics",
+        "sportKey": "basketball_nba",
+        "sport": "basketball_nba",
+        "commenceTime": "2026-01-09T19:00:00Z",
+        "status": "scheduled",
+        "homeScore": null,
+        "awayScore": null
+      }
+    ],
+    "count": 12
+  }
+}
+```
+
+#### `GET /api/mcp/games/:id/odds`
+Get current bookmaker odds for a specific game.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "game": { "id": "uuid", "matchup": "...", "commenceTime": "..." },
+    "odds": [
+      {
+        "bookmaker": "draftkings",
+        "marketType": "h2h",
+        "homePrice": -150,
+        "awayPrice": 130,
+        "homeSpread": null,
+        "awaySpread": null,
+        "total": null,
+        "overPrice": null,
+        "underPrice": null
+      }
+    ]
+  }
+}
+```
+
+#### `GET /api/mcp/bets`
+List bets with optional filters. Scoped to the API key owner.
+
+**Permission required:** `bets`
+
+**Query Parameters:**
+- `status` (string, optional): `pending`, `won`, `lost`, or `push`
+- `limit` (number, optional): Max results (default 100)
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "bets": [ { "id": "uuid", "name": "Lakers ML", "status": "pending", ... } ],
+    "total": 42,
+    "limit": 100,
+    "offset": 0
+  }
+}
+```
+
+#### `GET /api/mcp/bets/:id`
+Get a single bet by UUID. Returns 404 if the bet does not belong to the API key owner.
+
+**Permission required:** `bets`
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "bet": {
+      "id": "uuid",
+      "name": "Lakers ML",
+      "betType": "single",
+      "stake": 50.00,
+      "odds": -150,
+      "status": "pending",
+      "legs": [ { ... } ]
+    }
+  }
+}
+```
+
+#### `GET /api/mcp/teams/search`
+Search teams by name using case-insensitive partial match (`ILIKE`).
+
+**Query Parameters:**
+- `q` (string, required): Search term — minimum 1 character
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "teams": [
+      { "id": "uuid", "name": "Los Angeles Lakers", "abbreviation": "LAL", "sport": "basketball_nba", "logoUrl": "https://..." }
+    ],
+    "count": 1
+  }
+}
+```
+
+
 
 #### `GET /api/admin/health`
 Health check endpoint.

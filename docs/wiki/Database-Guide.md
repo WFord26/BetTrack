@@ -260,6 +260,32 @@ model Bet {
 - `settledAt` timestamp for outcome resolution
 - Indexes on `status` and `placedAt` for filtering
 
+### AdminSettings Model
+
+Deployment-wide singleton row storing configurable risk thresholds used by the MCP advice engine. Always queried/created via `upsert` with `id = 'singleton'` so exactly one row exists.
+
+```prisma
+// Deployment-wide settings for configurable MCP risk thresholds
+model AdminSettings {
+  id                    String   @id @default("singleton")
+  riskHighThreshold     Float    @default(1000) @map("risk_high_threshold")
+  riskModerateThreshold Float    @default(500)  @map("risk_moderate_threshold")
+  winRateLow            Float    @default(45)   @map("win_rate_low")
+  winRateHigh           Float    @default(55)   @map("win_rate_high")
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admin_settings")
+}
+```
+
+**Key Points**:
+- Singleton row — `id` is always `"singleton"`
+- `riskHighThreshold`: total active stake (USD) above which risk is rated "high" (default $1,000)
+- `riskModerateThreshold`: total active stake (USD) above which risk is rated "moderate" (default $500)
+- `winRateLow` / `winRateHigh`: percentage bounds for "below average" / "above average" win rate labels (default 45% / 55%)
+- Read by `GET /api/admin/settings`, updated by `PATCH /api/admin/settings`
+- Read by `analyzeRisk()` in the MCP controller when generating advice context
+
 ---
 
 ## Relationships
