@@ -222,4 +222,57 @@ export class StatsSyncService {
       throw error;
     }
   }
+
+  async syncAllTeams(): Promise<Record<string, number>> {
+    const results: Record<string, number> = {};
+
+    if (!env.API_SPORTS_KEY) {
+      logger.warn('API_SPORTS_KEY not set — skipping team sync');
+      return results;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const seasonYearOverYear = `${currentYear - 2}-${currentYear - 1}`;
+
+    if (this.nflService) {
+      try {
+        results['americanfootball_nfl'] = await this.nflService.syncTeams(currentYear - 2);
+      } catch (error) {
+        logger.error(`NFL team sync failed: ${error}`);
+        results['americanfootball_nfl'] = 0;
+      }
+    }
+
+    if (this.nbaService) {
+      try {
+        results['basketball_nba'] = await this.nbaService.syncTeams(seasonYearOverYear);
+      } catch (error) {
+        logger.error(`NBA team sync failed: ${error}`);
+        results['basketball_nba'] = 0;
+      }
+    }
+
+    if (this.nhlService) {
+      try {
+        results['icehockey_nhl'] = await this.nhlService.syncTeams(currentYear - 2);
+      } catch (error) {
+        logger.error(`NHL team sync failed: ${error}`);
+        results['icehockey_nhl'] = 0;
+      }
+    }
+
+    if (this.ncaabService) {
+      try {
+        results['basketball_ncaab'] = await this.ncaabService.syncTeams(seasonYearOverYear);
+      } catch (error) {
+        logger.error(`NCAAB team sync failed: ${error}`);
+        results['basketball_ncaab'] = 0;
+      }
+    }
+
+    const total = Object.values(results).reduce((sum, n) => sum + n, 0);
+    logger.info(`Team sync complete: ${total} teams across ${Object.keys(results).length} sports`);
+
+    return results;
+  }
 }

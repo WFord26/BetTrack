@@ -248,6 +248,70 @@ export class NCAABService {
       logger.error(`Error syncing NCAAB player stats for ${externalGameId}:`, error);
     }
   }
+
+  async syncTeams(season: string = `${new Date().getFullYear() - 1}-${new Date().getFullYear()}`): Promise<number> {
+    try {
+      logger.info(`Syncing NCAAB teams for season ${season}`);
+
+      interface ApiTeam {
+        id: number;
+        name: string;
+        code?: string;
+        logo: string;
+      }
+
+      const response = await apiSportsClient.get<{ response: ApiTeam[] }>(
+        '/teams',
+        { league: this.leagueId, season }
+      );
+
+      if (!response.response?.length) {
+        logger.warn('No NCAAB teams returned from API-Sports');
+        return 0;
+      }
+
+      const sport = await prisma.sport.findUnique({ where: { key: 'basketball_ncaab' } });
+      if (!sport) {
+        logger.error('Sport "basketball_ncaab" not found. Run /api/admin/init-sports first.');
+        return 0;
+      }
+
+      let count = 0;
+      for (const team of response.response) {
+        const existing = await prisma.team.findFirst({
+          where: { apiSportsTeamId: team.id, sportId: sport.id },
+        });
+
+        if (existing) {
+          await prisma.team.update({
+            where: { id: existing.id },
+            data: {
+              name: team.name,
+              abbreviation: team.code || null,
+              logoUrl: team.logo || null,
+            },
+          });
+        } else {
+          await prisma.team.create({
+            data: {
+              sportId: sport.id,
+              apiSportsTeamId: team.id,
+              name: team.name,
+              abbreviation: team.code || null,
+              logoUrl: team.logo || null,
+            },
+          });
+        }
+        count++;
+      }
+
+      logger.info(`Synced ${count} NCAAB teams for season ${season}`);
+      return count;
+    } catch (error) {
+      logger.error(`Error syncing NCAAB teams:`, error);
+      throw error;
+    }
+  }
 }
 
 export const ncaabService = new NCAABService();
