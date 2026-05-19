@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `prisma/migrations/20260514000001_enhance_market_consensus_phase2/migration.sql`: Adds/backfills new `market_consensus` columns and creates an index on `market_type`.
   - `src/services/market-consensus.service.ts`: `calculateConsensus()` now computes additional phase-2 market-truth metrics and persists them; added `identifyOutliers(gameId)` for per-market outlier discovery.
   - `tests/market-consensus.service.test.ts`: New unit tests covering phase-2 spreads consensus calculations and outlier identification behavior.
+- **Bookmaker Performance Analytics — Phase 2** (Issue: Bookmaker Analytics): Added persistent bookmaker analytics models and service calculations for value, sharpness, and reliability ranking.
+  - `prisma/schema.prisma`: Added `BookmakerAnalytics` and `BookmakerMovementEvent` models; linked movement events to `Game`.
+  - `prisma/migrations/20260514000002_add_bookmaker_analytics_phase2/migration.sql`: Creates `bookmaker_analytics` and `bookmaker_movement_events` tables, indexes, and FK constraints.
+  - `src/services/bookmaker-analytics.service.ts`: New `BookmakerAnalyticsService` with `calculateBookmakerMetrics(bookmaker)` and `rankBookmakers(criteria)` methods.
+  - `tests/bookmaker-analytics.service.test.ts`: Added unit tests for metric calculation/upsert behavior and criteria-based ranking.
 
 ---
 
