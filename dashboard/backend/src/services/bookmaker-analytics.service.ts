@@ -88,7 +88,12 @@ export class BookmakerAnalyticsService {
 
     const [currentOdds, consensusRows, movementEvents, snapshots] = await Promise.all([
       prisma.currentOdds.findMany({
-        where: { bookmaker: normalizedBookmaker },
+        where: {
+          bookmaker: normalizedBookmaker,
+          game: {
+            commenceTime: { gte: cutoff },
+          },
+        },
         include: {
           game: {
             select: {
