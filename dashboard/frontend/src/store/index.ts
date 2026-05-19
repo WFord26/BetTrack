@@ -3,6 +3,7 @@ import betSlipReducer from './betSlipSlice';
 import clvReducer from './clvSlice';
 import movementReducer from './movementSlice';
 import sharpReducer from './sharpSlice';
+import bookmakerReducer from './bookmakerSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     clv: clvReducer,
     movements: movementReducer,
     sharp: sharpReducer,
+    bookmaker: bookmakerReducer,
   },
 });
 
