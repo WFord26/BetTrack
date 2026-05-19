@@ -42,7 +42,7 @@ function getComparableLine(odds: CurrentOdds, consensus: MarketConsensus): numbe
   }
 
   if (odds.marketType === 'spreads') {
-    if (!odds.homeSpread) return null;
+    if (odds.homeSpread == null) return null;
     return parseFloat(odds.homeSpread.toString());
   }
 
@@ -110,6 +110,9 @@ export class BookmakerAnalyticsService {
         where: {
           calculatedAt: { gte: cutoff },
         },
+        orderBy: {
+          calculatedAt: 'desc',
+        },
       }),
       prisma.bookmakerMovementEvent.findMany({
         where: {
@@ -144,9 +147,13 @@ export class BookmakerAnalyticsService {
     }).length;
 
     const marginSamples: number[] = [];
-    const consensusByKey = new Map(
-      eligibleConsensus.map((row) => [`${row.gameId}:${row.marketType}`, row])
-    );
+    const consensusByKey = new Map<string, typeof eligibleConsensus[number]>();
+    for (const row of eligibleConsensus) {
+      const key = `${row.gameId}:${row.marketType}`;
+      if (!consensusByKey.has(key)) {
+        consensusByKey.set(key, row);
+      }
+    }
 
     for (const oddsRow of currentOdds) {
       const consensus = consensusByKey.get(`${oddsRow.gameId}:${oddsRow.marketType}`);
