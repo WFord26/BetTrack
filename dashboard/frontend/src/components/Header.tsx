@@ -64,6 +64,18 @@ const IconShark = () => (
   </svg>
 );
 
+const IconBookmaker = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <line x1="8" y1="21" x2="16" y2="21" />
+    <line x1="12" y1="17" x2="12" y2="21" />
+    <line x1="6" y1="10" x2="6" y2="13" />
+    <line x1="10" y1="7" x2="10" y2="13" />
+    <line x1="14" y1="9" x2="14" y2="13" />
+    <line x1="18" y1="11" x2="18" y2="13" />
+  </svg>
+);
+
 const IconSun = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="5" />
@@ -218,6 +230,7 @@ export default function Header() {
     { path: '/stats',                 label: 'Statistics',  icon: <IconStats />    },
     { path: '/analytics/clv',         label: 'CLV',         icon: <IconCLV />      },
     { path: '/analytics/sharp',       label: 'Sharp Money', icon: <IconShark />    },
+    { path: '/analytics/bookmakers',  label: 'Bookmakers',  icon: <IconBookmaker /> },
   ];
 
   // User initials for avatar fallback

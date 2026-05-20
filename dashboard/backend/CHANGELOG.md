@@ -7,13 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Team Sync — All Sports** (`POST /api/admin/sync-teams`): Added `syncTeams()` to every sport service (NFL, NBA, NHL, NCAAB) and created `MLBStatsService` with `syncTeams()`. Added `syncAllTeams()` to `StatsSyncService` and a new admin endpoint `POST /api/admin/sync-teams` that runs team sync in the background. Syncs 153 teams total (NFL 34, NBA 34, NHL 32, NCAAB 23, MLB 30) via api-sports.io.
+  - `src/services/api-sports/nfl.service.ts`: Added `syncTeams(season)` using league ID 1, integer season (default `currentYear - 2`).
+  - `src/services/api-sports/nba.service.ts`: Added `syncTeams(season)` using league ID 12, `"YYYY-YYYY"` season format.
+  - `src/services/api-sports/nhl.service.ts`: Added `syncTeams(season)` using league ID 57, integer season.
+  - `src/services/api-sports/ncaab.service.ts`: Added `syncTeams(season)` using league ID 127, `"YYYY-YYYY"` season format.
+  - `src/services/api-sports/mlb.service.ts`: New `MLBStatsService` with `getLiveGames()`, `syncGameStats()`, and `syncTeams()` (league ID 1, `v1.baseball.api-sports.io`). Filters out "American League"/"National League" conference entries.
+  - `src/services/api-sports/client.ts`: Added `'baseball'` to `ApiSportsConfig.sport` union and `BASE_URLS` map pointing to `https://v1.baseball.api-sports.io`.
+  - `src/services/stats-sync.service.ts`: Added `MLBStatsService`, MLB block in `syncAllLiveStats()`, and new `syncAllTeams()` method.
+  - `src/routes/admin.routes.ts`: New `POST /sync-teams` route calling `statsSyncService.syncAllTeams()` in background.
+- **Docker: Persistent Prisma Client** (`Dockerfile.dev`): Updated dev container startup CMD to run `npx prisma generate && npx prisma migrate deploy` before `npm run dev`. Prevents stale Prisma client errors when the named `backend_node_modules` Docker volume shadows image layers and new models (e.g., `SharpMoneyIndicator`, `BookmakerAnalytics`) are missing from the generated client after schema migrations.
+
+- **Market Consensus & Deviations — Phase 2**: Expanded market consensus analytics with richer consensus and dispersion metrics plus explicit best-value fields for bookmaker outlier workflows.
+  - `prisma/schema.prisma`: Enhanced `MarketConsensus` model with `consensusPrice`, `medianLine`, `meanLine`, `modeLine`, `range`, `interquartileRange`, `bestValueSide`, `bestValueBookmaker`, `bestValueLine`, `sharpBookWeight`, and a `marketType` index.
+  - `prisma/migrations/20260514000001_enhance_market_consensus_phase2/migration.sql`: Adds/backfills new `market_consensus` columns and creates an index on `market_type`.
+  - `src/services/market-consensus.service.ts`: `calculateConsensus()` now computes additional phase-2 market-truth metrics and persists them; added `identifyOutliers(gameId)` for per-market outlier discovery.
+  - `tests/market-consensus.service.test.ts`: New unit tests covering phase-2 spreads consensus calculations and outlier identification behavior.
+- **Bookmaker Performance Analytics — Phase 2** (Issue: Bookmaker Analytics): Added persistent bookmaker analytics models and service calculations for value, sharpness, and reliability ranking.
+  - `prisma/schema.prisma`: Added `BookmakerAnalytics` and `BookmakerMovementEvent` models; linked movement events to `Game`.
+  - `prisma/migrations/20260514000002_add_bookmaker_analytics_phase2/migration.sql`: Creates `bookmaker_analytics` and `bookmaker_movement_events` tables, indexes, and FK constraints.
+  - `src/services/bookmaker-analytics.service.ts`: New `BookmakerAnalyticsService` with `calculateBookmakerMetrics(bookmaker)` and `rankBookmakers(criteria)` methods.
+  - `tests/bookmaker-analytics.service.test.ts`: Added unit tests for metric calculation/upsert behavior and criteria-based ranking.
+- **Bookmaker Analytics — Phase 2 Closeout** (Option C):
+  - `prisma/schema.prisma`: Made `averageCLVOffered`, `uptimePercentage`, `recommendationScore` nullable in `BookmakerAnalytics`; added `bookmaker` (`VARCHAR(50)`) and index to `BetLeg`.
+  - `prisma/migrations/20260520033152_bookmaker_analytics_nullable_metrics`: Drops NOT NULL on 3 `bookmaker_analytics` columns.
+  - `prisma/migrations/20260520033943_add_betleg_bookmaker`: Adds `bookmaker` column and `bet_legs_bookmaker_idx` index.
+  - `src/services/bookmaker-analytics.service.ts`: `averageCLVOffered` now computed from `BetLeg.aggregate` (null when no CLV rows exist); `uptimePercentage` remains null (no source); `recommendationScore` null when inputs missing; added `runBatchCalculation()`.
+  - `src/jobs/bookmaker-analytics.job.ts`: New daily cron (02:00 UTC) with staleness guard — runs immediately on startup if table is empty or >48 h stale.
+  - `src/server.ts`: Registers `startBookmakerAnalyticsJob()` at startup.
+  - `src/routes/analytics-bookmaker.routes.ts`: Fully rewritten — `/:bookmaker` reads persisted row (404 if not yet computed); added `/sharp`, `/compare`, `/best-value/:sport`, `/movement/:bookmaker` endpoints.
+  - `src/routes/bets.routes.ts`: Added optional `bookmaker` field (max 50 chars) to `createBetLegSchema`.
+  - `src/services/clv.service.ts`: `groupByBookmaker()` now prefers `leg.bookmaker` field over name-extraction heuristic for legacy rows.
+  - `docs/api/openapi-internal.yaml`: Added all 7 `/api/analytics/bookmakers/*` endpoint definitions and `BookmakerAnalytics` schema.
+  - `tests/bookmaker-analytics.service.test.ts`: Updated mocks for DB-scoped consensus query; added `betLeg.aggregate` mock.
+  - `tests/analytics-bookmaker.routes.test.ts`: New — 15 integration tests for all 7 endpoints including 404 path.
+  - `tests/jobs/bookmaker-analytics.job.test.ts`: New — 3 smoke tests for batch processing and error isolation.
+
 ---
 
 ## [0.3.10] - 2026-05-14
-
----
-
-## [0.3.9] - 2026-05-13
 
 ### Added
 - **`prisma/migrations/20260513000002_add_admin_settings_table`**: Creates the `admin_settings` table that the `AdminSettings` Prisma model maps to. The model and its `prisma.adminSettings.upsert` calls in `/api/admin/settings` and `getAdviceContext` were already present but the corresponding `CREATE TABLE` migration was missing, causing runtime "table does not exist" errors on freshly migrated databases.

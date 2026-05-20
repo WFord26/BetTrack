@@ -4,6 +4,7 @@ import { NHLStatsService } from './api-sports/nhl.service';
 import { NCAABService } from './api-sports/ncaab.service';
 import { NCAAFService } from './api-sports/ncaaf.service';
 import { SoccerService } from './api-sports/soccer.service';
+import { MLBStatsService } from './api-sports/mlb.service';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 
@@ -20,6 +21,7 @@ export class StatsSyncService {
   private ncaabService?: NCAABService;
   private ncaafService?: NCAAFService;
   private soccerService?: SoccerService;
+  private mlbService?: MLBStatsService;
 
   constructor() {
     // Only initialize services if API key is available
@@ -31,7 +33,8 @@ export class StatsSyncService {
         this.ncaabService = new NCAABService();
         this.ncaafService = new NCAAFService();
         this.soccerService = new SoccerService();
-        logger.info('Stats services initialized for NFL, NBA, NHL, NCAAB, NCAAF, and Soccer');
+        this.mlbService = new MLBStatsService();
+        logger.info('Stats services initialized for NFL, NBA, NHL, NCAAB, NCAAF, Soccer, and MLB');
       } catch (error) {
         logger.warn('Failed to initialize stats services, stats sync disabled');
       }
@@ -174,6 +177,26 @@ export class StatsSyncService {
         }
       }
 
+      // Fetch and sync MLB live games
+      if (this.mlbService) {
+        const mlbGames = await this.mlbService.getLiveGames();
+
+        for (const gameId of mlbGames) {
+          result.gamesProcessed++;
+
+          try {
+            await this.mlbService.syncGameStats(gameId);
+            result.gamesUpdated++;
+          } catch (error) {
+            const errorMsg = `Failed to sync MLB game ${gameId}: ${error}`;
+            logger.error(errorMsg);
+            result.errors.push(errorMsg);
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
       logger.info(`Stats sync completed: ${result.gamesUpdated}/${result.gamesProcessed} games updated`);
     } catch (error) {
       const errorMsg = `Stats sync failed: ${error}`;
@@ -221,5 +244,67 @@ export class StatsSyncService {
       logger.error(`Failed to sync team stats: ${error}`);
       throw error;
     }
+  }
+
+  async syncAllTeams(): Promise<Record<string, number>> {
+    const results: Record<string, number> = {};
+
+    if (!env.API_SPORTS_KEY) {
+      logger.warn('API_SPORTS_KEY not set — skipping team sync');
+      return results;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const seasonYearOverYear = `${currentYear - 2}-${currentYear - 1}`;
+
+    if (this.nflService) {
+      try {
+        results['americanfootball_nfl'] = await this.nflService.syncTeams(currentYear - 2);
+      } catch (error) {
+        logger.error(`NFL team sync failed: ${error}`);
+        results['americanfootball_nfl'] = 0;
+      }
+    }
+
+    if (this.nbaService) {
+      try {
+        results['basketball_nba'] = await this.nbaService.syncTeams(seasonYearOverYear);
+      } catch (error) {
+        logger.error(`NBA team sync failed: ${error}`);
+        results['basketball_nba'] = 0;
+      }
+    }
+
+    if (this.nhlService) {
+      try {
+        results['icehockey_nhl'] = await this.nhlService.syncTeams(currentYear - 2);
+      } catch (error) {
+        logger.error(`NHL team sync failed: ${error}`);
+        results['icehockey_nhl'] = 0;
+      }
+    }
+
+    if (this.ncaabService) {
+      try {
+        results['basketball_ncaab'] = await this.ncaabService.syncTeams(seasonYearOverYear);
+      } catch (error) {
+        logger.error(`NCAAB team sync failed: ${error}`);
+        results['basketball_ncaab'] = 0;
+      }
+    }
+
+    if (this.mlbService) {
+      try {
+        results['baseball_mlb'] = await this.mlbService.syncTeams(currentYear - 2);
+      } catch (error) {
+        logger.error(`MLB team sync failed: ${error}`);
+        results['baseball_mlb'] = 0;
+      }
+    }
+
+    const total = Object.values(results).reduce((sum, n) => sum + n, 0);
+    logger.info(`Team sync complete: ${total} teams across ${Object.keys(results).length} sports`);
+
+    return results;
   }
 }

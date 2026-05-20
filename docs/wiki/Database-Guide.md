@@ -7,6 +7,7 @@ Complete guide to the BetTrack database schema, migrations, and data model.
 - [Database Overview](#database-overview)
 - [Schema Design](#schema-design)
 - [Core Models](#core-models)
+- [Bookmaker Analytics Models](#bookmaker-analytics-models)
 - [Relationships](#relationships)
 - [Indexes & Performance](#indexes--performance)
 - [Migrations](#migrations)
@@ -226,6 +227,67 @@ model SharpMoneyIndicator {
 - `contraindicators` array flags signals that reduce reliability
 - `publicBettingPct` / `publicMoneyPct` reserved for external data integration
 
+### Bookmaker Analytics Models
+
+Stores per-bookmaker quality, sharpness, and reliability metrics plus first-mover tracking events.
+
+```prisma
+model BookmakerAnalytics {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookmaker           String   @unique @db.VarChar(50)
+  averageCLVOffered   Decimal  @map("average_clv_offered") @db.Decimal(5, 2)
+  bestOddsFrequency   Decimal  @map("best_odds_frequency") @db.Decimal(5, 2)
+  marginVsConsensus   Decimal  @map("margin_vs_consensus") @db.Decimal(5, 2)
+  outlierFrequency    Decimal  @map("outlier_frequency") @db.Decimal(5, 2)
+  firstMoverFrequency Decimal  @map("first_mover_frequency") @db.Decimal(5, 2)
+  lineMovementLag     Int      @map("line_movement_lag")
+  sharpBookRating     Int      @map("sharp_book_rating")
+  marketEfficiency    Decimal  @map("market_efficiency") @db.Decimal(5, 2)
+  sportsCovered       String[] @map("sports_covered")
+  marketsCovered      String[] @map("markets_covered")
+  uptimePercentage    Decimal  @map("uptime_percentage") @db.Decimal(5, 2)
+  oddsUpdateFrequency Int      @map("odds_update_frequency")
+  averageOddsAge      Int      @map("average_odds_age")
+  limitProfile        String   @map("limit_profile") @db.VarChar(20)
+  estimatedMaxBet     Decimal? @map("estimated_max_bet") @db.Decimal(10, 2)
+  accountLimitReports Int      @map("account_limit_reports")
+  totalGamesOffered   Int      @map("total_games_offered")
+  totalMarketsOffered Int      @map("total_markets_offered")
+  averageMargin       Decimal  @map("average_margin") @db.Decimal(5, 2)
+  userRating          Decimal? @map("user_rating") @db.Decimal(3, 2)
+  userReviewCount     Int      @default(0) @map("user_review_count")
+  recommendationScore Int      @map("recommendation_score")
+  calculatedAt        DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([bestOddsFrequency])
+  @@index([sharpBookRating])
+  @@map("bookmaker_analytics")
+}
+
+model BookmakerMovementEvent {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId        String   @map("game_id") @db.Uuid
+  marketType    String   @map("market_type") @db.VarChar(20)
+  detectedAt    DateTime @default(now()) @map("detected_at") @db.Timestamptz(6)
+  firstMover    String   @map("first_mover") @db.VarChar(50)
+  firstMoveTime DateTime @map("first_move_time") @db.Timestamptz(6)
+  followers     Json
+  movementSize  Decimal  @map("movement_size") @db.Decimal(5, 2)
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([firstMover])
+  @@index([detectedAt])
+  @@map("bookmaker_movement_events")
+}
+```
+
+**Key Points**:
+- `BookmakerAnalytics` stores one row per bookmaker with continuously refreshed metrics.
+- `BookmakerMovementEvent` stores movement leadership events (`firstMover`) and follower lag (`followers` JSON).
+- `recommendationScore` is a 1–100 composite ranking score for bookmaker selection.
+- `sportsCovered` and `marketsCovered` support coverage-driven ranking/filtering.
+
 ### Bet Model
 
 User bets placed on games.
@@ -259,6 +321,32 @@ model Bet {
 - Status tracks bet lifecycle
 - `settledAt` timestamp for outcome resolution
 - Indexes on `status` and `placedAt` for filtering
+
+### AdminSettings Model
+
+Deployment-wide singleton row storing configurable risk thresholds used by the MCP advice engine. Always queried/created via `upsert` with `id = 'singleton'` so exactly one row exists.
+
+```prisma
+// Deployment-wide settings for configurable MCP risk thresholds
+model AdminSettings {
+  id                    String   @id @default("singleton")
+  riskHighThreshold     Float    @default(1000) @map("risk_high_threshold")
+  riskModerateThreshold Float    @default(500)  @map("risk_moderate_threshold")
+  winRateLow            Float    @default(45)   @map("win_rate_low")
+  winRateHigh           Float    @default(55)   @map("win_rate_high")
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admin_settings")
+}
+```
+
+**Key Points**:
+- Singleton row — `id` is always `"singleton"`
+- `riskHighThreshold`: total active stake (USD) above which risk is rated "high" (default $1,000)
+- `riskModerateThreshold`: total active stake (USD) above which risk is rated "moderate" (default $500)
+- `winRateLow` / `winRateHigh`: percentage bounds for "below average" / "above average" win rate labels (default 45% / 55%)
+- Read by `GET /api/admin/settings`, updated by `PATCH /api/admin/settings`
+- Read by `analyzeRisk()` in the MCP controller when generating advice context
 
 ---
 

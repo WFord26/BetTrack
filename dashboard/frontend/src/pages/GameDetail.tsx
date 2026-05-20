@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import api from '../services/api';
 import GameStatsPanel from '../components/stats/GameStatsPanel';
 import { formatTime } from '../utils/format';
 
@@ -31,32 +32,26 @@ export default function GameDetail() {
       if (!gameId) return;
       
       try {
-        const response = await fetch(`/api/games/${gameId}`);
-        if (response.ok) {
-          const result = await response.json();
-          const gameData = result.data || result;
-          
-          // Transform the game data to flatten sport fields
-          const transformedGame: Game = {
-            id: gameData.id,
-            sportKey: gameData.sport?.key || '',
-            sportName: gameData.sport?.name || '',
-            awayTeamId: gameData.awayTeamId,
-            homeTeamId: gameData.homeTeamId,
-            awayTeamName: gameData.awayTeamName,
-            homeTeamName: gameData.homeTeamName,
-            commenceTime: gameData.commenceTime,
-            status: gameData.status,
-            completed: gameData.status === 'final',
-            venue: gameData.venue,
-            homeScore: gameData.homeScore,
-            awayScore: gameData.awayScore
-          };
-          
-          setGame(transformedGame);
-        } else {
-          setError('Game not found');
-        }
+        const response = await api.get(`/games/${gameId}`);
+        const gameData = response.data.data || response.data;
+
+        const transformedGame: Game = {
+          id: gameData.id,
+          sportKey: gameData.sport?.key || '',
+          sportName: gameData.sport?.name || '',
+          awayTeamId: gameData.awayTeamId,
+          homeTeamId: gameData.homeTeamId,
+          awayTeamName: gameData.awayTeamName,
+          homeTeamName: gameData.homeTeamName,
+          commenceTime: gameData.commenceTime,
+          status: gameData.status,
+          completed: gameData.status === 'final',
+          venue: gameData.venue,
+          homeScore: gameData.homeScore,
+          awayScore: gameData.awayScore
+        };
+
+        setGame(transformedGame);
       } catch (error) {
         console.error('Error fetching game:', error);
         setError('Failed to load game details');

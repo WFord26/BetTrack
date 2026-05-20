@@ -503,7 +503,8 @@ export class CLVService {
     const groups = new Map<string, number[]>();
 
     for (const leg of betLegs) {
-      const bookmaker = this.extractBookmakerFromBetName(leg.bet.name);
+      // Prefer the explicit leg.bookmaker field; fall back to name heuristic for legacy rows
+      const bookmaker = leg.bookmaker || this.extractBookmakerFromBetName(leg.bet.name);
       if (!groups.has(bookmaker)) {
         groups.set(bookmaker, []);
       }

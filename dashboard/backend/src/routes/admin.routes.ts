@@ -5,11 +5,13 @@ import { logger } from '../config/logger';
 import { oddsSyncService } from '../services/odds-sync.service';
 import { futuresSyncService } from '../services/futures-sync.service';
 import { outcomeResolverService } from '../services/outcome-resolver.service';
+import { StatsSyncService } from '../services/stats-sync.service';
 import { getOddsSyncStatus } from '../jobs/sync-odds.job';
 import { requireAdminAccess } from '../middleware/session.auth';
 import { validateBody } from '../middleware/validation.middleware';
 
 const router = Router();
+const statsSyncService = new StatsSyncService();
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -181,6 +183,36 @@ router.post('/sync-futures', async (req: Request, res: Response) => {
       status: 'error',
       message: 'Failed to start futures sync',
       error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/sync-teams
+ * Sync team rosters from API-Sports for all sports (NFL, NBA, NHL, NCAAB).
+ * Runs in the background — responds immediately.
+ */
+router.post('/sync-teams', async (_req: Request, res: Response) => {
+  try {
+    logger.info('Manually triggering team sync for all sports...');
+
+    statsSyncService.syncAllTeams().then((results) => {
+      const total = Object.values(results).reduce((sum, n) => sum + n, 0);
+      logger.info(`Background team sync complete: ${total} teams synced`, results);
+    }).catch(error => {
+      logger.error('Background team sync failed:', error);
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Team sync started in background. Check logs for progress.',
+    });
+  } catch (error: any) {
+    logger.error('Failed to start team sync:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to start team sync',
+      error: error.message,
     });
   }
 });

@@ -160,6 +160,7 @@ model Game {
   playerStats          PlayerGameStats[]
   marketConsensus      MarketConsensus[]
   lineMovements        LineMovement[]
+  bookmakerMovementEvents BookmakerMovementEvent[]
   sharpMoneyIndicators SharpMoneyIndicator[]
 
   @@index([commenceTime])
@@ -178,17 +179,26 @@ model MarketConsensus {
 
   // Consensus metrics
   consensusLine     Decimal  @map("consensus_line") @db.Decimal(8, 2)
+  consensusPrice    Int      @map("consensus_price")
+  medianLine        Decimal  @map("median_line") @db.Decimal(8, 2)
+  meanLine          Decimal  @map("mean_line") @db.Decimal(8, 2)
+  modeLine          Decimal? @map("mode_line") @db.Decimal(8, 2)
   standardDeviation Decimal  @map("standard_deviation") @db.Decimal(8, 2)
+  range             Decimal  @db.Decimal(8, 2)
+  interquartileRange Decimal @map("interquartile_range") @db.Decimal(8, 2)
   outlierBookmakers Json     @map("outlier_bookmakers")    // [{bookmaker, line, deviation}]
+  bestValueSide     String   @map("best_value_side") @db.VarChar(20)
+  bestValueBookmaker String  @map("best_value_bookmaker") @db.VarChar(50)
+  bestValueLine     Decimal  @map("best_value_line") @db.Decimal(8, 2)
   bookmakerCount    Int      @map("bookmaker_count")
-
-  // Value indicators
+  sharpBookWeight   Decimal  @map("sharp_book_weight") @db.Decimal(5, 2)
   disagreementScore Int      @map("disagreement_score")    // 1-100
-  bestValue         Json     @map("best_value")            // {side, bookmaker, line, impliedProb}
+  bestValue         Json     @map("best_value")            // compatibility payload
 
   game              Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@index([gameId])
+  @@index([marketType])
   @@index([disagreementScore])
   @@index([calculatedAt])
   @@map("market_consensus")
@@ -339,6 +349,73 @@ model LineMovement {
   @@map("line_movements")
 }
 
+// Bookmaker-level performance analytics
+model BookmakerAnalytics {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookmaker           String   @unique @db.VarChar(50)
+
+  // Odds quality metrics
+  averageCLVOffered   Decimal? @map("average_clv_offered") @db.Decimal(5, 2)
+  bestOddsFrequency   Decimal  @map("best_odds_frequency") @db.Decimal(5, 2)
+  marginVsConsensus   Decimal  @map("margin_vs_consensus") @db.Decimal(5, 2)
+  outlierFrequency    Decimal  @map("outlier_frequency") @db.Decimal(5, 2)
+
+  // Market making behavior
+  firstMoverFrequency Decimal  @map("first_mover_frequency") @db.Decimal(5, 2)
+  lineMovementLag     Int      @map("line_movement_lag")
+  sharpBookRating     Int      @map("sharp_book_rating")
+  marketEfficiency    Decimal  @map("market_efficiency") @db.Decimal(5, 2)
+
+  // Coverage & reliability
+  sportsCovered       String[] @map("sports_covered")
+  marketsCovered      String[] @map("markets_covered")
+  uptimePercentage    Decimal? @map("uptime_percentage") @db.Decimal(5, 2)
+  oddsUpdateFrequency Int      @map("odds_update_frequency")
+  averageOddsAge      Int      @map("average_odds_age")
+
+  // Limits & accessibility
+  limitProfile        String   @map("limit_profile") @db.VarChar(20)
+  estimatedMaxBet     Decimal? @map("estimated_max_bet") @db.Decimal(10, 2)
+  accountLimitReports Int      @map("account_limit_reports")
+
+  // Historical performance
+  totalGamesOffered   Int      @map("total_games_offered")
+  totalMarketsOffered Int      @map("total_markets_offered")
+  averageMargin       Decimal  @map("average_margin") @db.Decimal(5, 2)
+
+  // Reputation
+  userRating          Decimal? @map("user_rating") @db.Decimal(3, 2)
+  userReviewCount     Int      @default(0) @map("user_review_count")
+  recommendationScore Int?     @map("recommendation_score")
+
+  // Metadata
+  calculatedAt        DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([bestOddsFrequency])
+  @@index([sharpBookRating])
+  @@map("bookmaker_analytics")
+}
+
+// Bookmaker movement events (who moved first and how quickly others followed)
+model BookmakerMovementEvent {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId        String   @map("game_id") @db.Uuid
+  marketType    String   @map("market_type") @db.VarChar(20)
+  detectedAt    DateTime @default(now()) @map("detected_at") @db.Timestamptz(6)
+
+  firstMover    String   @map("first_mover") @db.VarChar(50)
+  firstMoveTime DateTime @map("first_move_time") @db.Timestamptz(6)
+  followers     Json
+  movementSize  Decimal  @map("movement_size") @db.Decimal(5, 2)
+
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([firstMover])
+  @@index([detectedAt])
+  @@map("bookmaker_movement_events")
+}
+
 // Users table (for OAuth2 authentication)
 model User {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -405,6 +482,7 @@ model BetLeg {
   closingOdds        Int?     @map("closing_odds") // Odds captured at game start (5 min before)
   clv                Decimal? @db.Decimal(5, 2) // Closing Line Value percentage
   clvCategory        String?  @map("clv_category") @db.VarChar(20) // positive/negative/neutral
+  bookmaker          String?  @db.VarChar(50) // Book the leg was placed at; required for per-book CLV
   status             String   @default("pending") @db.VarChar(20)
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -412,6 +490,7 @@ model BetLeg {
   game               Game     @relation(fields: [gameId], references: [id])
 
   @@index([gameId])
+  @@index([bookmaker])
   @@map("bet_legs")
 }
 

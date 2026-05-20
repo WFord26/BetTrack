@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Bookmaker Performance Analytics page** (Phase 2 Bookmaker Analytics): New page at `/analytics/bookmakers` for comparing and ranking sportsbooks by value, sharpness, reliability, and market coverage.
+  - `src/pages/BookmakerPerformance.tsx`: Two-tab UI — **Rankings** (sortable list of all bookmakers with recommendation score, sharp rating, best-odds frequency, and limit profile badge; 6 sort criteria: recommended/value/sharpness/reliability/coverage/limits) and **Detail** (full metrics for a selected bookmaker including key stats cards, market/sport coverage pills, and consensus outlier analysis with a configurable day window).
+  - `src/types/bookmaker.types.ts`: TypeScript types `BookmakerAnalytics`, `BookmakerOutlierStats`, `BookmakerRankingCriteria`, `LimitProfile`, and API response wrappers.
+  - `src/services/bookmaker.service.ts`: API client wrapping `GET /analytics/bookmakers/rankings`, `/analytics/bookmakers/:bookmaker`, and `/analytics/bookmakers/:bookmaker/outliers`.
+  - `src/store/bookmakerSlice.ts`: Redux slice with async thunks (`fetchRankings`, `fetchBookmakerDetail`, `fetchOutlierStats`) and selectors.
+  - `src/store/index.ts`: `bookmaker` reducer registered.
+  - `src/App.tsx`: Route `/analytics/bookmakers` added.
+  - `src/components/Header.tsx`: "Bookmakers" nav item with bar-chart icon added after "Sharp Money".
+
 ---
 
 ## [0.4.4] - 2026-05-14
-
----
-
-## [0.4.3] - 2026-05-13
 
 ### Added
 

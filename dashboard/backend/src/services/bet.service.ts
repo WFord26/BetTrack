@@ -162,6 +162,7 @@ export class BetService {
             userAdjustedOdds: legData.userAdjustedOdds || null,
             teaserAdjustedLine,
             sgpGroupId: sgpGames.has(legData.gameId) ? legData.gameId : null,
+            bookmaker: (legData as any).bookmaker || null,
             status: 'pending'
           }
         });

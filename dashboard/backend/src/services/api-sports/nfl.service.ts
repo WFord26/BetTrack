@@ -294,6 +294,71 @@ export class NFLStatsService {
     }
   }
 
+  async syncTeams(season: number = new Date().getFullYear() - 2): Promise<number> {
+    try {
+      logger.info(`Syncing NFL teams for season ${season}`);
+
+      interface ApiTeam {
+        id: number;
+        name: string;
+        code?: string;
+        alias?: string;
+        logo: string;
+      }
+
+      const response = await this.client.get<{ response: ApiTeam[] }>(
+        '/teams',
+        { league: 1, season }
+      );
+
+      if (!response.response?.length) {
+        logger.warn('No NFL teams returned from API-Sports');
+        return 0;
+      }
+
+      const sport = await prisma.sport.findUnique({ where: { key: 'americanfootball_nfl' } });
+      if (!sport) {
+        logger.error('Sport "americanfootball_nfl" not found. Run /api/admin/init-sports first.');
+        return 0;
+      }
+
+      let count = 0;
+      for (const team of response.response) {
+        const existing = await prisma.team.findFirst({
+          where: { apiSportsTeamId: team.id, sportId: sport.id },
+        });
+
+        if (existing) {
+          await prisma.team.update({
+            where: { id: existing.id },
+            data: {
+              name: team.name,
+              abbreviation: team.code || team.alias || null,
+              logoUrl: team.logo || null,
+            },
+          });
+        } else {
+          await prisma.team.create({
+            data: {
+              sportId: sport.id,
+              apiSportsTeamId: team.id,
+              name: team.name,
+              abbreviation: team.code || team.alias || null,
+              logoUrl: team.logo || null,
+            },
+          });
+        }
+        count++;
+      }
+
+      logger.info(`Synced ${count} NFL teams for season ${season}`);
+      return count;
+    } catch (error) {
+      logger.error(`Failed to sync NFL teams: ${error}`);
+      throw error;
+    }
+  }
+
   private extractQuarterScores(gameData: NFLGameStatistics, isHome: boolean): number[] {
     // This would come from the game details, not statistics endpoint
     // For now, return empty array - will be populated from game endpoint

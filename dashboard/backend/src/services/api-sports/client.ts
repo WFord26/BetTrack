@@ -4,13 +4,14 @@ import { logger } from '../../config/logger';
 
 interface ApiSportsConfig {
   apiKey: string;
-  sport: 'american-football' | 'basketball' | 'hockey';
+  sport: 'american-football' | 'basketball' | 'hockey' | 'baseball';
 }
 
 const BASE_URLS = {
   'american-football': 'https://v1.american-football.api-sports.io',
   'basketball': 'https://v1.basketball.api-sports.io',
   'hockey': 'https://v1.hockey.api-sports.io',
+  'baseball': 'https://v1.baseball.api-sports.io',
 };
 
 export class ApiSportsClient {

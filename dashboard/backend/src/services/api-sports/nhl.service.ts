@@ -191,6 +191,70 @@ export class NHLStatsService {
     }
   }
 
+  async syncTeams(season: number = new Date().getFullYear() - 2): Promise<number> {
+    try {
+      logger.info(`Syncing NHL teams for season ${season}`);
+
+      interface ApiTeam {
+        id: number;
+        name: string;
+        code?: string;
+        logo: string;
+      }
+
+      const response = await this.client.get<{ response: ApiTeam[] }>(
+        '/teams',
+        { league: 57, season }
+      );
+
+      if (!response.response?.length) {
+        logger.warn('No NHL teams returned from API-Sports');
+        return 0;
+      }
+
+      const sport = await prisma.sport.findUnique({ where: { key: 'icehockey_nhl' } });
+      if (!sport) {
+        logger.error('Sport "icehockey_nhl" not found. Run /api/admin/init-sports first.');
+        return 0;
+      }
+
+      let count = 0;
+      for (const team of response.response) {
+        const existing = await prisma.team.findFirst({
+          where: { apiSportsTeamId: team.id, sportId: sport.id },
+        });
+
+        if (existing) {
+          await prisma.team.update({
+            where: { id: existing.id },
+            data: {
+              name: team.name,
+              abbreviation: team.code || null,
+              logoUrl: team.logo || null,
+            },
+          });
+        } else {
+          await prisma.team.create({
+            data: {
+              sportId: sport.id,
+              apiSportsTeamId: team.id,
+              name: team.name,
+              abbreviation: team.code || null,
+              logoUrl: team.logo || null,
+            },
+          });
+        }
+        count++;
+      }
+
+      logger.info(`Synced ${count} NHL teams for season ${season}`);
+      return count;
+    } catch (error) {
+      logger.error(`Failed to sync NHL teams: ${error}`);
+      throw error;
+    }
+  }
+
   private async findTeam(teamName: string, sportKey: string) {
     return await prisma.team.findFirst({
       where: {
