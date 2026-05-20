@@ -36,26 +36,22 @@ jest.mock('../src/config/database', () => ({
 }));
 
 jest.mock('../src/services/line-movement.service', () => ({
-  LineMovementService: jest.fn().mockImplementation(() => ({
-    getRecentMovements: jest.fn(),
-    getMovementsByType: jest.fn(),
-    getGameMovements: jest.fn(),
-    getMovementStats: jest.fn(),
-    detectMovements: jest.fn(),
-  })),
+  LineMovementService: jest.fn().mockImplementation(() => mockLineMovementServiceInstance),
 }));
+
+// Module-level mock instance (variables starting with 'mock' can be referenced in jest.mock factories)
+const mockLineMovementServiceInstance = {
+  getRecentMovements: jest.fn(),
+  getMovementsByType: jest.fn(),
+  getGameMovements: jest.fn(),
+  getMovementStats: jest.fn(),
+  detectMovements: jest.fn(),
+};
 
 import app from '../src/app';
 import { prisma } from '../src/config/database';
-import { LineMovementService } from '../src/services/line-movement.service';
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
-
-// Get the mocked instance (created when routes module is loaded)
-function getServiceInstance(): jest.Mocked<InstanceType<typeof LineMovementService>> {
-  const MockClass = LineMovementService as jest.MockedClass<typeof LineMovementService>;
-  return MockClass.mock.instances[0] as any;
-}
 
 const steamMove = {
   id: 'mv-1',
@@ -86,7 +82,7 @@ describe('Analytics Line Movement Routes', () => {
   // ─── GET /api/analytics/movements/live ──────────────────────────────────
   describe('GET /api/analytics/movements/live', () => {
     it('returns recent steam movements by default', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementsByType.mockResolvedValue([steamMove] as any);
 
       const res = await request(app).get('/api/analytics/movements/live');
@@ -99,7 +95,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('returns all movements when movementType=all', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getRecentMovements.mockResolvedValue([steamMove] as any);
 
       const res = await request(app).get('/api/analytics/movements/live?movementType=all');
@@ -119,7 +115,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('accepts custom limit and hoursBack', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementsByType.mockResolvedValue([steamMove, steamMove, steamMove] as any);
 
       const res = await request(app)
@@ -132,7 +128,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('returns 500 when service throws', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementsByType.mockRejectedValue(new Error('DB error') as never);
 
       const res = await request(app).get('/api/analytics/movements/live');
@@ -148,7 +144,7 @@ describe('Analytics Line Movement Routes', () => {
     it('returns movements for a known game', async () => {
       (mockPrisma.game.findUnique as jest.Mock).mockResolvedValue(sampleGame as any);
       (mockPrisma.sport.findUnique as jest.Mock).mockResolvedValue({ name: 'NBA' } as any);
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getGameMovements.mockResolvedValue([steamMove] as any);
 
       const res = await request(app).get('/api/analytics/movements/game/game-1');
@@ -184,7 +180,7 @@ describe('Analytics Line Movement Routes', () => {
   // ─── GET /api/analytics/movements/history ────────────────────────────────
   describe('GET /api/analytics/movements/history', () => {
     it('returns movement history with stats', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       const stats = { byType: { steam: 2, reverse: 1, gradual: 0, injury: 0, normal: 3 }, byMarket: { h2h: 3, spreads: 2, totals: 1 } };
       svc.getMovementStats.mockResolvedValue(stats as any);
       svc.getRecentMovements.mockResolvedValue([steamMove] as any);
@@ -199,7 +195,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('filters by movementType when provided', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementStats.mockResolvedValue({ byType: {}, byMarket: {} } as any);
       svc.getMovementsByType.mockResolvedValue([steamMove] as any);
 
@@ -211,7 +207,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('returns 400 for invalid movementType in history', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementStats.mockResolvedValue({ byType: {}, byMarket: {} } as any);
 
       const res = await request(app)
@@ -222,7 +218,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('groups movements by date', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementStats.mockResolvedValue({ byType: {}, byMarket: {} } as any);
       const move1 = { ...steamMove, detectedAt: new Date('2026-05-19T10:00:00Z') };
       const move2 = { ...steamMove, detectedAt: new Date('2026-05-18T10:00:00Z') };
@@ -235,7 +231,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('returns 500 when service throws', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementStats.mockRejectedValue(new Error('DB error') as never);
 
       const res = await request(app).get('/api/analytics/movements/history');
@@ -311,7 +307,7 @@ describe('Analytics Line Movement Routes', () => {
   // ─── GET /api/analytics/movements/stats ─────────────────────────────────
   describe('GET /api/analytics/movements/stats', () => {
     it('returns movement statistics with defaults', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       const stats = { byType: { steam: 3, reverse: 1, gradual: 2, injury: 0, normal: 5 }, byMarket: { h2h: 4, spreads: 5, totals: 2 } };
       svc.getMovementStats.mockResolvedValue(stats as any);
       svc.getMovementsByType.mockResolvedValue([steamMove, steamMove, steamMove] as any);
@@ -327,7 +323,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('accepts custom hoursBack', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementStats.mockResolvedValue({ byType: { steam: 0, reverse: 0, gradual: 0, injury: 0, normal: 0 }, byMarket: {} } as any);
       svc.getMovementsByType.mockResolvedValue([] as any);
 
@@ -337,7 +333,7 @@ describe('Analytics Line Movement Routes', () => {
     });
 
     it('returns 500 when service throws', async () => {
-      const svc = getServiceInstance();
+      const svc = mockLineMovementServiceInstance;
       svc.getMovementStats.mockRejectedValue(new Error('DB error') as never);
 
       const res = await request(app).get('/api/analytics/movements/stats');

@@ -15,6 +15,9 @@ jest.mock('../src/config/database', () => ({
     oddsSnapshot: {
       findMany: jest.fn(),
     },
+    betLeg: {
+      aggregate: jest.fn(),
+    },
     bookmakerAnalytics: {
       upsert: jest.fn(),
       findMany: jest.fn(),
@@ -41,6 +44,8 @@ describe('BookmakerAnalyticsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new BookmakerAnalyticsService();
+    // Default: no BetLeg CLV data for any bookmaker
+    (mockPrisma.betLeg as any).aggregate = jest.fn().mockResolvedValue({ _avg: { clv: null } });
   });
 
   it('calculates and upserts bookmaker analytics metrics', async () => {
@@ -66,6 +71,8 @@ describe('BookmakerAnalyticsService', () => {
     ] as any);
 
     mockPrisma.marketConsensus.findMany.mockResolvedValue([
+      // Only rows matching the bookmaker's gameIds (game-1, game-2) and marketTypes (h2h, spreads)
+      // game-3:totals would be filtered out at the DB layer (gameId not in offered set)
       {
         gameId: 'game-1',
         marketType: 'h2h',
@@ -79,13 +86,6 @@ describe('BookmakerAnalyticsService', () => {
         bestValueBookmaker: 'fanduel',
         outlierBookmakers: [{ bookmaker: 'draftkings' }],
         consensusLine: -3,
-      },
-      {
-        gameId: 'game-3',
-        marketType: 'totals',
-        bestValueBookmaker: 'draftkings',
-        outlierBookmakers: [],
-        consensusLine: 45,
       },
     ] as any);
 
@@ -140,7 +140,10 @@ describe('BookmakerAnalyticsService', () => {
   });
 
   it('averageCLVOffered is null when no BetLeg.bookmaker data exists', async () => {
-    mockPrisma.currentOdds.findMany.mockResolvedValue([] as any);
+    // Need at least one odds row to pass the "bookmaker not found" guard
+    mockPrisma.currentOdds.findMany.mockResolvedValue([
+      { gameId: 'g1', marketType: 'h2h', homePrice: -110, homeSpread: null, totalLine: null, game: { sport: { key: 'basketball_nba' } } },
+    ] as any);
     mockPrisma.marketConsensus.findMany.mockResolvedValue([] as any);
     mockPrisma.bookmakerMovementEvent.findMany.mockResolvedValue([] as any);
     mockPrisma.oddsSnapshot.findMany.mockResolvedValue([] as any);
@@ -151,7 +154,10 @@ describe('BookmakerAnalyticsService', () => {
   });
 
   it('uptimePercentage is always null — no uptime data source', async () => {
-    mockPrisma.currentOdds.findMany.mockResolvedValue([] as any);
+    // Need at least one odds row to pass the "bookmaker not found" guard
+    mockPrisma.currentOdds.findMany.mockResolvedValue([
+      { gameId: 'g1', marketType: 'h2h', homePrice: -110, homeSpread: null, totalLine: null, game: { sport: { key: 'basketball_nba' } } },
+    ] as any);
     mockPrisma.marketConsensus.findMany.mockResolvedValue([] as any);
     mockPrisma.bookmakerMovementEvent.findMany.mockResolvedValue([] as any);
     // Even with rich snapshot data, uptimePercentage stays null
