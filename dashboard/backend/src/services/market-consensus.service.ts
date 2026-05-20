@@ -786,8 +786,21 @@ export class MarketConsensusService {
   }> {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+    // Scope to games this bookmaker has offered odds on, so the scan doesn't grow
+    // with total platform volume as data accumulates.
+    const participatingGameIds = await prisma.currentOdds
+      .findMany({
+        where: { bookmaker },
+        select: { gameId: true },
+        distinct: ['gameId'],
+      })
+      .then((rows) => rows.map((r) => r.gameId));
+
     const records = await prisma.marketConsensus.findMany({
-      where: { calculatedAt: { gte: since } },
+      where: {
+        calculatedAt: { gte: since },
+        gameId: { in: participatingGameIds },
+      },
       select: { outlierBookmakers: true },
     });
 

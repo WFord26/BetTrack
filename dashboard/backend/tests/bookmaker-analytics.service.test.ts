@@ -130,7 +130,57 @@ describe('BookmakerAnalyticsService', () => {
     expect(result.limitProfile).toBe('medium');
     expect(result.totalGamesOffered).toBe(2);
     expect(result.totalMarketsOffered).toBe(2);
+    // recommendationScore is computable when all primary inputs are present
+    expect(result.recommendationScore).not.toBeNull();
     expect(result.recommendationScore).toBeGreaterThan(1);
+    // averageCLVOffered is null until BetLeg.bookmaker column lands (Phase D)
+    expect(result.averageCLVOffered).toBeNull();
+    // uptimePercentage is null — no data source yet
+    expect(result.uptimePercentage).toBeNull();
+  });
+
+  it('averageCLVOffered is null when no BetLeg.bookmaker data exists', async () => {
+    mockPrisma.currentOdds.findMany.mockResolvedValue([] as any);
+    mockPrisma.marketConsensus.findMany.mockResolvedValue([] as any);
+    mockPrisma.bookmakerMovementEvent.findMany.mockResolvedValue([] as any);
+    mockPrisma.oddsSnapshot.findMany.mockResolvedValue([] as any);
+    mockPrisma.bookmakerAnalytics.upsert.mockImplementation(async ({ create }: any) => ({ id: 'x', ...create }));
+
+    const result = await service.calculateBookmakerMetrics('draftkings');
+    expect(result.averageCLVOffered).toBeNull();
+  });
+
+  it('uptimePercentage is always null — no uptime data source', async () => {
+    mockPrisma.currentOdds.findMany.mockResolvedValue([] as any);
+    mockPrisma.marketConsensus.findMany.mockResolvedValue([] as any);
+    mockPrisma.bookmakerMovementEvent.findMany.mockResolvedValue([] as any);
+    // Even with rich snapshot data, uptimePercentage stays null
+    mockPrisma.oddsSnapshot.findMany.mockResolvedValue([
+      { capturedAt: new Date('2026-05-14T10:00:00.000Z') },
+      { capturedAt: new Date('2026-05-14T10:30:00.000Z') },
+    ] as any);
+    mockPrisma.bookmakerAnalytics.upsert.mockImplementation(async ({ create }: any) => ({ id: 'x', ...create }));
+
+    const result = await service.calculateBookmakerMetrics('draftkings');
+    expect(result.uptimePercentage).toBeNull();
+  });
+
+  it('recommendationScore is computed when all weighted inputs are present', async () => {
+    mockPrisma.currentOdds.findMany.mockResolvedValue([
+      { gameId: 'g1', marketType: 'h2h', homePrice: -110, homeSpread: null, totalLine: null, game: { sport: { key: 'basketball_nba' } } },
+    ] as any);
+    mockPrisma.marketConsensus.findMany.mockResolvedValue([
+      { gameId: 'g1', marketType: 'h2h', bestValueBookmaker: 'draftkings', outlierBookmakers: [], consensusLine: -110 },
+    ] as any);
+    mockPrisma.bookmakerMovementEvent.findMany.mockResolvedValue([
+      { firstMover: 'draftkings', followers: [] },
+    ] as any);
+    mockPrisma.oddsSnapshot.findMany.mockResolvedValue([] as any);
+    mockPrisma.bookmakerAnalytics.upsert.mockImplementation(async ({ create }: any) => ({ id: 'x', ...create }));
+
+    const result = await service.calculateBookmakerMetrics('draftkings');
+    expect(result.recommendationScore).not.toBeNull();
+    expect(typeof result.recommendationScore).toBe('number');
   });
 
   it('ranks bookmakers by requested criteria and defaults to recommendation', async () => {
