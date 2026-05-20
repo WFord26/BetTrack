@@ -4,6 +4,7 @@ import { NHLStatsService } from './api-sports/nhl.service';
 import { NCAABService } from './api-sports/ncaab.service';
 import { NCAAFService } from './api-sports/ncaaf.service';
 import { SoccerService } from './api-sports/soccer.service';
+import { MLBStatsService } from './api-sports/mlb.service';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 
@@ -20,6 +21,7 @@ export class StatsSyncService {
   private ncaabService?: NCAABService;
   private ncaafService?: NCAAFService;
   private soccerService?: SoccerService;
+  private mlbService?: MLBStatsService;
 
   constructor() {
     // Only initialize services if API key is available
@@ -31,7 +33,8 @@ export class StatsSyncService {
         this.ncaabService = new NCAABService();
         this.ncaafService = new NCAAFService();
         this.soccerService = new SoccerService();
-        logger.info('Stats services initialized for NFL, NBA, NHL, NCAAB, NCAAF, and Soccer');
+        this.mlbService = new MLBStatsService();
+        logger.info('Stats services initialized for NFL, NBA, NHL, NCAAB, NCAAF, Soccer, and MLB');
       } catch (error) {
         logger.warn('Failed to initialize stats services, stats sync disabled');
       }
@@ -174,6 +177,26 @@ export class StatsSyncService {
         }
       }
 
+      // Fetch and sync MLB live games
+      if (this.mlbService) {
+        const mlbGames = await this.mlbService.getLiveGames();
+
+        for (const gameId of mlbGames) {
+          result.gamesProcessed++;
+
+          try {
+            await this.mlbService.syncGameStats(gameId);
+            result.gamesUpdated++;
+          } catch (error) {
+            const errorMsg = `Failed to sync MLB game ${gameId}: ${error}`;
+            logger.error(errorMsg);
+            result.errors.push(errorMsg);
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
       logger.info(`Stats sync completed: ${result.gamesUpdated}/${result.gamesProcessed} games updated`);
     } catch (error) {
       const errorMsg = `Stats sync failed: ${error}`;
@@ -267,6 +290,15 @@ export class StatsSyncService {
       } catch (error) {
         logger.error(`NCAAB team sync failed: ${error}`);
         results['basketball_ncaab'] = 0;
+      }
+    }
+
+    if (this.mlbService) {
+      try {
+        results['baseball_mlb'] = await this.mlbService.syncTeams(currentYear - 2);
+      } catch (error) {
+        logger.error(`MLB team sync failed: ${error}`);
+        results['baseball_mlb'] = 0;
       }
     }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 interface TeamStatsViewProps {
   league: string;
@@ -31,18 +32,11 @@ export default function TeamStatsView({ league, teamName, season }: TeamStatsVie
       setError(null);
       
       try {
-        const params = new URLSearchParams();
-        if (season) params.append('season', season.toString());
-        params.append('location', location);
-        
-        const response = await fetch(`/api/stats/teams/${encodeURIComponent(league)}/${encodeURIComponent(teamName)}?${params.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch team stats: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        setData(result.data);
+        const params: Record<string, string> = { location };
+        if (season) params.season = season.toString();
+
+        const response = await api.get(`/stats/teams/${encodeURIComponent(league)}/${encodeURIComponent(teamName)}`, { params });
+        setData(response.data.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {

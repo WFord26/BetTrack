@@ -45,6 +45,7 @@ export default function BoxScore({ homeTeam, awayTeam, homeScores, awayScores }:
                       src={awayTeam.logoUrl} 
                       alt={awayTeam.name}
                       className="w-8 h-8 object-contain"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   )}
                   <div>
@@ -73,6 +74,7 @@ export default function BoxScore({ homeTeam, awayTeam, homeScores, awayScores }:
                       src={homeTeam.logoUrl} 
                       alt={homeTeam.name}
                       className="w-8 h-8 object-contain"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   )}
                   <div>
