@@ -189,6 +189,18 @@ describe('BookmakerAnalyticsService', () => {
     expect(typeof result.recommendationScore).toBe('number');
   });
 
+  it('throws BOOKMAKER_NOT_FOUND when the bookmaker has no currentOdds rows', async () => {
+    mockPrisma.currentOdds.findMany.mockResolvedValue([] as any);
+
+    await expect(service.calculateBookmakerMetrics('ghostbook')).rejects.toMatchObject({
+      message: 'bookmaker not found',
+      code: 'BOOKMAKER_NOT_FOUND',
+    });
+
+    // Must not have attempted to write any analytics row
+    expect(mockPrisma.bookmakerAnalytics.upsert).not.toHaveBeenCalled();
+  });
+
   it('ranks bookmakers by requested criteria and defaults to recommendation', async () => {
     mockPrisma.bookmakerAnalytics.findMany.mockResolvedValue([] as any);
 

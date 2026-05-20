@@ -277,17 +277,7 @@ export class BookmakerAnalyticsService {
       ? Math.max(0, Math.round((now.getTime() - latestSnapshot.getTime()) / 1000))
       : 0;
 
-    const averageCLVOfferedRaw = await prisma.betLeg.aggregate({
-      where: {
-        bookmaker: normalizedBookmaker,
-        clv: { not: null },
-      },
-      _avg: { clv: true },
-    });
-    const averageCLVOffered: number | null =
-      averageCLVOfferedRaw._avg.clv != null
-        ? parseFloat(averageCLVOfferedRaw._avg.clv.toString())
-        : null;
+    const averageCLVOffered = null; // TODO(betleg-bookmaker): populate from BetLeg.bookmaker once Phase D lands
 
     const limitProfile =
       sharpBookRating >= this.SHARP_RATING_HIGH_THRESHOLD
