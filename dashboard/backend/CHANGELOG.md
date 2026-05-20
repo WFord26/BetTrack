@@ -30,6 +30,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `prisma/migrations/20260514000002_add_bookmaker_analytics_phase2/migration.sql`: Creates `bookmaker_analytics` and `bookmaker_movement_events` tables, indexes, and FK constraints.
   - `src/services/bookmaker-analytics.service.ts`: New `BookmakerAnalyticsService` with `calculateBookmakerMetrics(bookmaker)` and `rankBookmakers(criteria)` methods.
   - `tests/bookmaker-analytics.service.test.ts`: Added unit tests for metric calculation/upsert behavior and criteria-based ranking.
+- **Bookmaker Analytics — Phase 2 Closeout** (Option C):
+  - `prisma/schema.prisma`: Made `averageCLVOffered`, `uptimePercentage`, `recommendationScore` nullable in `BookmakerAnalytics`; added `bookmaker` (`VARCHAR(50)`) and index to `BetLeg`.
+  - `prisma/migrations/20260520033152_bookmaker_analytics_nullable_metrics`: Drops NOT NULL on 3 `bookmaker_analytics` columns.
+  - `prisma/migrations/20260520033943_add_betleg_bookmaker`: Adds `bookmaker` column and `bet_legs_bookmaker_idx` index.
+  - `src/services/bookmaker-analytics.service.ts`: `averageCLVOffered` now computed from `BetLeg.aggregate` (null when no CLV rows exist); `uptimePercentage` remains null (no source); `recommendationScore` null when inputs missing; added `runBatchCalculation()`.
+  - `src/jobs/bookmaker-analytics.job.ts`: New daily cron (02:00 UTC) with staleness guard — runs immediately on startup if table is empty or >48 h stale.
+  - `src/server.ts`: Registers `startBookmakerAnalyticsJob()` at startup.
+  - `src/routes/analytics-bookmaker.routes.ts`: Fully rewritten — `/:bookmaker` reads persisted row (404 if not yet computed); added `/sharp`, `/compare`, `/best-value/:sport`, `/movement/:bookmaker` endpoints.
+  - `src/routes/bets.routes.ts`: Added optional `bookmaker` field (max 50 chars) to `createBetLegSchema`.
+  - `src/services/clv.service.ts`: `groupByBookmaker()` now prefers `leg.bookmaker` field over name-extraction heuristic for legacy rows.
+  - `docs/api/openapi-internal.yaml`: Added all 7 `/api/analytics/bookmakers/*` endpoint definitions and `BookmakerAnalytics` schema.
+  - `tests/bookmaker-analytics.service.test.ts`: Updated mocks for DB-scoped consensus query; added `betLeg.aggregate` mock.
+  - `tests/analytics-bookmaker.routes.test.ts`: New — 15 integration tests for all 7 endpoints including 404 path.
+  - `tests/jobs/bookmaker-analytics.job.test.ts`: New — 3 smoke tests for batch processing and error isolation.
 
 ---
 

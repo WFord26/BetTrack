@@ -355,7 +355,7 @@ model BookmakerAnalytics {
   bookmaker           String   @unique @db.VarChar(50)
 
   // Odds quality metrics
-  averageCLVOffered   Decimal  @map("average_clv_offered") @db.Decimal(5, 2)
+  averageCLVOffered   Decimal? @map("average_clv_offered") @db.Decimal(5, 2)
   bestOddsFrequency   Decimal  @map("best_odds_frequency") @db.Decimal(5, 2)
   marginVsConsensus   Decimal  @map("margin_vs_consensus") @db.Decimal(5, 2)
   outlierFrequency    Decimal  @map("outlier_frequency") @db.Decimal(5, 2)
@@ -369,7 +369,7 @@ model BookmakerAnalytics {
   // Coverage & reliability
   sportsCovered       String[] @map("sports_covered")
   marketsCovered      String[] @map("markets_covered")
-  uptimePercentage    Decimal  @map("uptime_percentage") @db.Decimal(5, 2)
+  uptimePercentage    Decimal? @map("uptime_percentage") @db.Decimal(5, 2)
   oddsUpdateFrequency Int      @map("odds_update_frequency")
   averageOddsAge      Int      @map("average_odds_age")
 
@@ -386,7 +386,7 @@ model BookmakerAnalytics {
   // Reputation
   userRating          Decimal? @map("user_rating") @db.Decimal(3, 2)
   userReviewCount     Int      @default(0) @map("user_review_count")
-  recommendationScore Int      @map("recommendation_score")
+  recommendationScore Int?     @map("recommendation_score")
 
   // Metadata
   calculatedAt        DateTime @default(now()) @map("calculated_at") @db.Timestamptz(6)
@@ -482,6 +482,7 @@ model BetLeg {
   closingOdds        Int?     @map("closing_odds") // Odds captured at game start (5 min before)
   clv                Decimal? @db.Decimal(5, 2) // Closing Line Value percentage
   clvCategory        String?  @map("clv_category") @db.VarChar(20) // positive/negative/neutral
+  bookmaker          String?  @db.VarChar(50) // Book the leg was placed at; required for per-book CLV
   status             String   @default("pending") @db.VarChar(20)
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -489,6 +490,7 @@ model BetLeg {
   game               Game     @relation(fields: [gameId], references: [id])
 
   @@index([gameId])
+  @@index([bookmaker])
   @@map("bet_legs")
 }
 

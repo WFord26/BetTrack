@@ -11,6 +11,7 @@ import { initializeCleanupJob } from './jobs/cleanup-old-records.job';
 import { startConsensusCalcJob } from './jobs/consensus-calc.job';
 import { initLineMovementJob } from './jobs/line-movement.job';
 import { startSharpIndicatorJob } from './jobs/sharp-indicator.job';
+import { startBookmakerAnalyticsJob } from './jobs/bookmaker-analytics.job';
 
 const PORT = parseInt(env.PORT, 10);
 
@@ -40,6 +41,7 @@ async function startServer() {
       startConsensusCalcJob();
       initLineMovementJob(prisma);
       startSharpIndicatorJob();
+      startBookmakerAnalyticsJob();
       logger.info('✅ Scheduled jobs started');
     } catch (error) {
       logger.error('Failed to start scheduled jobs:', error);

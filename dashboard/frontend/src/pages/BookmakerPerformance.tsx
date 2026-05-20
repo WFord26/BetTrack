@@ -48,13 +48,15 @@ function formatBookmakerName(key: string): string {
   return displayNames[key.toLowerCase()] ?? key.charAt(0).toUpperCase() + key.slice(1);
 }
 
-function scoreColor(score: number, isDark: boolean): string {
+function scoreColor(score: number | null, isDark: boolean): string {
+  if (score == null) return isDark ? 'text-gray-400' : 'text-gray-500';
   if (score >= 75) return isDark ? 'text-green-400' : 'text-green-600';
   if (score >= 50) return isDark ? 'text-yellow-400' : 'text-yellow-600';
   return isDark ? 'text-red-400' : 'text-red-500';
 }
 
-function scoreBadge(score: number, isDark: boolean): string {
+function scoreBadge(score: number | null, isDark: boolean): string {
+  if (score == null) return isDark ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-gray-100 text-gray-500 border-gray-300';
   if (score >= 75) return isDark ? 'bg-green-900/50 text-green-300 border-green-700' : 'bg-green-50 text-green-700 border-green-200';
   if (score >= 50) return isDark ? 'bg-yellow-900/50 text-yellow-300 border-yellow-700' : 'bg-yellow-50 text-yellow-700 border-yellow-200';
   return isDark ? 'bg-red-900/50 text-red-300 border-red-700' : 'bg-red-50 text-red-700 border-red-200';
@@ -151,7 +153,7 @@ function RankingRow({
           <div>
             <p className={`text-xs ${textSecondary}`}>Score</p>
             <p className={`text-sm font-bold ${scoreColor(bm.recommendationScore, isDarkMode)}`}>
-              {Math.round(bm.recommendationScore)}
+              {bm.recommendationScore != null ? Math.round(bm.recommendationScore) : '—'}
             </p>
           </div>
           <div>
@@ -170,7 +172,7 @@ function RankingRow({
 
         {/* Recommendation score pill */}
         <div className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded border ${scoreBadge(bm.recommendationScore, isDarkMode)}`}>
-          {Math.round(bm.recommendationScore)}/100
+          {bm.recommendationScore != null ? `${Math.round(bm.recommendationScore)}/100` : '—'}
         </div>
 
         {/* Chevron */}
@@ -240,7 +242,7 @@ function DetailPanel({
           </div>
           <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
             <span className={`text-sm font-bold px-2 py-1 rounded border ${scoreBadge(bm.recommendationScore, isDarkMode)}`}>
-              {Math.round(bm.recommendationScore)}/100 score
+              {bm.recommendationScore != null ? `${Math.round(bm.recommendationScore)}/100 score` : '— score'}
             </span>
             <span className={`text-sm px-2 py-1 rounded border font-medium ${limitBadge(bm.limitProfile, isDarkMode)}`}>
               {bm.limitProfile.charAt(0).toUpperCase() + bm.limitProfile.slice(1)} limits · ~${bm.estimatedMaxBet.toLocaleString()} max
@@ -443,7 +445,7 @@ export default function BookmakerPerformance() {
 
   const totalBooks = rankings.length;
   const avgScore = totalBooks > 0
-    ? Math.round(rankings.reduce((sum, b) => sum + b.recommendationScore, 0) / totalBooks)
+    ? Math.round(rankings.reduce((sum, b) => sum + (b.recommendationScore ?? 0), 0) / totalBooks)
     : 0;
   const highLimitCount = rankings.filter(b => b.limitProfile === 'high').length;
 

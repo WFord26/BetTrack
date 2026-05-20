@@ -33,7 +33,8 @@ const createBetLegSchema = z.object({
   line: z.number().optional(),
   odds: z.number(),
   userAdjustedLine: z.number().optional(),
-  userAdjustedOdds: z.number().optional()
+  userAdjustedOdds: z.number().optional(),
+  bookmaker: z.string().max(50).optional()
 });
 
 const createFutureLegSchema = z.object({

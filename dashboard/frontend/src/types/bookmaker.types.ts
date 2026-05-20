@@ -21,17 +21,17 @@ export interface BookmakerAnalytics {
   firstMoverFrequency: number; // percentage of movement events where this book moved first
   lineMovementLag: number; // seconds behind the first mover on average
   marketEfficiency: number; // 0–100 score
-  uptimePercentage: number; // 0–100
+  uptimePercentage: number | null; // 0–100; null until uptime tracking is implemented
   oddsUpdateFrequency: number; // seconds between updates on average
   averageOddsAge: number; // seconds since last update
   limitProfile: LimitProfile;
   estimatedMaxBet: number;
-  recommendationScore: number; // 0–100
+  recommendationScore: number | null; // 0–100; null when any weighted input is unavailable
   sportsCovered: string[];
   marketsCovered: string[];
   totalGamesOffered: number;
   totalMarketsOffered: number;
-  averageCLVOffered?: number;
+  averageCLVOffered?: number | null;
   calculatedAt?: string; // ISO datetime
   updatedAt?: string; // ISO datetime
 }

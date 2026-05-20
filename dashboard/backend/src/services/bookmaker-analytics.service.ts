@@ -32,10 +32,6 @@ function toDecimal(value: number): Decimal {
   return new Decimal(round2(value).toString());
 }
 
-function snapshotHourKey(timestamp: Date): string {
-  return timestamp.toISOString().slice(0, 13);
-}
-
 function getComparableLine(odds: CurrentOdds, consensus: MarketConsensus): number | null {
   if (odds.marketType === 'h2h') {
     return odds.homePrice ?? null;
@@ -86,29 +82,41 @@ export class BookmakerAnalyticsService {
     const now = new Date();
     const cutoff = new Date(now.getTime() - this.LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
 
-    const [currentOdds, consensusRows, movementEvents, snapshots] = await Promise.all([
-      prisma.currentOdds.findMany({
-        where: {
-          bookmaker: normalizedBookmaker,
-          game: {
-            commenceTime: { gte: cutoff },
-          },
+    // Phase 1: fetch this bookmaker's current odds; guard against unknown bookmakers
+    const currentOdds = await prisma.currentOdds.findMany({
+      where: {
+        bookmaker: normalizedBookmaker,
+        game: {
+          commenceTime: { gte: cutoff },
         },
-        include: {
-          game: {
-            select: {
-              sport: {
-                select: {
-                  key: true,
-                },
+      },
+      include: {
+        game: {
+          select: {
+            sport: {
+              select: {
+                key: true,
               },
             },
           },
         },
-      }),
+      },
+    });
+
+    if (currentOdds.length === 0) {
+      throw Object.assign(new Error('bookmaker not found'), { code: 'BOOKMAKER_NOT_FOUND' });
+    }
+
+    // Phase 2: scope consensus and supporting data to this bookmaker's game IDs at the DB layer
+    const gameIds = Array.from(new Set(currentOdds.map((row) => row.gameId)));
+    const offeredMarketTypes = Array.from(new Set(currentOdds.map((row) => row.marketType)));
+
+    const [consensusRows, movementEvents, snapshots] = await Promise.all([
       prisma.marketConsensus.findMany({
         where: {
           calculatedAt: { gte: cutoff },
+          gameId: { in: gameIds },
+          marketType: { in: offeredMarketTypes },
         },
         orderBy: {
           calculatedAt: 'desc',
@@ -130,10 +138,8 @@ export class BookmakerAnalyticsService {
       }),
     ]);
 
-    const offeredKeys = new Set(currentOdds.map((row) => `${row.gameId}:${row.marketType}`));
-    const eligibleConsensus = consensusRows.filter((row) =>
-      offeredKeys.has(`${row.gameId}:${row.marketType}`)
-    );
+    // consensusRows are already scoped to this bookmaker's games and market types
+    const eligibleConsensus = consensusRows;
 
     const bestOddsHits = eligibleConsensus.filter(
       (row) => row.bestValueBookmaker.toLowerCase() === normalizedBookmaker
@@ -249,16 +255,7 @@ export class BookmakerAnalyticsService {
       )
     );
 
-    const snapshotHourKeys = snapshots.map((snapshot) =>
-      snapshotHourKey(snapshot.capturedAt)
-    );
-    const snapshotHours = new Set(snapshotHourKeys).size;
-    const earliestSnapshot = snapshots[0]?.capturedAt;
-    const spanHours = earliestSnapshot
-      ? Math.max(1, Math.ceil((now.getTime() - earliestSnapshot.getTime()) / (60 * 60 * 1000)))
-      : 1;
-
-    const uptimePercentage = snapshots.length > 0 ? (snapshotHours / spanHours) * 100 : 0;
+    const uptimePercentage: number | null = null; // TODO(uptime-tracking): no data source yet; fill via user-submitted reports in a future phase
 
     const updateDiffs: number[] = [];
     for (let i = 1; i < snapshots.length; i++) {
@@ -280,7 +277,17 @@ export class BookmakerAnalyticsService {
       ? Math.max(0, Math.round((now.getTime() - latestSnapshot.getTime()) / 1000))
       : 0;
 
-    const averageCLVOffered = bestOddsFrequency - outlierFrequency;
+    const averageCLVOfferedRaw = await prisma.betLeg.aggregate({
+      where: {
+        bookmaker: normalizedBookmaker,
+        clv: { not: null },
+      },
+      _avg: { clv: true },
+    });
+    const averageCLVOffered: number | null =
+      averageCLVOfferedRaw._avg.clv != null
+        ? parseFloat(averageCLVOfferedRaw._avg.clv.toString())
+        : null;
 
     const limitProfile =
       sharpBookRating >= this.SHARP_RATING_HIGH_THRESHOLD
@@ -304,22 +311,26 @@ export class BookmakerAnalyticsService {
             100
           ))) /
       2;
-    const reliabilityScore = (uptimePercentage + marketEfficiency) / 2;
+    const reliabilityScore = (marketEfficiency) / 2; // uptimePercentage excluded until data source exists
     const coverageScore = clamp(
       (totalMarketsOffered / this.COVERAGE_MARKET_TARGET) * 100,
       0,
       100
     );
-    const recommendationScore = Math.round(
-      clamp(
-        valueScore * this.RECOMMENDATION_WEIGHTS.value +
-          reliabilityScore * this.RECOMMENDATION_WEIGHTS.reliability +
-          coverageScore * this.RECOMMENDATION_WEIGHTS.coverage +
-          sharpBookRating * 10 * this.RECOMMENDATION_WEIGHTS.sharpness,
-        1,
-        100
-      )
-    );
+    // recommendationScore is null when any weighted input is unavailable
+    const hasAllInputs = firstMoverFrequency !== null && bestOddsFrequency !== null && marketEfficiency !== null;
+    const recommendationScore: number | null = hasAllInputs
+      ? Math.round(
+          clamp(
+            valueScore * this.RECOMMENDATION_WEIGHTS.value +
+              reliabilityScore * this.RECOMMENDATION_WEIGHTS.reliability +
+              coverageScore * this.RECOMMENDATION_WEIGHTS.coverage +
+              sharpBookRating * 10 * this.RECOMMENDATION_WEIGHTS.sharpness,
+            1,
+            100
+          )
+        )
+      : null;
 
     const analytics = await prisma.bookmakerAnalytics.upsert({
       where: {
@@ -327,7 +338,7 @@ export class BookmakerAnalyticsService {
       },
       create: {
         bookmaker: normalizedBookmaker,
-        averageCLVOffered: toDecimal(averageCLVOffered),
+        averageCLVOffered: averageCLVOffered,
         bestOddsFrequency: toDecimal(bestOddsFrequency),
         marginVsConsensus: toDecimal(marginVsConsensus),
         outlierFrequency: toDecimal(outlierFrequency),
@@ -337,7 +348,7 @@ export class BookmakerAnalyticsService {
         marketEfficiency: toDecimal(marketEfficiency),
         sportsCovered,
         marketsCovered,
-        uptimePercentage: toDecimal(uptimePercentage),
+        uptimePercentage: uptimePercentage,
         oddsUpdateFrequency,
         averageOddsAge,
         limitProfile,
@@ -351,7 +362,7 @@ export class BookmakerAnalyticsService {
         recommendationScore,
       },
       update: {
-        averageCLVOffered: toDecimal(averageCLVOffered),
+        averageCLVOffered: averageCLVOffered,
         bestOddsFrequency: toDecimal(bestOddsFrequency),
         marginVsConsensus: toDecimal(marginVsConsensus),
         outlierFrequency: toDecimal(outlierFrequency),
@@ -361,7 +372,7 @@ export class BookmakerAnalyticsService {
         marketEfficiency: toDecimal(marketEfficiency),
         sportsCovered,
         marketsCovered,
-        uptimePercentage: toDecimal(uptimePercentage),
+        uptimePercentage: uptimePercentage,
         oddsUpdateFrequency,
         averageOddsAge,
         limitProfile,
@@ -379,6 +390,25 @@ export class BookmakerAnalyticsService {
     );
 
     return analytics;
+  }
+
+  async runBatchCalculation(): Promise<{ bookmakersProcessed: number; errors: string[] }> {
+    const errors: string[] = [];
+    const rows = await prisma.currentOdds.findMany({
+      select: { bookmaker: true },
+      distinct: ['bookmaker'],
+    });
+    const bookmakers = rows.map((r) => r.bookmaker).filter(Boolean);
+
+    for (const bookmaker of bookmakers) {
+      try {
+        await this.calculateBookmakerMetrics(bookmaker);
+      } catch (e) {
+        errors.push(`${bookmaker}: ${(e as Error).message}`);
+      }
+    }
+
+    return { bookmakersProcessed: bookmakers.length, errors };
   }
 
   async rankBookmakers(criteria: string): Promise<BookmakerAnalytics[]> {
