@@ -45,7 +45,7 @@ export class EspnWeatherService {
     }
 
     // Only fetch weather for outdoor sports
-    const outdoorSports = ['americanfootball_nfl', 'baseball_mlb'];
+    const outdoorSports = ['americanfootball_nfl', 'americanfootball_ncaaf', 'baseball_mlb'];
     if (!outdoorSports.includes(sportKey)) {
       return null;
     }

@@ -2,6 +2,7 @@ import { ApiSportsClient } from './client';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../../config/logger';
 import { env } from '../../config/env';
+import { upsertApiSportsGame } from './game-resolver';
 
 const prisma = new PrismaClient();
 
@@ -72,6 +73,7 @@ export class MLBStatsService {
     this.client = new ApiSportsClient({
       apiKey: env.API_SPORTS_KEY,
       sport: 'baseball',
+      tier: env.API_SPORTS_TIER,
     });
   }
 
@@ -291,12 +293,6 @@ export class MLBStatsService {
   }
 
   private async upsertGameFromApi(gameData: MLBGame): Promise<string | null> {
-    const sportId = await this.getMlbSportId();
-    if (!sportId) {
-      logger.warn('Sport "baseball_mlb" not found while upserting MLB game');
-      return null;
-    }
-
     const homeTeam = await this.resolveTeamReference(gameData.teams.home);
     const awayTeam = await this.resolveTeamReference(gameData.teams.away);
 
@@ -311,48 +307,26 @@ export class MLBStatsService {
       return null;
     }
 
-    const game = await prisma.game.upsert({
-      where: { externalId: gameData.id.toString() },
-      update: {
-        sportId,
-        homeTeamId: homeTeam?.id,
-        awayTeamId: awayTeam?.id,
-        homeTeamName: gameData.teams.home.name,
-        awayTeamName: gameData.teams.away.name,
-        commenceTime,
-        apiSportsGameId: gameData.id.toString(),
-        apiSportsLeagueId: 1,
-        season: seasonValue,
-        seasonType: 'regular',
-        status: this.mapApiStatusToLocal(gameData.status),
-        homeScore: gameData.scores.home.total,
-        awayScore: gameData.scores.away.total,
-      },
-      create: {
-        externalId: gameData.id.toString(),
-        sportId,
-        homeTeamId: homeTeam?.id,
-        awayTeamId: awayTeam?.id,
-        homeTeamName: gameData.teams.home.name,
-        awayTeamName: gameData.teams.away.name,
-        commenceTime,
-        apiSportsGameId: gameData.id.toString(),
-        apiSportsLeagueId: 1,
-        season: seasonValue,
-        seasonType: 'regular',
-        status: this.mapApiStatusToLocal(gameData.status),
-        homeScore: gameData.scores.home.total,
-        awayScore: gameData.scores.away.total,
-      },
+    return upsertApiSportsGame({
+      sportKey: 'baseball_mlb',
+      apiSportsGameId: gameData.id.toString(),
+      apiSportsLeagueId: 1,
+      homeTeamName: gameData.teams.home.name,
+      awayTeamName: gameData.teams.away.name,
+      homeTeamId: homeTeam?.id,
+      awayTeamId: awayTeam?.id,
+      commenceTime,
+      season: seasonValue,
+      status: this.mapApiStatusToLocal(gameData.status),
+      homeScore: gameData.scores.home.total,
+      awayScore: gameData.scores.away.total,
     });
-
-    return game.id;
   }
 
   private async syncGameStatsFromGame(gameData: MLBGame): Promise<void> {
     const game = await prisma.game.findFirst({
       where: {
-        externalId: gameData.id.toString(),
+        apiSportsGameId: gameData.id.toString(),
         sport: { key: 'baseball_mlb' },
       },
     });

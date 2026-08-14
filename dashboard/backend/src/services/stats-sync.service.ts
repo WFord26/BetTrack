@@ -27,8 +27,22 @@ export interface MlbBackfillResult extends StatsSyncResult {
   pausedDueToQuota: boolean;
 }
 
+export interface FootballBackfillOptions {
+  minimumRemainingRequests?: number;
+  hoursBack?: number;
+  hoursForward?: number;
+}
+
+export interface FootballBackfillResult extends StatsSyncResult {
+  datesProcessed: number;
+  datesSkipped: number;
+  requestsRemaining?: number;
+  pausedDueToQuota: boolean;
+}
+
 export class StatsSyncService {
   private static mlbRangeSyncRunning = false;
+  private static footballRangeSyncRunning = false;
   private nflService?: NFLStatsService;
   private nbaService?: NBAStatsService;
   private nhlService?: NHLStatsService;
@@ -156,8 +170,8 @@ export class StatsSyncService {
         
         for (const game of ncaafGames) {
           result.gamesProcessed++;
-          const gameId = String(game.id);
-          
+          const gameId = String(game.game.id);
+
           try {
             await this.ncaafService.syncGameStats(gameId);
             await this.ncaafService.syncPlayerStats(gameId);
@@ -241,8 +255,9 @@ export class StatsSyncService {
           logger.warn('NCAAB team stats sync not yet implemented');
           break;
         case 'americanfootball_ncaaf':
-          // TODO: Implement NCAAF team stats sync
-          logger.warn('NCAAF team stats sync not yet implemented');
+          if (this.ncaafService) {
+            await this.ncaafService.syncTeamStats(teamId, season);
+          }
           break;
         case 'icehockey_nhl':
           // TODO: Implement NHL team stats sync
@@ -316,6 +331,15 @@ export class StatsSyncService {
       } catch (error) {
         logger.error(`MLB team sync failed: ${error}`);
         results['baseball_mlb'] = 0;
+      }
+    }
+
+    if (this.ncaafService) {
+      try {
+        results['americanfootball_ncaaf'] = await this.ncaafService.syncTeams(currentYear - 2);
+      } catch (error) {
+        logger.error(`NCAAF team sync failed: ${error}`);
+        results['americanfootball_ncaaf'] = 0;
       }
     }
 
@@ -402,6 +426,107 @@ export class StatsSyncService {
 
     logger.info(
       `MLB range sync complete: dates=${result.datesProcessed}, games=${result.gamesProcessed}, updated=${result.gamesUpdated}, paused=${result.pausedDueToQuota}`
+    );
+
+    return result;
+  }
+
+  async syncFootballHourlyWindow(options?: FootballBackfillOptions): Promise<FootballBackfillResult> {
+    // Football games cluster Thu/Sat/Sun/Mon, so use a wider default window
+    // than MLB's daily cadence — this keeps a Sunday slate covered by a
+    // Monday-morning check even after a missed run.
+    const hoursBack = options?.hoursBack ?? 96;
+    const hoursForward = options?.hoursForward ?? 72;
+    const now = new Date();
+    const start = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
+    const end = new Date(now.getTime() + hoursForward * 60 * 60 * 1000);
+
+    return this.syncFootballDateRange(start, end, options);
+  }
+
+  private async syncFootballDateRange(
+    start: Date,
+    end: Date,
+    options?: FootballBackfillOptions
+  ): Promise<FootballBackfillResult> {
+    const result: FootballBackfillResult = {
+      gamesProcessed: 0,
+      gamesUpdated: 0,
+      errors: [],
+      datesProcessed: 0,
+      datesSkipped: 0,
+      pausedDueToQuota: false,
+    };
+
+    if (!env.API_SPORTS_KEY || (!this.nflService && !this.ncaafService)) {
+      result.errors.push('API_SPORTS_KEY not set or football services unavailable');
+      return result;
+    }
+
+    if (StatsSyncService.footballRangeSyncRunning) {
+      result.errors.push('Football range sync already in progress');
+      logger.warn('Skipping football range sync because another run is active');
+      return result;
+    }
+
+    const minimumRemainingRequests = options?.minimumRemainingRequests ?? 500;
+    const dates = this.getDateStringsInRange(start, end);
+
+    logger.info(
+      `Starting football range sync from ${dates[0]} to ${dates[dates.length - 1]} (${dates.length} days, min remaining=${minimumRemainingRequests})`
+    );
+
+    StatsSyncService.footballRangeSyncRunning = true;
+
+    try {
+      for (const date of dates) {
+        const nflQuotaOk = this.nflService?.hasSufficientQuota(minimumRemainingRequests) ?? true;
+        const ncaafQuotaOk = this.ncaafService?.hasSufficientQuota(minimumRemainingRequests) ?? true;
+
+        if (!nflQuotaOk || !ncaafQuotaOk) {
+          result.pausedDueToQuota = true;
+          result.requestsRemaining = this.nflService?.getRequestsRemaining() ?? this.ncaafService?.getRequestsRemaining();
+          result.datesSkipped += dates.length - result.datesProcessed;
+          logger.warn(
+            `Pausing football range sync due to low API quota. Remaining=${result.requestsRemaining}, required>=${minimumRemainingRequests}`
+          );
+          break;
+        }
+
+        if (this.nflService) {
+          try {
+            const dayResult = await this.nflService.syncGamesForDate(date, minimumRemainingRequests);
+            result.gamesProcessed += dayResult.processed;
+            result.gamesUpdated += dayResult.updated;
+            result.requestsRemaining = dayResult.requestsRemaining;
+          } catch (error) {
+            const errorMsg = `Failed NFL sync for ${date}: ${error}`;
+            logger.error(errorMsg);
+            result.errors.push(errorMsg);
+          }
+        }
+
+        if (this.ncaafService) {
+          try {
+            const dayResult = await this.ncaafService.syncGamesForDate(date, minimumRemainingRequests);
+            result.gamesProcessed += dayResult.processed;
+            result.gamesUpdated += dayResult.updated;
+            result.requestsRemaining = dayResult.requestsRemaining;
+          } catch (error) {
+            const errorMsg = `Failed NCAAF sync for ${date}: ${error}`;
+            logger.error(errorMsg);
+            result.errors.push(errorMsg);
+          }
+        }
+
+        result.datesProcessed++;
+      }
+    } finally {
+      StatsSyncService.footballRangeSyncRunning = false;
+    }
+
+    logger.info(
+      `Football range sync complete: dates=${result.datesProcessed}, games=${result.gamesProcessed}, updated=${result.gamesUpdated}, paused=${result.pausedDueToQuota}`
     );
 
     return result;

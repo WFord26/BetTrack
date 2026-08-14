@@ -233,7 +233,7 @@ export class OddsSyncService {
 
     // Fetch weather for outdoor games
     let weather: string | null = null;
-    const outdoorSports = ['americanfootball_nfl', 'baseball_mlb'];
+    const outdoorSports = ['americanfootball_nfl', 'americanfootball_ncaaf', 'baseball_mlb'];
     
     if (outdoorSports.includes(sportKey)) {
       try {

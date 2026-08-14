@@ -8,6 +8,8 @@ import { outcomeResolverService } from '../services/outcome-resolver.service';
 import { StatsSyncService } from '../services/stats-sync.service';
 import { getOddsSyncStatus } from '../jobs/sync-odds.job';
 import { getMlbHourlySyncStatus } from '../jobs/mlb-hourly-sync.job';
+import { getFootballHourlySyncStatus } from '../jobs/football-hourly-sync.job';
+import { env } from '../config/env';
 import { requireAdminAccess } from '../middleware/session.auth';
 import { validateBody } from '../middleware/validation.middleware';
 
@@ -45,6 +47,11 @@ const initialMlbUiState: MlbSyncUiState = {
 let mlbSeedUiState: MlbSyncUiState = { ...initialMlbUiState };
 let mlbManualWindowUiState: MlbSyncUiState = { ...initialMlbUiState };
 
+// Football (NFL/NCAAF) sync UI state shares the same shape as MLB's.
+type FootballSyncUiState = MlbSyncUiState;
+const initialFootballUiState: FootballSyncUiState = { ...initialMlbUiState };
+let footballManualWindowUiState: FootballSyncUiState = { ...initialFootballUiState };
+
 // ============================================================================
 // VALIDATION SCHEMAS
 // ============================================================================
@@ -66,6 +73,7 @@ const siteConfigSchema = z.object({
 // Sports data for initialization
 const SPORTS = [
   { key: 'americanfootball_nfl', name: 'NFL', groupName: 'American Football', isActive: true },
+  { key: 'americanfootball_ncaaf', name: 'NCAAF', groupName: 'American Football', isActive: true },
   { key: 'basketball_nba', name: 'NBA', groupName: 'Basketball', isActive: true },
   { key: 'basketball_ncaab', name: 'NCAAB', groupName: 'Basketball', isActive: true },
   { key: 'icehockey_nhl', name: 'NHL', groupName: 'Ice Hockey', isActive: true },
@@ -435,6 +443,127 @@ router.get('/mlb-sync-status', async (_req: Request, res: Response) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to get MLB sync status',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/admin/sync-football-hourly-window
+ * Run the football (NFL/NCAAF) incremental window sync immediately.
+ * Runs in the background — responds immediately.
+ */
+router.post('/sync-football-hourly-window', async (_req: Request, res: Response) => {
+  try {
+    const minimumRemainingRequests = parseInt(env.API_SPORTS_MIN_REMAINING, 10) || 500;
+    const hoursBack = parseInt(env.FOOTBALL_SYNC_HOURS_BACK, 10) || 96;
+    const hoursForward = parseInt(env.FOOTBALL_SYNC_HOURS_FORWARD, 10) || 72;
+    const startedAt = new Date();
+
+    logger.info('Manually triggering football hourly window sync...');
+
+    footballManualWindowUiState = {
+      ...initialFootballUiState,
+      status: 'running',
+      startedAt: startedAt.toISOString(),
+    };
+
+    statsSyncService.syncFootballHourlyWindow({
+      minimumRemainingRequests,
+      hoursBack,
+      hoursForward,
+    }).then((result) => {
+      const endedAt = new Date();
+
+      footballManualWindowUiState = {
+        status: result.errors.length > 0 ? 'failed' : 'completed',
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        summary: {
+          datesProcessed: result.datesProcessed,
+          datesSkipped: result.datesSkipped,
+          gamesProcessed: result.gamesProcessed,
+          gamesUpdated: result.gamesUpdated,
+          requestsRemaining: result.requestsRemaining,
+          pausedDueToQuota: result.pausedDueToQuota,
+          errors: result.errors.length,
+        },
+        error: result.errors.length > 0 ? result.errors[0] : null,
+      };
+
+      logger.info('Background football hourly window sync complete', result);
+    }).catch(error => {
+      const endedAt = new Date();
+      footballManualWindowUiState = {
+        status: 'failed',
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        summary: null,
+        error: String(error),
+      };
+      logger.error('Background football hourly window sync failed:', error);
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Football hourly window sync started in background. Check logs for progress.',
+      data: {
+        minimumRemainingRequests,
+        hoursBack,
+        hoursForward,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Failed to start football hourly window sync:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to start football hourly window sync',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/admin/football-sync-status
+ * Lightweight sync status object for UI polling.
+ */
+router.get('/football-sync-status', async (_req: Request, res: Response) => {
+  try {
+    const hourlyStatus = getFootballHourlySyncStatus();
+    const hourlyLastRun = hourlyStatus.lastRunTime instanceof Date
+      ? hourlyStatus.lastRunTime.toISOString()
+      : null;
+    const hourlySummary = hourlyStatus.lastResult
+      ? {
+          datesProcessed: hourlyStatus.lastResult.datesProcessed ?? 0,
+          datesSkipped: hourlyStatus.lastResult.datesSkipped ?? 0,
+          gamesProcessed: hourlyStatus.lastResult.gamesProcessed ?? 0,
+          gamesUpdated: hourlyStatus.lastResult.gamesUpdated ?? 0,
+          requestsRemaining: hourlyStatus.lastResult.requestsRemaining,
+          pausedDueToQuota: !!hourlyStatus.lastResult.pausedDueToQuota,
+          errors: Array.isArray(hourlyStatus.lastResult.errors) ? hourlyStatus.lastResult.errors.length : 0,
+        }
+      : null;
+
+    res.json({
+      status: 'success',
+      data: {
+        manualWindow: footballManualWindowUiState,
+        hourlyJob: {
+          status: hourlyStatus.isRunning ? 'running' : 'idle',
+          cronExpression: hourlyStatus.cronExpression,
+          lastRunTime: hourlyLastRun,
+          summary: hourlySummary,
+        },
+      },
+    });
+  } catch (error: any) {
+    logger.error('Failed to get football sync status:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get football sync status',
       error: error.message,
     });
   }

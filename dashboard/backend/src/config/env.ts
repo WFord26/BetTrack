@@ -52,6 +52,9 @@ const envSchema = z.object({
   MLB_SYNC_CRON: z.string().default('0 * * * *'),
   MLB_SYNC_HOURS_BACK: z.string().default('48'),
   MLB_SYNC_HOURS_FORWARD: z.string().default('24'),
+  FOOTBALL_SYNC_CRON: z.string().default('0 * * * *'),
+  FOOTBALL_SYNC_HOURS_BACK: z.string().default('96'),
+  FOOTBALL_SYNC_HOURS_FORWARD: z.string().default('72'),
   ENABLE_WEBSOCKETS: z.string().default('false'),
   REDIS_URL: z.string().optional(),
   
