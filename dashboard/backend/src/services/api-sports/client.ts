@@ -4,7 +4,7 @@ import { logger } from '../../config/logger';
 
 interface ApiSportsConfig {
   apiKey: string;
-  sport: 'american-football' | 'basketball' | 'hockey' | 'baseball';
+  sport: 'american-football' | 'basketball' | 'hockey' | 'baseball' | 'football';
 }
 
 const BASE_URLS = {
@@ -12,12 +12,14 @@ const BASE_URLS = {
   'basketball': 'https://v1.basketball.api-sports.io',
   'hockey': 'https://v1.hockey.api-sports.io',
   'baseball': 'https://v1.baseball.api-sports.io',
+  'football': 'https://v3.football.api-sports.io',
 };
 
 export class ApiSportsClient {
   private client: AxiosInstance;
   private limiter: RateLimiter;
   private sport: string;
+  private lastRemainingRequests?: number;
 
   constructor(config: ApiSportsConfig) {
     this.sport = config.sport;
@@ -46,8 +48,13 @@ export class ApiSportsClient {
       const response = await this.client.get(endpoint, { params });
       
       // Log rate limit info if available
-      const remaining = response.headers['x-ratelimit-requests-remaining'];
-      if (remaining) {
+      const remainingHeader = response.headers['x-ratelimit-requests-remaining'];
+      const remaining = Array.isArray(remainingHeader)
+        ? parseInt(remainingHeader[0], 10)
+        : parseInt(String(remainingHeader), 10);
+
+      if (!Number.isNaN(remaining)) {
+        this.lastRemainingRequests = remaining;
         logger.debug(`API-Sports rate limit remaining: ${remaining}`);
       }
 
@@ -75,5 +82,17 @@ export class ApiSportsClient {
       
       throw error;
     }
+  }
+
+  getLastRemainingRequests(): number | undefined {
+    return this.lastRemainingRequests;
+  }
+
+  hasSufficientRemaining(minimumRemaining: number): boolean {
+    if (this.lastRemainingRequests === undefined) {
+      return true;
+    }
+
+    return this.lastRemainingRequests >= minimumRemaining;
   }
 }

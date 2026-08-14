@@ -7,11 +7,43 @@ import { futuresSyncService } from '../services/futures-sync.service';
 import { outcomeResolverService } from '../services/outcome-resolver.service';
 import { StatsSyncService } from '../services/stats-sync.service';
 import { getOddsSyncStatus } from '../jobs/sync-odds.job';
+import { getMlbHourlySyncStatus } from '../jobs/mlb-hourly-sync.job';
 import { requireAdminAccess } from '../middleware/session.auth';
 import { validateBody } from '../middleware/validation.middleware';
 
 const router = Router();
 const statsSyncService = new StatsSyncService();
+
+type SyncRunStatus = 'idle' | 'running' | 'completed' | 'failed';
+
+interface MlbSyncUiState {
+  status: SyncRunStatus;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationMs: number | null;
+  summary: {
+    datesProcessed: number;
+    datesSkipped: number;
+    gamesProcessed: number;
+    gamesUpdated: number;
+    requestsRemaining?: number;
+    pausedDueToQuota: boolean;
+    errors: number;
+  } | null;
+  error: string | null;
+}
+
+const initialMlbUiState: MlbSyncUiState = {
+  status: 'idle',
+  startedAt: null,
+  endedAt: null,
+  durationMs: null,
+  summary: null,
+  error: null,
+};
+
+let mlbSeedUiState: MlbSyncUiState = { ...initialMlbUiState };
+let mlbManualWindowUiState: MlbSyncUiState = { ...initialMlbUiState };
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -212,6 +244,197 @@ router.post('/sync-teams', async (_req: Request, res: Response) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to start team sync',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/admin/seed-mlb-stats
+ * Seed MLB season-to-date game/stat data from API-Sports into local DB.
+ * Runs in the background — responds immediately.
+ */
+router.post('/seed-mlb-stats', async (_req: Request, res: Response) => {
+  try {
+    const minimumRemainingRequests = parseInt(process.env.API_SPORTS_MIN_REMAINING || '500', 10);
+    const startedAt = new Date();
+
+    logger.info('Manually triggering MLB season-to-date seed...');
+
+    mlbSeedUiState = {
+      ...initialMlbUiState,
+      status: 'running',
+      startedAt: startedAt.toISOString(),
+    };
+
+    statsSyncService.seedMlbSeasonToDate({ minimumRemainingRequests }).then((result) => {
+      const endedAt = new Date();
+
+      mlbSeedUiState = {
+        status: result.errors.length > 0 ? 'failed' : 'completed',
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        summary: {
+          datesProcessed: result.datesProcessed,
+          datesSkipped: result.datesSkipped,
+          gamesProcessed: result.gamesProcessed,
+          gamesUpdated: result.gamesUpdated,
+          requestsRemaining: result.requestsRemaining,
+          pausedDueToQuota: result.pausedDueToQuota,
+          errors: result.errors.length,
+        },
+        error: result.errors.length > 0 ? result.errors[0] : null,
+      };
+
+      logger.info('Background MLB seed complete', result);
+    }).catch(error => {
+      const endedAt = new Date();
+      mlbSeedUiState = {
+        status: 'failed',
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        summary: null,
+        error: String(error),
+      };
+      logger.error('Background MLB seed failed:', error);
+    });
+
+    res.json({
+      status: 'success',
+      message: 'MLB season seed started in background. Check logs for progress.',
+      data: {
+        minimumRemainingRequests,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Failed to start MLB season seed:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to start MLB season seed',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/admin/sync-mlb-hourly-window
+ * Run the MLB incremental window sync immediately (recent + near future).
+ * Runs in the background — responds immediately.
+ */
+router.post('/sync-mlb-hourly-window', async (_req: Request, res: Response) => {
+  try {
+    const minimumRemainingRequests = parseInt(process.env.API_SPORTS_MIN_REMAINING || '500', 10);
+    const hoursBack = parseInt(process.env.MLB_SYNC_HOURS_BACK || '48', 10);
+    const hoursForward = parseInt(process.env.MLB_SYNC_HOURS_FORWARD || '24', 10);
+    const startedAt = new Date();
+
+    logger.info('Manually triggering MLB hourly window sync...');
+
+    mlbManualWindowUiState = {
+      ...initialMlbUiState,
+      status: 'running',
+      startedAt: startedAt.toISOString(),
+    };
+
+    statsSyncService.syncMlbHourlyWindow({
+      minimumRemainingRequests,
+      hoursBack,
+      hoursForward,
+    }).then((result) => {
+      const endedAt = new Date();
+
+      mlbManualWindowUiState = {
+        status: result.errors.length > 0 ? 'failed' : 'completed',
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        summary: {
+          datesProcessed: result.datesProcessed,
+          datesSkipped: result.datesSkipped,
+          gamesProcessed: result.gamesProcessed,
+          gamesUpdated: result.gamesUpdated,
+          requestsRemaining: result.requestsRemaining,
+          pausedDueToQuota: result.pausedDueToQuota,
+          errors: result.errors.length,
+        },
+        error: result.errors.length > 0 ? result.errors[0] : null,
+      };
+
+      logger.info('Background MLB hourly window sync complete', result);
+    }).catch(error => {
+      const endedAt = new Date();
+      mlbManualWindowUiState = {
+        status: 'failed',
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        summary: null,
+        error: String(error),
+      };
+      logger.error('Background MLB hourly window sync failed:', error);
+    });
+
+    res.json({
+      status: 'success',
+      message: 'MLB hourly window sync started in background. Check logs for progress.',
+      data: {
+        minimumRemainingRequests,
+        hoursBack,
+        hoursForward,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Failed to start MLB hourly window sync:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to start MLB hourly window sync',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/admin/mlb-sync-status
+ * Lightweight sync status object for UI polling.
+ */
+router.get('/mlb-sync-status', async (_req: Request, res: Response) => {
+  try {
+    const hourlyStatus = getMlbHourlySyncStatus();
+    const hourlyLastRun = hourlyStatus.lastRunTime instanceof Date
+      ? hourlyStatus.lastRunTime.toISOString()
+      : null;
+    const hourlySummary = hourlyStatus.lastResult
+      ? {
+          datesProcessed: hourlyStatus.lastResult.datesProcessed ?? 0,
+          datesSkipped: hourlyStatus.lastResult.datesSkipped ?? 0,
+          gamesProcessed: hourlyStatus.lastResult.gamesProcessed ?? 0,
+          gamesUpdated: hourlyStatus.lastResult.gamesUpdated ?? 0,
+          requestsRemaining: hourlyStatus.lastResult.requestsRemaining,
+          pausedDueToQuota: !!hourlyStatus.lastResult.pausedDueToQuota,
+          errors: Array.isArray(hourlyStatus.lastResult.errors) ? hourlyStatus.lastResult.errors.length : 0,
+        }
+      : null;
+
+    res.json({
+      status: 'success',
+      data: {
+        seed: mlbSeedUiState,
+        manualWindow: mlbManualWindowUiState,
+        hourlyJob: {
+          status: hourlyStatus.isRunning ? 'running' : 'idle',
+          cronExpression: hourlyStatus.cronExpression,
+          lastRunTime: hourlyLastRun,
+          summary: hourlySummary,
+        },
+      },
+    });
+  } catch (error: any) {
+    logger.error('Failed to get MLB sync status:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get MLB sync status',
       error: error.message,
     });
   }

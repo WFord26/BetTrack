@@ -2,11 +2,10 @@ import { PrismaClient } from '@prisma/client';
 import { ApiSportsClient } from './client';
 import { logger } from '../../config/logger';
 
-// Initialize API-Sports client for soccer (note: API-Sports doesn't have soccer, using football)
-// This will need API key for soccer league
+// Initialize API-Sports client for soccer via API-Football.
 const apiSportsClient = new ApiSportsClient({
   apiKey: process.env.API_SPORTS_KEY || '',
-  sport: 'american-football' // Note: need to update client for soccer support
+  sport: 'football'
 });
 
 const prisma = new PrismaClient();
@@ -38,13 +37,11 @@ export class SoccerService {
       // Check each league for live games
       for (const [leagueName, leagueId] of Object.entries(this.leagueIds)) {
         const response = await apiSportsClient.get('/fixtures', {
-          params: {
-            league: leagueId,
-            live: 'all'
-          }
+          league: leagueId,
+          live: 'all'
         });
 
-        const games = (response as any).data?.response || [];
+        const games = (response as any).response || [];
         allGames.push(...games);
       }
 
@@ -73,12 +70,10 @@ export class SoccerService {
 
       // Fetch game statistics from API-Sports
       const response = await apiSportsClient.get('/fixtures/statistics', {
-        params: {
-          fixture: externalGameId
-        }
+        fixture: externalGameId
       });
 
-      const statsData = (response as any).data?.response || [];
+      const statsData = (response as any).response || [];
       if (statsData.length === 0) {
         logger.warn(`No stats data for game: ${externalGameId}`);
         return;
@@ -183,12 +178,10 @@ export class SoccerService {
 
       // Fetch player statistics
       const response = await apiSportsClient.get('/fixtures/players', {
-        params: {
-          fixture: externalGameId
-        }
+        fixture: externalGameId
       });
 
-      const playersData = (response as any).data?.response || [];
+      const playersData = (response as any).response || [];
 
       for (const teamData of playersData) {
         const teamExternalId = teamData.team?.id?.toString();
@@ -296,12 +289,10 @@ export class SoccerService {
   private async getFixtureDetails(externalGameId: string): Promise<any> {
     try {
       const response = await apiSportsClient.get('/fixtures', {
-        params: {
-          id: externalGameId
-        }
+        id: externalGameId
       });
 
-      return (response as any).data?.response?.[0] || null;
+      return (response as any).response?.[0] || null;
     } catch (error) {
       logger.error(`Error fetching fixture details for ${externalGameId}:`, error);
       return null;

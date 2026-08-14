@@ -14,7 +14,21 @@ export interface StatsSyncResult {
   errors: string[];
 }
 
+export interface MlbBackfillOptions {
+  minimumRemainingRequests?: number;
+  hoursBack?: number;
+  hoursForward?: number;
+}
+
+export interface MlbBackfillResult extends StatsSyncResult {
+  datesProcessed: number;
+  datesSkipped: number;
+  requestsRemaining?: number;
+  pausedDueToQuota: boolean;
+}
+
 export class StatsSyncService {
+  private static mlbRangeSyncRunning = false;
   private nflService?: NFLStatsService;
   private nbaService?: NBAStatsService;
   private nhlService?: NHLStatsService;
@@ -120,13 +134,14 @@ export class StatsSyncService {
         
         for (const game of ncaabGames) {
           result.gamesProcessed++;
+          const gameId = String(game.id);
           
           try {
-            await this.ncaabService.syncGameStats(game.id);
-            await this.ncaabService.syncPlayerStats(game.id);
+            await this.ncaabService.syncGameStats(gameId);
+            await this.ncaabService.syncPlayerStats(gameId);
             result.gamesUpdated++;
           } catch (error) {
-            const errorMsg = `Failed to sync NCAAB game ${game.id}: ${error}`;
+            const errorMsg = `Failed to sync NCAAB game ${gameId}: ${error}`;
             logger.error(errorMsg);
             result.errors.push(errorMsg);
           }
@@ -141,13 +156,14 @@ export class StatsSyncService {
         
         for (const game of ncaafGames) {
           result.gamesProcessed++;
+          const gameId = String(game.id);
           
           try {
-            await this.ncaafService.syncGameStats(game.id);
-            await this.ncaafService.syncPlayerStats(game.id);
+            await this.ncaafService.syncGameStats(gameId);
+            await this.ncaafService.syncPlayerStats(gameId);
             result.gamesUpdated++;
           } catch (error) {
-            const errorMsg = `Failed to sync NCAAF game ${game.id}: ${error}`;
+            const errorMsg = `Failed to sync NCAAF game ${gameId}: ${error}`;
             logger.error(errorMsg);
             result.errors.push(errorMsg);
           }
@@ -162,13 +178,14 @@ export class StatsSyncService {
         
         for (const game of soccerGames) {
           result.gamesProcessed++;
+          const gameId = String(game.fixture.id);
           
           try {
-            await this.soccerService.syncGameStats(game.fixture.id);
-            await this.soccerService.syncPlayerStats(game.fixture.id);
+            await this.soccerService.syncGameStats(gameId);
+            await this.soccerService.syncPlayerStats(gameId);
             result.gamesUpdated++;
           } catch (error) {
-            const errorMsg = `Failed to sync Soccer game ${game.fixture.id}: ${error}`;
+            const errorMsg = `Failed to sync Soccer game ${gameId}: ${error}`;
             logger.error(errorMsg);
             result.errors.push(errorMsg);
           }
@@ -306,5 +323,99 @@ export class StatsSyncService {
     logger.info(`Team sync complete: ${total} teams across ${Object.keys(results).length} sports`);
 
     return results;
+  }
+
+  async seedMlbSeasonToDate(options?: MlbBackfillOptions): Promise<MlbBackfillResult> {
+    const now = new Date();
+    const seasonStart = new Date(now.getFullYear(), 0, 1);
+
+    return this.syncMlbDateRange(seasonStart, now, options);
+  }
+
+  async syncMlbHourlyWindow(options?: MlbBackfillOptions): Promise<MlbBackfillResult> {
+    const hoursBack = options?.hoursBack ?? 48;
+    const hoursForward = options?.hoursForward ?? 24;
+    const now = new Date();
+    const start = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
+    const end = new Date(now.getTime() + hoursForward * 60 * 60 * 1000);
+
+    return this.syncMlbDateRange(start, end, options);
+  }
+
+  private async syncMlbDateRange(start: Date, end: Date, options?: MlbBackfillOptions): Promise<MlbBackfillResult> {
+    const result: MlbBackfillResult = {
+      gamesProcessed: 0,
+      gamesUpdated: 0,
+      errors: [],
+      datesProcessed: 0,
+      datesSkipped: 0,
+      pausedDueToQuota: false,
+    };
+
+    if (!env.API_SPORTS_KEY || !this.mlbService) {
+      result.errors.push('API_SPORTS_KEY not set or MLB service unavailable');
+      return result;
+    }
+
+    if (StatsSyncService.mlbRangeSyncRunning) {
+      result.errors.push('MLB range sync already in progress');
+      logger.warn('Skipping MLB range sync because another run is active');
+      return result;
+    }
+
+    const minimumRemainingRequests = options?.minimumRemainingRequests ?? 500;
+    const dates = this.getDateStringsInRange(start, end);
+
+    logger.info(
+      `Starting MLB range sync from ${dates[0]} to ${dates[dates.length - 1]} (${dates.length} days, min remaining=${minimumRemainingRequests})`
+    );
+
+    StatsSyncService.mlbRangeSyncRunning = true;
+
+    try {
+      for (const date of dates) {
+        if (!this.mlbService.hasSufficientQuota(minimumRemainingRequests)) {
+          result.pausedDueToQuota = true;
+          result.requestsRemaining = this.mlbService.getRequestsRemaining();
+          result.datesSkipped += dates.length - result.datesProcessed;
+          logger.warn(
+            `Pausing MLB range sync due to low API quota. Remaining=${result.requestsRemaining}, required>=${minimumRemainingRequests}`
+          );
+          break;
+        }
+
+        try {
+          const dayResult = await this.mlbService.syncGamesForDate(date, minimumRemainingRequests);
+          result.datesProcessed++;
+          result.gamesProcessed += dayResult.processed;
+          result.gamesUpdated += dayResult.updated;
+          result.requestsRemaining = dayResult.requestsRemaining;
+        } catch (error) {
+          const errorMsg = `Failed MLB sync for ${date}: ${error}`;
+          logger.error(errorMsg);
+          result.errors.push(errorMsg);
+        }
+      }
+    } finally {
+      StatsSyncService.mlbRangeSyncRunning = false;
+    }
+
+    logger.info(
+      `MLB range sync complete: dates=${result.datesProcessed}, games=${result.gamesProcessed}, updated=${result.gamesUpdated}, paused=${result.pausedDueToQuota}`
+    );
+
+    return result;
+  }
+
+  private getDateStringsInRange(start: Date, end: Date): string[] {
+    const normalizedStart = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const normalizedEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const dates: string[] = [];
+
+    for (let cursor = normalizedStart; cursor <= normalizedEnd; cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)) {
+      dates.push(cursor.toISOString().slice(0, 10));
+    }
+
+    return dates;
   }
 }

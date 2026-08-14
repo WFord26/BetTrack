@@ -68,7 +68,7 @@ const SPORT_IMAGES: Record<string, string> = {
   'icehockey_nhl': '/sports/hockey.png',
   'soccer_epl': '/sports/soccer.png',
   'soccer_usa_mls': '/sports/soccer.png',
-  'baseball_mlb': '/sports/basketball.png', // fallback until baseball added
+  'baseball_mlb': '/sports/baseball.svg',
 };
 
 function formatGameTime(commenceTime: string, status: string): string {
@@ -123,6 +123,42 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
   
   const gameTime = useMemo(() => formatGameTime(game.commenceTime, game.status), [game.commenceTime, game.status]);
   const sportImage = SPORT_IMAGES[game.sportKey] || '/sports/basketball.png';
+  const isBaseball = game.sportKey === 'baseball_mlb';
+
+  const inningHalfLabel = useMemo(() => {
+    const half = (game.inningHalf || '').trim();
+    if (!half) return '';
+    const normalized = half.toLowerCase();
+    if (normalized.startsWith('top') || normalized.startsWith('t')) return 'TOP';
+    if (normalized.startsWith('bot') || normalized.startsWith('bottom') || normalized.startsWith('b')) return 'BOT';
+    return half.toUpperCase();
+  }, [game.inningHalf]);
+
+  const baseballSituation = useMemo(() => {
+    const hasCount = game.balls != null || game.strikes != null || game.outs != null;
+    if (!hasCount) return null;
+    return `${game.balls ?? '-'}-${game.strikes ?? '-'}-${game.outs ?? '-'}`;
+  }, [game.balls, game.strikes, game.outs]);
+
+  const baseballInningLine = useMemo(() => {
+    if (!isBaseball || !isLive) return null;
+
+    const periodValue = game.period ? String(game.period).trim() : '';
+    if (periodValue && inningHalfLabel) {
+      const arrow = inningHalfLabel === 'TOP' ? '▲' : inningHalfLabel === 'BOT' ? '▼' : '';
+      return `${arrow ? `${arrow} ` : ''}${inningHalfLabel} ${periodValue}`.trim();
+    }
+
+    if (periodValue) {
+      return `INNING ${periodValue}`;
+    }
+
+    if (game.clock) {
+      return game.clock;
+    }
+
+    return null;
+  }, [isBaseball, isLive, game.period, game.clock, inningHalfLabel]);
 
   useEffect(() => {
     if (!isLive) return;
@@ -330,21 +366,24 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
           
           {/* Period/Clock Info */}
           <div className="text-center px-3">
-            {isLive && (game.period || game.clock || game.inningHalf) ? (
+            {isLive && (game.period || game.clock || game.inningHalf || baseballSituation) ? (
               <div 
                 className={`px-3 py-2 rounded text-white font-bold ${
                   blinkOn ? 'bg-red-600' : 'bg-red-900'
                 } transition-colors border-2 border-red-500`}
               >
-                {/* Baseball: Show Inning/Half and Count */}
-                {game.sportKey === 'baseball_mlb' && game.inningHalf ? (
+                {isBaseball ? (
                   <>
-                    <div className="text-[8px] tracking-wider leading-tight">
-                      {game.inningHalf.startsWith('T') || game.inningHalf.startsWith('t') ? '▲' : '▼'} {game.period}
-                    </div>
-                    <div className="text-[7px] tracking-wider leading-tight mt-0.5 text-yellow-200">
-                      {game.balls ?? '-'}-{game.strikes ?? '-'}-{game.outs ?? '-'}
-                    </div>
+                    {baseballInningLine && (
+                      <div className="text-[8px] tracking-wider leading-tight">
+                        {baseballInningLine}
+                      </div>
+                    )}
+                    {baseballSituation && (
+                      <div className="text-[7px] tracking-wider leading-tight mt-0.5 text-yellow-200">
+                        {baseballSituation}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>

@@ -48,6 +48,10 @@ const envSchema = z.object({
   API_SPORTS_KEY: z.string().optional(),
   API_SPORTS_TIER: z.enum(['free', 'pro', 'ultra', 'mega']).default('pro'),
   STATS_POLL_INTERVAL_MS: z.string().default('15000'),
+  API_SPORTS_MIN_REMAINING: z.string().default('500'),
+  MLB_SYNC_CRON: z.string().default('0 * * * *'),
+  MLB_SYNC_HOURS_BACK: z.string().default('48'),
+  MLB_SYNC_HOURS_FORWARD: z.string().default('24'),
   ENABLE_WEBSOCKETS: z.string().default('false'),
   REDIS_URL: z.string().optional(),
   

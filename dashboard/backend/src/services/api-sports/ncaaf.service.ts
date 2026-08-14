@@ -24,13 +24,11 @@ export class NCAAFService {
   async getLiveGames(): Promise<any[]> {
     try {
       const response = await apiSportsClient.get('/games', {
-        params: {
-          league: this.leagueId,
-          live: 'all'
-        }
+        league: this.leagueId,
+        live: 'all'
       });
 
-      return (response as any).data?.response || [];
+      return (response as any).response || [];
     } catch (error) {
       logger.error('Error fetching live NCAAF games:', error);
       return [];
@@ -55,12 +53,10 @@ export class NCAAFService {
 
       // Fetch game statistics from API-Sports
       const response = await apiSportsClient.get('/games/statistics', {
-        params: {
-          id: externalGameId
-        }
+        id: externalGameId
       });
 
-      const statsData = (response as any).data?.response?.[0];
+      const statsData = (response as any).response?.[0];
       if (!statsData) {
         logger.warn(`No stats data for game: ${externalGameId}`);
         return;
@@ -157,12 +153,10 @@ export class NCAAFService {
 
       // Fetch player statistics
       const response = await apiSportsClient.get('/games/players', {
-        params: {
-          id: externalGameId
-        }
+        id: externalGameId
       });
 
-      const playersData = (response as any).data?.response || [];
+      const playersData = (response as any).response || [];
 
       for (const teamData of playersData) {
         const teamExternalId = teamData.team?.id;

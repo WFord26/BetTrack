@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import GameFilters from '../components/filters/GameFilters';
 import EnhancedGameCard from '../components/odds/EnhancedGameCard';
 import BetSlip from '../components/bets/BetSlip';
@@ -15,7 +15,7 @@ interface Game {
   status: string;
   homeScore?: number | null;
   awayScore?: number | null;
-  venue?: string;
+  venue?: string;ñ
   bookmakers?: any[];
 }
 
@@ -38,7 +38,7 @@ export default function EnhancedDashboard() {
   });
 
   // Fetch games
-  const fetchGames = async () => {
+  const fetchGames = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -58,11 +58,21 @@ export default function EnhancedDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchGames();
-  }, [selectedDate]);
+  }, [fetchGames]);
+
+  useEffect(() => {
+    const refreshInterval = window.setInterval(() => {
+      fetchGames();
+    }, 30000);
+
+    return () => {
+      window.clearInterval(refreshInterval);
+    };
+  }, [fetchGames]);
 
   // Filter games based on selected filters
   const filteredGames = games.filter(game => {

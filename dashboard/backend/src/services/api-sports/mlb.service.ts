@@ -7,12 +7,15 @@ const prisma = new PrismaClient();
 
 interface MLBGame {
   id: number;
-  league: string;
-  season: string;
-  date: {
-    start: string;
-    end: string | null;
+  league?: {
+    id: number;
+    season: number;
   };
+  date: string;
+  time?: string;
+  timestamp?: number;
+  timezone?: string;
+  season?: string;
   status: {
     long: string;
     short: string;
@@ -43,6 +46,19 @@ interface MLBGame {
       total: number | null;
     };
   };
+}
+
+interface MLBTeamReference {
+  id: number;
+  name: string;
+  logo: string;
+}
+
+interface MLBDateSyncResult {
+  processed: number;
+  updated: number;
+  skipped: number;
+  requestsRemaining?: number;
 }
 
 export class MLBStatsService {
@@ -80,6 +96,61 @@ export class MLBStatsService {
     }
   }
 
+  getRequestsRemaining(): number | undefined {
+    return this.client.getLastRemainingRequests();
+  }
+
+  hasSufficientQuota(minimumRemaining: number): boolean {
+    return this.client.hasSufficientRemaining(minimumRemaining);
+  }
+
+  async getGamesByDate(date: string, season?: number): Promise<MLBGame[]> {
+    const resolvedSeason = season ?? new Date(date).getFullYear();
+
+    const response = await this.client.get<{ response: MLBGame[] }>(
+      '/games',
+      {
+        league: 1,
+        season: resolvedSeason,
+        date,
+      }
+    );
+
+    return response.response || [];
+  }
+
+  async syncGamesForDate(date: string, minimumRemaining: number): Promise<MLBDateSyncResult> {
+    const result: MLBDateSyncResult = {
+      processed: 0,
+      updated: 0,
+      skipped: 0,
+    };
+
+    if (!this.hasSufficientQuota(minimumRemaining)) {
+      result.requestsRemaining = this.getRequestsRemaining();
+      return result;
+    }
+
+    const season = new Date(date).getFullYear();
+    const games = await this.getGamesByDate(date, season);
+    result.processed = games.length;
+
+    for (const game of games) {
+      await this.upsertGameFromApi(game);
+
+      const status = this.mapApiStatusToLocal(game.status);
+      if (status === 'live' || status === 'completed') {
+        await this.syncGameStatsFromGame(game);
+        result.updated++;
+      } else {
+        result.skipped++;
+      }
+    }
+
+    result.requestsRemaining = this.getRequestsRemaining();
+    return result;
+  }
+
   async syncGameStats(apiSportsGameId: string): Promise<void> {
     try {
       logger.info(`Syncing MLB game stats for API-Sports ID: ${apiSportsGameId}`);
@@ -96,75 +167,8 @@ export class MLBStatsService {
 
       const gameData = gameResponse.response[0];
 
-      const game = await prisma.game.findFirst({
-        where: {
-          externalId: apiSportsGameId,
-          sport: { key: 'baseball_mlb' },
-        },
-      });
-
-      if (!game) {
-        logger.warn(`Game not found in database for API-Sports ID: ${apiSportsGameId}`);
-        return;
-      }
-
-      const homeTeam = await this.findTeam(gameData.teams.home.name, 'baseball_mlb');
-      if (homeTeam) {
-        await prisma.gameStats.upsert({
-          where: { gameId_teamId: { gameId: game.id, teamId: homeTeam.id } },
-          create: {
-            gameId: game.id,
-            teamId: homeTeam.id,
-            isHome: true,
-            quarterScores: Object.values(gameData.scores.home.innings ?? {})
-              .filter((s): s is number => s !== null),
-            stats: {
-              hits: gameData.scores.home.hits,
-              errors: gameData.scores.home.errors,
-              total: gameData.scores.home.total,
-            },
-          },
-          update: {
-            quarterScores: Object.values(gameData.scores.home.innings ?? {})
-              .filter((s): s is number => s !== null),
-            stats: {
-              hits: gameData.scores.home.hits,
-              errors: gameData.scores.home.errors,
-              total: gameData.scores.home.total,
-            },
-            updatedAt: new Date(),
-          },
-        });
-      }
-
-      const awayTeam = await this.findTeam(gameData.teams.away.name, 'baseball_mlb');
-      if (awayTeam) {
-        await prisma.gameStats.upsert({
-          where: { gameId_teamId: { gameId: game.id, teamId: awayTeam.id } },
-          create: {
-            gameId: game.id,
-            teamId: awayTeam.id,
-            isHome: false,
-            quarterScores: Object.values(gameData.scores.away.innings ?? {})
-              .filter((s): s is number => s !== null),
-            stats: {
-              hits: gameData.scores.away.hits,
-              errors: gameData.scores.away.errors,
-              total: gameData.scores.away.total,
-            },
-          },
-          update: {
-            quarterScores: Object.values(gameData.scores.away.innings ?? {})
-              .filter((s): s is number => s !== null),
-            stats: {
-              hits: gameData.scores.away.hits,
-              errors: gameData.scores.away.errors,
-              total: gameData.scores.away.total,
-            },
-            updatedAt: new Date(),
-          },
-        });
-      }
+      await this.upsertGameFromApi(gameData);
+      await this.syncGameStatsFromGame(gameData);
 
       logger.info(`Successfully synced stats for MLB game ${apiSportsGameId}`);
     } catch (error) {
@@ -235,6 +239,181 @@ export class MLBStatsService {
     } catch (error) {
       logger.error(`Failed to sync MLB teams: ${error}`);
       throw error;
+    }
+  }
+
+  private mapApiStatusToLocal(status: MLBGame['status']): string {
+    const short = (status?.short || '').toUpperCase();
+    const long = (status?.long || '').toLowerCase();
+
+    if (short === 'FT' || short === 'AOT' || long.includes('finished') || long.includes('final')) {
+      return 'completed';
+    }
+
+    if (
+      short === 'NS' ||
+      short === 'TBD' ||
+      long.includes('scheduled') ||
+      long.includes('postponed')
+    ) {
+      return 'scheduled';
+    }
+
+    if (
+      short === 'LIVE' ||
+      /^[0-9]+$/.test(short) ||
+      long.includes('in progress')
+    ) {
+      return 'live';
+    }
+
+    return 'scheduled';
+  }
+
+  private async getMlbSportId(): Promise<number | null> {
+    const sport = await prisma.sport.findUnique({ where: { key: 'baseball_mlb' } });
+    return sport?.id ?? null;
+  }
+
+  private async resolveTeamReference(team: MLBTeamReference) {
+    const byApiId = await prisma.team.findFirst({
+      where: {
+        apiSportsTeamId: team.id,
+        sport: { key: 'baseball_mlb' },
+      },
+    });
+
+    if (byApiId) {
+      return byApiId;
+    }
+
+    return this.findTeam(team.name, 'baseball_mlb');
+  }
+
+  private async upsertGameFromApi(gameData: MLBGame): Promise<string | null> {
+    const sportId = await this.getMlbSportId();
+    if (!sportId) {
+      logger.warn('Sport "baseball_mlb" not found while upserting MLB game');
+      return null;
+    }
+
+    const homeTeam = await this.resolveTeamReference(gameData.teams.home);
+    const awayTeam = await this.resolveTeamReference(gameData.teams.away);
+
+    const seasonValue =
+      gameData.league?.season?.toString() ||
+      gameData.season ||
+      new Date(gameData.date).getFullYear().toString();
+
+    const commenceTime = new Date(gameData.date);
+    if (Number.isNaN(commenceTime.getTime())) {
+      logger.warn(`Skipping MLB game ${gameData.id} due to invalid date value: ${gameData.date}`);
+      return null;
+    }
+
+    const game = await prisma.game.upsert({
+      where: { externalId: gameData.id.toString() },
+      update: {
+        sportId,
+        homeTeamId: homeTeam?.id,
+        awayTeamId: awayTeam?.id,
+        homeTeamName: gameData.teams.home.name,
+        awayTeamName: gameData.teams.away.name,
+        commenceTime,
+        apiSportsGameId: gameData.id.toString(),
+        apiSportsLeagueId: 1,
+        season: seasonValue,
+        seasonType: 'regular',
+        status: this.mapApiStatusToLocal(gameData.status),
+        homeScore: gameData.scores.home.total,
+        awayScore: gameData.scores.away.total,
+      },
+      create: {
+        externalId: gameData.id.toString(),
+        sportId,
+        homeTeamId: homeTeam?.id,
+        awayTeamId: awayTeam?.id,
+        homeTeamName: gameData.teams.home.name,
+        awayTeamName: gameData.teams.away.name,
+        commenceTime,
+        apiSportsGameId: gameData.id.toString(),
+        apiSportsLeagueId: 1,
+        season: seasonValue,
+        seasonType: 'regular',
+        status: this.mapApiStatusToLocal(gameData.status),
+        homeScore: gameData.scores.home.total,
+        awayScore: gameData.scores.away.total,
+      },
+    });
+
+    return game.id;
+  }
+
+  private async syncGameStatsFromGame(gameData: MLBGame): Promise<void> {
+    const game = await prisma.game.findFirst({
+      where: {
+        externalId: gameData.id.toString(),
+        sport: { key: 'baseball_mlb' },
+      },
+    });
+
+    if (!game) {
+      logger.warn(`Game not found in database for API-Sports ID: ${gameData.id}`);
+      return;
+    }
+
+    const homeTeam = await this.resolveTeamReference(gameData.teams.home);
+    if (homeTeam) {
+      await prisma.gameStats.upsert({
+        where: { gameId_teamId: { gameId: game.id, teamId: homeTeam.id } },
+        create: {
+          gameId: game.id,
+          teamId: homeTeam.id,
+          isHome: true,
+          quarterScores: Object.values(gameData.scores.home.innings ?? {}).filter((s): s is number => s !== null),
+          stats: {
+            hits: gameData.scores.home.hits,
+            errors: gameData.scores.home.errors,
+            total: gameData.scores.home.total,
+          },
+        },
+        update: {
+          quarterScores: Object.values(gameData.scores.home.innings ?? {}).filter((s): s is number => s !== null),
+          stats: {
+            hits: gameData.scores.home.hits,
+            errors: gameData.scores.home.errors,
+            total: gameData.scores.home.total,
+          },
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    const awayTeam = await this.resolveTeamReference(gameData.teams.away);
+    if (awayTeam) {
+      await prisma.gameStats.upsert({
+        where: { gameId_teamId: { gameId: game.id, teamId: awayTeam.id } },
+        create: {
+          gameId: game.id,
+          teamId: awayTeam.id,
+          isHome: false,
+          quarterScores: Object.values(gameData.scores.away.innings ?? {}).filter((s): s is number => s !== null),
+          stats: {
+            hits: gameData.scores.away.hits,
+            errors: gameData.scores.away.errors,
+            total: gameData.scores.away.total,
+          },
+        },
+        update: {
+          quarterScores: Object.values(gameData.scores.away.innings ?? {}).filter((s): s is number => s !== null),
+          stats: {
+            hits: gameData.scores.away.hits,
+            errors: gameData.scores.away.errors,
+            total: gameData.scores.away.total,
+          },
+          updatedAt: new Date(),
+        },
+      });
     }
   }
 
