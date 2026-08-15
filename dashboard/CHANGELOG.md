@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Arbitrage & Middle Detection** (Phase 3, issue #9): Full-stack feature detecting guaranteed-profit arbitrage across bookmakers and middle opportunities where both legs can win
+  - Backend: `ArbitrageOpportunity` model + migration `20260815000001_add_arbitrage_opportunities`, with `Game`/`User` back-relations, middle-window columns and risk factors
+  - Backend: `ArbitrageService` singleton — scanning, optimal stake split, middle detection, risk assessment, and dedup/refresh so a long-lived arb does not duplicate on every scan
+  - Backend: Line-aware detection — spreads require `homeSpread + awaySpread >= 0`, totals require `overLine <= underLine`. Books quoting different lines no longer yield false arbitrage; a strictly positive gap is reported as a middle scored with a per-sport normal model
+  - Backend: `odds-sync:completed` event (`src/events/odds-sync.events.ts`) emitted by `sync-odds.job`, consumed by `arbitrage-scan.job` so scans run on fresh odds; a 30-second cron pass handles expiry and missed syncs
+  - Backend: `/api/analytics/arbitrage/*` REST endpoints (live, history, stats, detail, take, calculator), documented in `docs/api/openapi-internal.yaml`
+  - Backend: Risk assessment covering snapshot staleness (>5 min), odds drift (>5%), suspicious profit (>10%), proximity to start (<15 min) and bookmaker account-limit exposure
+  - Frontend: `/analytics/arbitrage` page with live/middles/calculator/alerts tabs, 30-second polling, and an `ARB` nav item
+  - Frontend: `SnapshotAgeBadge` on every card (amber past 2.5 min, red past 5 min) plus a standing freshness disclosure banner
+  - Frontend: `ArbitrageCalculator` (2 to 4 legs), `MiddleFinder` (winning window, hit chance, EV), `ArbitrageAlerts` (thresholds persisted locally)
+  - Frontend: `arbitrageSlice.ts`, `services/arbitrage.service.ts`, `types/arbitrage.types.ts`; live in-app alerts on the Notifications page
+  - Tests: 62 new backend tests (46 detection/service, 16 routes)
+  - Decision: odds sync cadence stays at ~10 minutes; freshness is disclosed via `oddsSnapshotAge` rather than paid down with extra Odds API calls (ADR-019, summarised in `dashboard/backend/README.md`)
+  - Known gap: load testing for scan performance not yet done; `oddsDrift` is queried per candidate (N+1 in opportunities, not games)
+
 ---
 
 ## [0.2.5] - 2026-05-12

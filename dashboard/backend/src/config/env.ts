@@ -41,6 +41,14 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().optional(),
   ODDS_SYNC_INTERVAL: z.string().default('10'),
   OUTCOME_CHECK_INTERVAL: z.string().default('5'),
+
+  // Arbitrage detection (Phase 3)
+  ARBITRAGE_SCAN_ENABLED: z.string().default('true'),
+  ARBITRAGE_SCAN_CRON: z.string().default('*/30 * * * * *'),
+  ARBITRAGE_MIN_PROFIT_PCT: z.string().default('0.5'),
+  ARBITRAGE_DEFAULT_STAKE: z.string().default('1000'),
+  ARBITRAGE_TTL_SECONDS: z.string().default('600'),
+  ARBITRAGE_MIN_MIDDLE_PROBABILITY: z.string().default('0.10'),
   LOG_LEVEL: z.string().default('info'),
   CORS_ORIGIN: z.string().optional(),
   

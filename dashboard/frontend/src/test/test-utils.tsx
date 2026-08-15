@@ -12,6 +12,7 @@ import clvReducer from '../store/clvSlice';
 import movementReducer from '../store/movementSlice';
 import sharpReducer from '../store/sharpSlice';
 import bookmakerReducer from '../store/bookmakerSlice';
+import arbitrageReducer from '../store/arbitrageSlice';
 import type { RootState } from '../store';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
@@ -37,6 +38,7 @@ export function renderWithProviders(
       movements: movementReducer,
       sharp: sharpReducer,
       bookmaker: bookmakerReducer,
+      arbitrage: arbitrageReducer,
     },
     preloadedState: preloadedState as RootState | undefined,
   });
@@ -65,6 +67,7 @@ export function createMockStore(preloadedState?: Partial<RootState>) {
       movements: movementReducer,
       sharp: sharpReducer,
       bookmaker: bookmakerReducer,
+      arbitrage: arbitrageReducer,
     },
     preloadedState: preloadedState as RootState | undefined,
   });

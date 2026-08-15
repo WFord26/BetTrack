@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Arbitrage & Middle Detection** (Phase 3, issue #9): Detects guaranteed-profit arbitrage across bookmakers and middle opportunities where both legs can win.
+  - `prisma/schema.prisma`: New `ArbitrageOpportunity` model (`arbitrage_opportunities`) with `Game` and `User` back-relations, plus middle window and risk-factor columns. Migration `20260815000001_add_arbitrage_opportunities`.
+  - `src/services/arbitrage.service.ts`: `ArbitrageService` singleton with `scanForArbitrage`, `expireStaleOpportunities`, `markTaken`, `getLiveOpportunities`, `getHistory`, `getStats`, plus pure helpers `calculateOptimalStakes`, `buildStakePlan`, `detectTwoWayArbitrage`, `detectMiddle`, `estimateMiddleProbability` and `assessRisk`.
+  - Detection is line-aware: spreads require `homeSpread + awaySpread >= 0` and totals require `overLine <= underLine`, so books quoting different lines no longer produce false arbitrage. A strictly positive gap is reported as a middle with a modelled hit probability.
+  - `src/events/odds-sync.events.ts`: New `odds-sync:completed` event emitted by `sync-odds.job`, so downstream analytics react to fresh odds instead of polling blind.
+  - `src/jobs/arbitrage-scan.job.ts`: Scans immediately after each odds sync; a 30-second cron pass expires stale opportunities and re-scans only when a sync notification was missed.
+  - `src/routes/analytics-arbitrage.routes.ts`: `GET /api/analytics/arbitrage/live|history|stats|:id`, `POST /api/analytics/arbitrage/calculator` and `POST /api/analytics/arbitrage/:id/take`.
+  - Risk assessment covers snapshot staleness (>5 min), odds drift (>5%), suspiciously high profit (>10%), proximity to start (<15 min) and bookmaker account-limit exposure.
+  - New env vars: `ARBITRAGE_SCAN_ENABLED`, `ARBITRAGE_SCAN_CRON`, `ARBITRAGE_MIN_PROFIT_PCT`, `ARBITRAGE_DEFAULT_STAKE`, `ARBITRAGE_TTL_SECONDS`, `ARBITRAGE_MIN_MIDDLE_PROBABILITY`.
+  - Tests: `tests/arbitrage.service.test.ts` (46) and `tests/analytics-arbitrage.routes.test.ts` (16).
+  - Sync-cadence decision: odds sync stays at ~10 minutes; freshness is disclosed via `oddsSnapshotAge` rather than paid down with extra API calls. See ADR-019.
+
 ---
 
 ## [0.4.0] - 2026-08-15

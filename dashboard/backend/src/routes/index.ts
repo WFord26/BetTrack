@@ -13,6 +13,7 @@ import analyticsDisagreementRoutes from './analytics-disagreement.routes';
 import { createLineMovementRoutes } from './analytics-movements.routes';
 import analyticsSharpRoutes from './analytics-sharp.routes';
 import analyticsBookmakerRoutes from './analytics-bookmaker.routes';
+import analyticsArbitrageRoutes from './analytics-arbitrage.routes';
 import authRoutes from './auth.routes';
 
 const router = Router();
@@ -32,5 +33,6 @@ router.use('/analytics/disagreement', analyticsDisagreementRoutes);
 router.use('/analytics/movements', createLineMovementRoutes(prisma));
 router.use('/analytics/sharp', analyticsSharpRoutes);
 router.use('/analytics/bookmakers', analyticsBookmakerRoutes);
+router.use('/analytics/arbitrage', analyticsArbitrageRoutes);
 
 export default router;

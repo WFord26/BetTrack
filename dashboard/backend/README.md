@@ -70,6 +70,28 @@ src/
 └── types/          # TypeScript types
 ```
 
+## Arbitrage Detection
+
+Arbitrage and middle opportunities are computed from the `CurrentOdds` snapshot,
+which refreshes on `ODDS_SYNC_INTERVAL` (~10 minutes by default).
+
+**Sync-cadence decision:** the sync cadence is deliberately unchanged, because
+The Odds API bills per request. Instead of paying for fresher data, every
+opportunity carries `oddsSnapshotAge` in seconds, measured from the oldest leg,
+and the UI shows that age on every card. Scans are triggered by the
+`odds-sync:completed` event so an opportunity surfaces within one cycle of the
+data arriving; the cron pass handles expiry and missed syncs. Full rationale and
+the criteria for revisiting it are in `docs/internal/adr-019-arbitrage-sync-cadence.md`.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ARBITRAGE_SCAN_ENABLED` | `true` | Kill switch for the feature |
+| `ARBITRAGE_SCAN_CRON` | `*/30 * * * * *` | Safety cron and expiry cadence |
+| `ARBITRAGE_MIN_PROFIT_PCT` | `0.5` | Floor below which an arb is not persisted |
+| `ARBITRAGE_DEFAULT_STAKE` | `1000` | Stake used when sizing legs for display |
+| `ARBITRAGE_TTL_SECONDS` | `600` | Opportunity lifetime, one sync cycle |
+| `ARBITRAGE_MIN_MIDDLE_PROBABILITY` | `0.10` | Minimum modelled hit rate for a middle |
+
 ## Building
 
 ```bash

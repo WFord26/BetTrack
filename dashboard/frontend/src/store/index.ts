@@ -4,6 +4,7 @@ import clvReducer from './clvSlice';
 import movementReducer from './movementSlice';
 import sharpReducer from './sharpSlice';
 import bookmakerReducer from './bookmakerSlice';
+import arbitrageReducer from './arbitrageSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     movements: movementReducer,
     sharp: sharpReducer,
     bookmaker: bookmakerReducer,
+    arbitrage: arbitrageReducer,
   },
 });
 

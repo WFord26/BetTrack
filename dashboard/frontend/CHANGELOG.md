@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Arbitrage & Middles UI** (Phase 3, issue #9): New `/analytics/arbitrage` page with live opportunities, middles, calculator and alert settings, plus an `ARB` nav item.
+  - `src/pages/ArbitrageDashboard.tsx`: Tabbed dashboard polling the live endpoint every 30 seconds, with a standing freshness disclosure and a stats strip.
+  - `src/components/analytics/SnapshotAgeBadge.tsx`: Odds snapshot age on every card, amber past 2.5 minutes and red past 5.
+  - `src/components/analytics/ArbitrageCalculator.tsx`: 2 to 4 leg stake splitter showing per-leg stakes, returns and worst-case profit.
+  - `src/components/analytics/MiddleFinder.tsx`: Middle opportunities with the winning window, modelled hit chance and expected value.
+  - `src/components/analytics/ArbitrageAlerts.tsx`: Alert thresholds (min profit, max stake, max snapshot age, middles, books, sports) persisted locally.
+  - `src/store/arbitrageSlice.ts`, `src/services/arbitrage.service.ts`, `src/types/arbitrage.types.ts`: Redux state, API client and shared types.
+  - `src/pages/Notifications.tsx`: In-app arbitrage alerts are now live and polled; the "coming soon" notice now covers external delivery channels only.
+
 ---
 
 ## [0.5.0] - 2026-08-15

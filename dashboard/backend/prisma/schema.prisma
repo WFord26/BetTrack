@@ -162,6 +162,7 @@ model Game {
   lineMovements        LineMovement[]
   bookmakerMovementEvents BookmakerMovementEvent[]
   sharpMoneyIndicators SharpMoneyIndicator[]
+  arbitrageOpportunities ArbitrageOpportunity[]
 
   @@index([commenceTime])
   @@index([status])
@@ -432,6 +433,7 @@ model User {
   bets        Bet[]
   apiKeys     ApiKey[]
   clvStats    UserCLVStats[]
+  arbitrageOpportunities ArbitrageOpportunity[]
 
   @@unique([provider, providerId])
   @@index([email])
@@ -598,6 +600,55 @@ model SharpMoneyIndicator {
   @@index([sharpSide])
   @@index([calculatedAt])
   @@map("sharp_money_indicators")
+}
+
+// Arbitrage / middle opportunities detected across bookmakers
+model ArbitrageOpportunity {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId           String    @map("game_id") @db.Uuid
+  detectedAt       DateTime  @default(now()) @map("detected_at") @db.Timestamptz(6)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+
+  // Opportunity type
+  arbType          String    @map("arb_type") @db.VarChar(20)    // two-way, three-way, middle
+  marketType       String    @map("market_type") @db.VarChar(20) // h2h, spreads, totals
+
+  // Profitability
+  profitPercentage Decimal   @map("profit_percentage") @db.Decimal(5, 2)
+  stake            Decimal   @db.Decimal(10, 2)
+  expectedProfit   Decimal   @map("expected_profit") @db.Decimal(10, 2)
+
+  // Legs: [{ side, label, bookmaker, odds, line, stake, toWin }]
+  legs             Json
+
+  // Middle specific (null for pure arbitrage)
+  middleProbability Decimal? @map("middle_probability") @db.Decimal(5, 4)
+  middleGapLow      Decimal? @map("middle_gap_low") @db.Decimal(6, 2)
+  middleGapHigh     Decimal? @map("middle_gap_high") @db.Decimal(6, 2)
+
+  // Risk assessment
+  riskLevel        String    @map("risk_level") @db.VarChar(20)  // low, medium, high
+  riskFactors      String[]  @map("risk_factors")
+  limitRisk        Boolean   @map("limit_risk")
+  oddsDrift        Decimal?  @map("odds_drift") @db.Decimal(5, 2)
+  oddsSnapshotAge  Int       @map("odds_snapshot_age")           // Seconds since the odds were synced
+
+  // Status
+  status           String    @default("active") @db.VarChar(20)  // active, expired, taken
+  takenAt          DateTime? @map("taken_at") @db.Timestamptz(6)
+  userId           String?   @map("user_id") @db.Uuid
+  actualProfit     Decimal?  @map("actual_profit") @db.Decimal(10, 2)
+
+  game             Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user             User?     @relation(fields: [userId], references: [id])
+
+  @@index([gameId])
+  @@index([status])
+  @@index([profitPercentage])
+  @@index([detectedAt])
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("arbitrage_opportunities")
 }
 
 // Site configuration for branding
