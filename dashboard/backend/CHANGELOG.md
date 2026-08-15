@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/routes/analytics-correlation.routes.ts`: `POST /api/analytics/correlation/analyze|parlay|hedge`, `GET /api/analytics/correlation/history|education`.
   - `findHedgingOpportunities` sources opposite-side prices from `CurrentOdds` (pre-game only — no in-play odds feed today, so live hedging is out of scope for v1).
   - Player-prop correlation is out of scope for v1 — blocked on the (unbuilt) Player Props feature; the `SelectionType` enum has no player-prop legs yet.
-  - Tests: `tests/correlation.service.test.ts` (32) and `tests/analytics-correlation.routes.test.ts` (12).
+  - Security: `analyzeLegPair` and `findHedgingOpportunities` accept an optional `userId` and, when provided (OAuth mode), require the requested bet leg(s)' parent bet to belong to that user via a new `assertLegsOwnedBy` check — otherwise a "not found" error is thrown, identical to the missing-leg case, so existence isn't leaked. `analytics-correlation.routes.ts` now passes `getScopedUserId(req)` through on `/analyze` and `/hedge`.
+  - Tests: `tests/correlation.service.test.ts` (38, incl. ownership enforcement) and `tests/analytics-correlation.routes.test.ts` (14).
 
 ---
 

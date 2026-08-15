@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/components/analytics/CorrelationHeatmap.tsx`, `HedgeCalculator.tsx`, `CorrelationEducation.tsx`.
   - `src/store/correlationSlice.ts`, `src/services/correlation.service.ts`, `src/types/correlation.types.ts`: Redux state, API client and shared types.
   - `src/store/index.ts`: `correlation` reducer registered; `src/test/test-utils.tsx` updated so existing component tests keep a complete store shape.
+  - Fix: `ParlayValidator` now derives a stable `sgpGroupId` per `gameId` for draft legs (via a new exported `buildDraftLegs` helper) before calling `analyzeDraftSlip`, since draft legs have no `sgpGroupId` until the bet is placed — a same-game spread + total built live in the slip is now priced as an expected SGP pair instead of flagged as high-risk correlation.
+  - Fix: `correlationSlice` tracks the `requestId` of the latest `analyzeDraftSlip` dispatch and ignores fulfillments/rejections for requests superseded by a newer slip edit, so a slow response for a stale leg set can't overwrite the current warning/true odds.
+  - Tests: `src/store/correlationSlice.test.ts` (4, staleness guard) and `src/components/analytics/ParlayValidator.test.ts` (5, SGP derivation).
 
 ---
 

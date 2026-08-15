@@ -19,7 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Frontend: `ParlayValidator` wired into the existing bet slip — real-time correlation check on 2+ leg parlays with 🟢/🟡/🔴/⛔ warning levels and inline true odds
   - Frontend: `/analytics/correlation` page — heatmap, hedge calculator, analysis history, and an education module; new `CORR` nav item
   - Frontend: `correlationSlice.ts`, `services/correlation.service.ts`, `types/correlation.types.ts`
-  - Tests: 44 new backend tests (32 service, 12 routes)
+  - Security: `analyze` and `hedge` endpoints scope lookups to `getScopedUserId(req)` in OAuth mode — both legs' (or the leg's) parent bet must belong to the caller, otherwise a "not found" is returned, so a signed-in user can't probe another user's bet legs for correlation type or infer their side via hedge options
+  - Fix: draft legs built live in the bet slip now get a derived `sgpGroupId` per game before analysis, so a same-game spread + total is priced as an expected SGP pair instead of flagged as unpriced high-risk correlation
+  - Fix: `correlationSlice` ignores `analyzeDraftSlip` responses for requests superseded by a newer edit, so a slow response for a stale leg set can no longer overwrite the current true-odds/warning
+  - Tests: 52 backend tests (38 service, 14 routes) and 9 frontend tests (staleness guard, SGP derivation)
   - Scope: v1 covers game-line legs only (moneyline/spread/total); player-prop correlation is blocked on the (unbuilt) Player Props feature
 - **Arbitrage & Middle Detection** (Phase 3, issue #9): Full-stack feature detecting guaranteed-profit arbitrage across bookmakers and middle opportunities where both legs can win
   - Backend: `ArbitrageOpportunity` model + migration `20260815000001_add_arbitrage_opportunities`, with `Game`/`User` back-relations, middle-window columns and risk factors
