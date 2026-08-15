@@ -71,7 +71,6 @@ export default function ParlayValidator({ legs, useDecimalOdds = false }: Props)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(gameLegs.map((l) => [l.gameId, l.selectionType, l.selection, l.line, l.userAdjustedOdds ?? l.odds]))]);
 
   if (gameLegs.length < 2) return null;
