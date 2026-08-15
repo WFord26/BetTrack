@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bet Correlation Analysis** (Phase 3, issue #10): Detects correlation between the legs of a parlay, computes a correlation-adjusted true-odds figure, and surfaces pre-game hedging opportunities
+  - Backend: `BetLegCorrelation` + `ParlayAnalysis` models and migration `20260815120000_add_bet_correlation_analysis`, with `BetLeg`/`Bet`/`User` back-relations
+  - Backend: `correlationService` singleton — pairwise detection for same-game (spread+total), derivative (moneyline+small spread, same side), inverse (opposite moneylines, hard-blocked), and temporal (same team, games within 48h) correlation; `analyzeParlay`/`analyzeDraftSlip` flag pairs beyond ±30%, respect existing `sgpGroupId` groupings as priced/expected rather than a mistake, and produce a risk-scored approve/warning/reject recommendation
+  - Backend: `calculateTrueOdds` applies a correlation penalty on top of `calculateParlayOdds` (up to -30% for positive correlation, up to +20% for inverse)
+  - Backend: `/api/analytics/correlation/*` endpoints (analyze, parlay, history, hedge, education), documented in `docs/api/openapi-internal.yaml`
+  - Backend: `findHedgingOpportunities` — pre-game hedge stakes for a moneyline leg against every bookmaker's opposite-side price (live/in-play hedging deferred, no in-play odds feed today)
+  - Frontend: `ParlayValidator` wired into the existing bet slip — real-time correlation check on 2+ leg parlays with 🟢/🟡/🔴/⛔ warning levels and inline true odds
+  - Frontend: `/analytics/correlation` page — heatmap, hedge calculator, analysis history, and an education module; new `CORR` nav item
+  - Frontend: `correlationSlice.ts`, `services/correlation.service.ts`, `types/correlation.types.ts`
+  - Security: `analyze` and `hedge` endpoints scope lookups to `getScopedUserId(req)` in OAuth mode — both legs' (or the leg's) parent bet must belong to the caller, otherwise a "not found" is returned, so a signed-in user can't probe another user's bet legs for correlation type or infer their side via hedge options
+  - Fix: draft legs built live in the bet slip now get a derived `sgpGroupId` per game before analysis, so a same-game spread + total is priced as an expected SGP pair instead of flagged as unpriced high-risk correlation
+  - Fix: `correlationSlice` ignores `analyzeDraftSlip` responses for requests superseded by a newer edit, so a slow response for a stale leg set can no longer overwrite the current true-odds/warning
+  - Tests: 52 backend tests (38 service, 14 routes) and 9 frontend tests (staleness guard, SGP derivation)
+  - Scope: v1 covers game-line legs only (moneyline/spread/total); player-prop correlation is blocked on the (unbuilt) Player Props feature
 - **Arbitrage & Middle Detection** (Phase 3, issue #9): Full-stack feature detecting guaranteed-profit arbitrage across bookmakers and middle opportunities where both legs can win
   - Backend: `ArbitrageOpportunity` model + migration `20260815000001_add_arbitrage_opportunities`, with `Game`/`User` back-relations, middle-window columns and risk factors
   - Backend: `ArbitrageService` singleton — scanning, optimal stake split, middle detection, risk assessment, and dedup/refresh so a long-lived arb does not duplicate on every scan

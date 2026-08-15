@@ -13,6 +13,7 @@ import movementReducer from '../store/movementSlice';
 import sharpReducer from '../store/sharpSlice';
 import bookmakerReducer from '../store/bookmakerSlice';
 import arbitrageReducer from '../store/arbitrageSlice';
+import correlationReducer from '../store/correlationSlice';
 import type { RootState } from '../store';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
@@ -39,6 +40,7 @@ export function renderWithProviders(
       sharp: sharpReducer,
       bookmaker: bookmakerReducer,
       arbitrage: arbitrageReducer,
+      correlation: correlationReducer,
     },
     preloadedState: preloadedState as RootState | undefined,
   });
@@ -68,6 +70,7 @@ export function createMockStore(preloadedState?: Partial<RootState>) {
       sharp: sharpReducer,
       bookmaker: bookmakerReducer,
       arbitrage: arbitrageReducer,
+      correlation: correlationReducer,
     },
     preloadedState: preloadedState as RootState | undefined,
   });

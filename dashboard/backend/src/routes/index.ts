@@ -14,6 +14,7 @@ import { createLineMovementRoutes } from './analytics-movements.routes';
 import analyticsSharpRoutes from './analytics-sharp.routes';
 import analyticsBookmakerRoutes from './analytics-bookmaker.routes';
 import analyticsArbitrageRoutes from './analytics-arbitrage.routes';
+import analyticsCorrelationRoutes from './analytics-correlation.routes';
 import authRoutes from './auth.routes';
 
 const router = Router();
@@ -34,5 +35,6 @@ router.use('/analytics/movements', createLineMovementRoutes(prisma));
 router.use('/analytics/sharp', analyticsSharpRoutes);
 router.use('/analytics/bookmakers', analyticsBookmakerRoutes);
 router.use('/analytics/arbitrage', analyticsArbitrageRoutes);
+router.use('/analytics/correlation', analyticsCorrelationRoutes);
 
 export default router;

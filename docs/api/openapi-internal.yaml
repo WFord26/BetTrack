@@ -78,6 +78,13 @@ tags:
       Arbitrage opportunities (guaranteed profit by covering every side across
       different bookmakers) and middles (a gap between two lines where both legs
       can win).
+  - name: Correlation Analysis
+    description: |
+      Detect correlation between the legs of a parlay (same-game, derivative,
+      inverse, temporal), compute a correlation-adjusted true-odds figure, and
+      find pre-game hedging opportunities. v1 scope is game-line legs
+      (moneyline | spread | total) only — player-prop correlation and
+      live/in-play hedging are follow-ups. All endpoints require session auth.
 
       Freshness: opportunities are computed from the `CurrentOdds` snapshot, which
       refreshes on the odds sync cadence (~10 minutes by default). Every
@@ -265,6 +272,100 @@ components:
           type: object
           additionalProperties:
             type: integer
+
+    Correlation:
+      type: object
+      nullable: true
+      description: Null when the two legs are independent (no known correlation pattern applies).
+      properties:
+        type:
+          type: string
+          enum: [same-game, derivative, inverse, temporal]
+        score:
+          type: number
+          minimum: -1
+          maximum: 1
+          description: -1.0 (mutually exclusive) to 1.0 (perfectly correlated)
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        reasoning:
+          type: string
+        factors:
+          type: array
+          items:
+            type: string
+
+    CorrelationFlag:
+      type: object
+      properties:
+        betLeg1Id:
+          type: string
+        betLeg2Id:
+          type: string
+        type:
+          type: string
+          enum: [same-game, derivative, inverse, temporal]
+        score:
+          type: number
+
+    ParlayAnalysis:
+      type: object
+      properties:
+        betLegIds:
+          type: array
+          items:
+            type: string
+        betId:
+          type: string
+          nullable: true
+          description: Set when analyzing a placed Bet; null for a draft slip
+        nominalOdds:
+          type: integer
+          description: Advertised combined American odds
+        trueOdds:
+          type: integer
+          description: Correlation-adjusted combined American odds
+        oddsDiscrepancy:
+          type: number
+          description: Percentage gap between nominal and true odds
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        correlationFlags:
+          type: array
+          items:
+            $ref: '#/components/schemas/CorrelationFlag'
+        recommendation:
+          type: string
+          enum: [approve, warning, reject]
+        reasoning:
+          type: string
+        suggestedFix:
+          type: string
+          nullable: true
+
+    HedgeOption:
+      type: object
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        bookmaker:
+          type: string
+        selection:
+          type: string
+          enum: [home, away, over, under]
+        odds:
+          type: integer
+        hedgeStake:
+          type: number
+          description: Stake on the opposite side (normalized to a $100 original stake) that locks in equal profit
+        guaranteedProfit:
+          type: number
+        guaranteedProfitPct:
+          type: number
 
     BookmakerAnalytics:
       type: object
@@ -3198,6 +3299,224 @@ paths:
           description: Opportunity not found
         '500':
           description: Internal server error
+
+  /api/analytics/correlation/analyze:
+    post:
+      tags: [Correlation Analysis]
+      summary: Correlation between two existing bet legs
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [betLeg1Id, betLeg2Id]
+              properties:
+                betLeg1Id:
+                  type: string
+                  format: uuid
+                betLeg2Id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Correlation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      correlated:
+                        type: boolean
+                      correlation:
+                        $ref: '#/components/schemas/Correlation'
+        '400':
+          description: Invalid request body
+        '404':
+          description: One or both bet legs not found
+        '500':
+          description: Internal server error
+
+  /api/analytics/correlation/parlay:
+    post:
+      tags: [Correlation Analysis]
+      summary: Analyze a parlay for correlation and true odds
+      description: |
+        Provide exactly one of `betId` (a placed `Bet` — its legs and
+        `sgpGroupId` groupings are loaded and the analysis is saved to
+        history) or `legs` (a draft slip that has not been placed yet —
+        analyzed but not persisted).
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                betId:
+                  type: string
+                  format: uuid
+                legs:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [gameId, selectionType, selection, odds]
+                    properties:
+                      gameId:
+                        type: string
+                        format: uuid
+                      selectionType:
+                        type: string
+                        enum: [moneyline, spread, total]
+                      selection:
+                        type: string
+                        enum: [home, away, over, under]
+                      teamName:
+                        type: string
+                      line:
+                        type: number
+                      odds:
+                        type: integer
+                      sgpGroupId:
+                        type: string
+      responses:
+        '200':
+          description: Parlay analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/ParlayAnalysis'
+        '400':
+          description: Invalid request (e.g. both or neither of betId/legs provided, fewer than 2 legs)
+        '404':
+          description: Bet not found
+        '500':
+          description: Internal server error
+
+  /api/analytics/correlation/history:
+    get:
+      tags: [Correlation Analysis]
+      summary: Historical parlay analyses
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            maximum: 200
+        - name: riskLevel
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high]
+        - name: mine
+          in: query
+          description: Restrict to the caller's own analyses (default true when auth is enabled)
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Historical analyses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      analyses:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ParlayAnalysis'
+                      count:
+                        type: integer
+        '500':
+          description: Internal server error
+
+  /api/analytics/correlation/hedge:
+    post:
+      tags: [Correlation Analysis]
+      summary: Pre-game hedging opportunities for a moneyline leg
+      description: |
+        Returns the opposite side of the leg's game across every bookmaker
+        with current odds, normalized to a $100 original stake. Empty for
+        non-moneyline legs. Pre-game only — there is no in-play odds feed,
+        so live hedging is out of scope.
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [betLegId]
+              properties:
+                betLegId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Hedge options, best guaranteed profit first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      opportunities:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HedgeOption'
+                      count:
+                        type: integer
+        '404':
+          description: Bet leg not found
+        '500':
+          description: Internal server error
+
+  /api/analytics/correlation/education:
+    get:
+      tags: [Correlation Analysis]
+      summary: Educational content — correlation types, glossary, warning levels
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Static educational content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
 
   /api/analytics/arbitrage/{id}/take:
     post:

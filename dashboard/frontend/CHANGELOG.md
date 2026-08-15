@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.2] - 2026-08-15
+
+### Added
+
+- **Correlation Analysis UI** (Phase 3, issue #10): Real-time parlay correlation warnings in the bet slip, plus a reference dashboard.
+  - `src/components/analytics/ParlayValidator.tsx`: Wired into `BetSlip.tsx` for parlays — debounces on leg changes, calls `POST /analytics/correlation/parlay` with a draft slip, and shows a 🟢/🟡/🔴/⛔ warning badge with inline true odds and a suggested fix.
+  - `src/pages/CorrelationDashboard.tsx`: New `/analytics/correlation` page — heatmap, hedge calculator, analysis history and education tabs; new `CORR` nav item.
+  - `src/components/analytics/CorrelationHeatmap.tsx`, `HedgeCalculator.tsx`, `CorrelationEducation.tsx`.
+  - `src/store/correlationSlice.ts`, `src/services/correlation.service.ts`, `src/types/correlation.types.ts`: Redux state, API client and shared types.
+  - `src/store/index.ts`: `correlation` reducer registered; `src/test/test-utils.tsx` updated so existing component tests keep a complete store shape.
+  - Fix: `ParlayValidator` now derives a stable `sgpGroupId` per `gameId` for draft legs (via a new exported `buildDraftLegs` helper) before calling `analyzeDraftSlip`, since draft legs have no `sgpGroupId` until the bet is placed — a same-game spread + total built live in the slip is now priced as an expected SGP pair instead of flagged as high-risk correlation.
+  - Fix: `correlationSlice` tracks the `requestId` of the latest `analyzeDraftSlip` dispatch and ignores fulfillments/rejections for requests superseded by a newer slip edit, so a slow response for a stale leg set can't overwrite the current warning/true odds.
+  - Tests: `src/store/correlationSlice.test.ts` (4, staleness guard) and `src/components/analytics/ParlayValidator.test.ts` (5, SGP derivation).
+
+---
+
 ## [0.5.1] - 2026-08-15
 
 ### Added

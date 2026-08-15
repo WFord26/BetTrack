@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useBetSlip } from '../../hooks/useBetSlip';
 import BetLegItem from './BetLegItem';
 import TeaserControl from './TeaserControl';
+import ParlayValidator from '../analytics/ParlayValidator';
 import { formatOdds, formatCurrency, americanToDecimal, decimalToAmerican } from '../../utils/format';
 
 interface BetSlipProps {
@@ -751,6 +752,9 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               </div>
             )}
           </div>
+
+          {/* Correlation check (parlays with 2+ game legs) */}
+          {betType === 'parlay' && <ParlayValidator legs={legs} useDecimalOdds={useDecimalOdds} />}
 
           {/* Bet Name */}
           <div>

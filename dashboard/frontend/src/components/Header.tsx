@@ -72,6 +72,14 @@ const IconArbitrage = () => (
   </svg>
 );
 
+const IconCorrelation = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="7" cy="8" r="3" />
+    <circle cx="17" cy="16" r="3" />
+    <path d="M9.5 9.5l5 5" />
+  </svg>
+);
+
 const IconBookmaker = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -254,6 +262,7 @@ export default function Header() {
     { path: '/analytics/sharp',       label: 'SHARP',     icon: <IconShark />    },
     { path: '/analytics/bookmakers',  label: 'BOOKS',     icon: <IconBookmaker /> },
     { path: '/analytics/arbitrage',   label: 'ARB',       icon: <IconArbitrage /> },
+    { path: '/analytics/correlation', label: 'CORR',      icon: <IconCorrelation /> },
   ];
 
   // User initials for avatar fallback
