@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/App.tsx`: Route `/analytics/bookmakers` added.
   - `src/components/Header.tsx`: "Bookmakers" nav item with bar-chart icon added after "Sharp Money".
 
+### Changed
+
+- **Desert Sunset visual redesign**: Full re-skin of the app shell and every primary screen from the red/gray 8-bit theme to a dusk-purple (dark) / sand-paper (light) desert-sunset system — gold/ember/terracotta/coral/plum accents, `Press Start 2P` display font, `Space Grotesk` body font, and three signature card treatments (notched panels, ink-bordered cards, paper ticket stubs). Pure visual re-skin — no data flow, API calls, routes, or Redux state changed.
+  - `tailwind.config.js`: Added the desert-sunset color tokens (`dusk-*`, `cream-*`, `sand-*`, `ink-*`, `gold-*`, `ember`, `terra-*`, `coral-*`, `plum`, `sunwin-*`, `sunloss-*`, `sunpending`); `font-display` now resolves to `Press Start 2P`, `font-body` to `Space Grotesk`.
+  - `src/index.css`: Added shared component recipes — `.ds-panel`/`.ds-panel-lg` (dark notched panel), `.ds-card-ink`/`.ds-card-ink-lg` (light ink-bordered card), `.ds-btn-press`/`.ds-btn-press-light` (press buttons), `.ds-odds-cell-dark`/`.ds-odds-cell-light`/`.ds-odds-cell-selected` (odds price cells), `.ds-barcode`, `.ds-sand-bg`, `.ds-crt-scanlines`/`.ds-crt-vignette`, and `animate-ds-blink`/`animate-ds-blink-slow`/`animate-ds-marquee`. `h1`/`h2`/`h3` no longer auto-apply `font-display` globally (now applied explicitly per-heading) so un-migrated pages don't inherit the pixel font at arbitrary sizes.
+  - `index.html`: Added the `Press Start 2P` / `Space Grotesk` Google Fonts links.
+  - `src/components/Header.tsx`, `src/components/Footer.tsx`: Restyled topbar (terracotta banner / dusk-chrome bar) with pixel-chip nav tabs, sunset-stripe divider, and reskinned dropdowns; footer restyled to the dusk-chrome palette.
+  - `src/pages/Home.tsx`: Rebuilt landing page — full-bleed pixel hero with sunset text-shadow headline, ticker marquee, and a 3-card "What We Are" section on notched panels.
+  - `src/pages/EnhancedDashboard.tsx`, `src/components/odds/EnhancedGameCard.tsx`, `src/components/filters/GameFilters.tsx`: Restyled dashboard shell, game cards (odds-cell price buttons, live/final status chips), and the sidebar filters (date/status/sport/odds-format/bookmaker).
+  - `src/components/bets/BetSlip.tsx`, `BetLegItem.tsx`, `TeaserControl.tsx`: Restyled bet slip as a notched panel with sunset-stripe cap, reskinned leg rows, stake/to-win boxes, and bet-type tabs.
+  - `src/pages/BetHistory.tsx`, `src/components/bets/BetCard.tsx`: Bet cards rebuilt as paper ticket stubs with a rotated WON/LOST/PENDING stamp; history page header restyled with record/net-P&L/win-rate stat chips.
+  - `src/pages/Stats.tsx`, `src/components/stats/StatsOverview.tsx`, `PnLChart.tsx`, `CLVSummaryCard.tsx`: Restyled overview cards (with a real win-rate block meter), P&L bar chart, and by-sport/by-bet-type tables on ink-bordered cards.
+  - `src/pages/Futures.tsx`: Restyled market panels (gradient banner) and outcome cards with best-odds and per-bookmaker rows.
+
 ---
 
 ## [0.4.4] - 2026-05-14
