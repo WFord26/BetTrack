@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.1] - 2026-08-15
+
 ### Added
 
 - **Arbitrage & Middle Detection** (Phase 3, issue #9): Detects guaranteed-profit arbitrage across bookmakers and middle opportunities where both legs can win.

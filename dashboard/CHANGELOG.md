@@ -27,6 +27,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2026-08-15]
+
+### Added
+
+- **Bookmaker Performance Analytics** (Phase 2): Value/sharpness/reliability ranking and comparison across bookmakers
+  - Backend: `BookmakerAnalytics` and `BookmakerMovementEvent` models; `BookmakerAnalyticsService` with `calculateBookmakerMetrics()` and `rankBookmakers()`; daily 02:00 UTC batch job with a startup staleness guard
+  - Backend: 7 `/api/analytics/bookmakers/*` REST endpoints — rankings, per-bookmaker detail, `/sharp`, `/compare`, `/best-value/:sport`, `/movement/:bookmaker`
+  - Backend: `averageCLVOffered` computed from `BetLeg.aggregate`; new `bookmaker` field on `BetLeg` so CLV grouping no longer depends on name-extraction heuristics
+  - Frontend: `/analytics/bookmakers` page — **Rankings** tab (6 sort criteria, limit-profile badges) and **Detail** tab (key stats, market/sport coverage, consensus outlier analysis)
+- **Market Consensus — Phase 2**: Richer consensus/dispersion metrics (`medianLine`, `meanLine`, `modeLine`, `range`, `interquartileRange`, `bestValueSide`, `bestValueBookmaker`, `bestValueLine`, `sharpBookWeight`) and `identifyOutliers(gameId)` for per-market outlier discovery
+- **Team & stats sync — MLB, NFL, NCAAF**:
+  - Backend: New `MLBStatsService`; `syncTeams()` added to every sport service (NFL, NBA, NHL, NCAAB, MLB — 153 teams total via api-sports.io); `POST /api/admin/sync-teams` runs a full sync in the background
+  - Backend: Hourly NFL/NCAAF window sync job (`football-hourly-sync.job.ts`) mirroring the existing MLB job; completed NCAAF team stats support (was a TODO stub)
+- **Desert Sunset visual redesign**: Full re-skin of the app shell and every primary screen from the red/gray 8-bit theme to a dusk-purple (dark) / sand-paper (light) system — gold/ember/terracotta/coral/plum accents, pixel display font, and three signature card treatments (notched panels, ink-bordered cards, paper ticket stubs). Pure visual re-skin; no data flow, API calls, routes, or Redux state changed.
+
+### Fixed
+
+- **Duplicate `Game` rows from API-Sports stats sync (MLB, NFL, NCAAF)**: `Game.externalId` holds The Odds API's event ID, but the stats sync was upserting on API-Sports' own numeric game ID — a different ID space — silently creating a second, orphaned `Game` row instead of matching the odds-sourced one. New shared `game-resolver.ts` matches by sport + team names + a 12h kickoff window before falling back to a standalone row.
+- **NCAAF league ID** was hardcoded to NFL's ID (`1`); corrected to `2` against the live API-Sports `/leagues` endpoint
+- **NFL/NCAAF season-year boundary**: games played after the new year (e.g. a January playoff game) were mislabeled with the raw calendar year; added a shared Jan/Feb rollback rule
+- **NCAAF live-poll game ID**: read `game.id` instead of the correctly-nested `game.game.id`, syncing every live NCAAF game under the literal string `"undefined"`
+- **NCAAF team/game matching**: compared API team IDs against the wrong field (`Team.externalId` instead of `Team.apiSportsTeamId`), and a string/number type mismatch meant player-stat team lookups could never match
+- **API-Sports rate limiter**: `API_SPORTS_TIER` was defined but never read, hardcoding the Pro-tier limit regardless of actual subscription; now tier-aware (free/pro/ultra/mega). 429 retries capped at 3 attempts instead of retrying indefinitely.
+
+### Component Versions
+
+- **Backend**: v0.4.0
+- **Frontend**: v0.5.0
+
+---
+
 ## [0.2.5] - 2026-05-12
 
 ### Added

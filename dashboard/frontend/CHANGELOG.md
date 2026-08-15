@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.5.1] - 2026-08-15
+
 ### Added
 
 - **Arbitrage & Middles UI** (Phase 3, issue #9): New `/analytics/arbitrage` page with live opportunities, middles, calculator and alert settings, plus an `ARB` nav item.
