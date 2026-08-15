@@ -44,6 +44,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/bookmaker-analytics.service.test.ts`: Updated mocks for DB-scoped consensus query; added `betLeg.aggregate` mock.
   - `tests/analytics-bookmaker.routes.test.ts`: New — 15 integration tests for all 7 endpoints including 404 path.
   - `tests/jobs/bookmaker-analytics.job.test.ts`: New — 3 smoke tests for batch processing and error isolation.
+- **Football (NFL/NCAAF) Hourly Sync — Pre-Season Readiness**: Added an NFL/NCAAF backfill/window sync job mirroring the existing MLB hourly job, plus completed NCAAF team stats support that was previously a TODO stub.
+  - `src/jobs/football-hourly-sync.job.ts`: New hourly cron (`FOOTBALL_SYNC_CRON`) syncing both NFL and NCAAF over a rolling window (`FOOTBALL_SYNC_HOURS_BACK`/`_FORWARD`, default 96h back / 72h forward — wider than MLB's to survive a missed Thu–Mon slate), with the same re-entrancy guard, quota-pause, and status-reporting pattern as `mlb-hourly-sync.job.ts`.
+  - `src/services/api-sports/nfl.service.ts` / `ncaaf.service.ts`: Added `getGamesByDate()` and `syncGamesForDate()` for date-range backfill (previously only live-game polling existed).
+  - `src/services/api-sports/ncaaf.service.ts`: Added `syncTeams()` (no NCAAF teams were ever being synced, so team stats had nothing to attach to) and implemented `syncTeamStats()`.
+  - `src/services/stats-sync.service.ts`: Added `syncFootballHourlyWindow()`/`syncFootballDateRange()`; wired `ncaafService.syncTeamStats()` into the `syncTeamSeasonStats()` switch (was `logger.warn('NCAAF team stats sync not yet implemented')`); added NCAAF to `syncAllTeams()`.
+  - `src/routes/admin.routes.ts`: New `POST /sync-football-hourly-window` and `GET /football-sync-status` endpoints, mirroring the MLB admin routes.
+  - `src/config/env.ts`, `.env.example`: Added `FOOTBALL_SYNC_CRON`, `FOOTBALL_SYNC_HOURS_BACK`, `FOOTBALL_SYNC_HOURS_FORWARD`.
+  - `src/server.ts`: Registers `startFootballHourlySyncJob()` at startup.
+  - `tests/jobs/football-hourly-sync.job.test.ts`, `tests/jobs/mlb-hourly-sync.job.test.ts`: New — re-entrancy guard, success/error/quota-pause status reporting (MLB's hourly job previously had zero test coverage).
+  - `tests/admin.routes.test.ts`: Added coverage for the MLB and football sync/status admin endpoints (previously untested) and the corrected `init-sports` sport count.
+
+### Fixed
+
+- **Duplicate `Game` rows from API-Sports stats sync (MLB, NFL, NCAAF)**: `Game.externalId` holds The Odds API's event ID, but the MLB stats sync was upserting games keyed on API-Sports' own numeric game ID — a different ID space — so its upsert never matched the odds-sourced row and silently created a second, orphaned `Game` row instead. Bet settlement was unaffected (it resolves scores from ESPN independently), but the enriched live-stats sync was largely writing to rows no bet or odds was ever attached to, and `GET /games` had no dedup against the duplicates.
+  - `src/services/api-sports/game-resolver.ts`: New shared helper — matches an incoming API-Sports game to the existing odds-sourced `Game` row by sport + team names + a 12h kickoff-time window (mirroring `OutcomeResolverService`'s ESPN team-name matching), updating it in place; falls back to a standalone row only when no odds-sourced match exists.
+  - `src/services/api-sports/mlb.service.ts`, `nfl.service.ts`, `ncaaf.service.ts`: `upsertGameFromApi()` now goes through `game-resolver.ts`; `syncGameStats()`/`syncGameStatsFromGame()` game lookups switched from `externalId` to the `apiSportsGameId` column so they find the row the resolver just updated.
+- **NCAAF league ID**: was hardcoded to `1` (NFL's ID); confirmed against the live API-Sports `/leagues` endpoint that NCAA is league `2`. NCAAF was very likely syncing NFL data (or nothing) previously.
+- **NFL/NCAAF season-year boundary**: `getLiveGames()`/date lookups used the raw calendar year, mislabeling any game played after the new year (e.g. a Jan 2027 playoff game belongs to the "2026" season). Added a shared Jan/Feb rollback rule in both services.
+- **NCAAF live-poll game ID**: `stats-sync.service.ts`'s live-game loop read `game.id` on API-Sports game objects, but the ID is nested at `game.game.id` — every live NCAAF game was being synced under the literal string `"undefined"`.
+- **NCAAF team/game matching**: `syncGameStats()` compared API team IDs against `Team.externalId` (a generic, largely-unused field) instead of `Team.apiSportsTeamId`, and `syncPlayerStats()`'s team lookup had a type mismatch (`externalId` is a string column, compared against a raw number) that meant it could never match — both could silently misattribute or drop stats.
+- **`admin.routes.ts` `/init-sports`**: its own duplicate sports list was missing `americanfootball_ncaaf` entirely (the canonical list in `src/scripts/init-sports.ts` had it) — running sport init via this endpoint instead of the script would silently block all NCAAF syncing.
+- **`api-sports/client.ts` rate limiter**: `API_SPORTS_TIER` was defined in env config but never actually read — the limiter was hardcoded to Pro-tier (5 req/s) regardless of subscription. Now tier-aware (free/pro/ultra/mega).
+- **`api-sports/client.ts` 429 retry**: retried on rate-limit responses with no maximum attempt count, so sustained rate-limiting could retry indefinitely. Capped at 3 attempts.
+- Added `americanfootball_ncaaf` to the outdoor-weather sport lists in `espn-weather.service.ts` and `odds-sync.service.ts` (college football weather affects totals the same way NFL's does).
 
 ---
 
