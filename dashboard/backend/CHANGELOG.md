@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.0] - 2026-08-15
+
 ### Added
 
 - **Team Sync — All Sports** (`POST /api/admin/sync-teams`): Added `syncTeams()` to every sport service (NFL, NBA, NHL, NCAAB) and created `MLBStatsService` with `syncTeams()`. Added `syncAllTeams()` to `StatsSyncService` and a new admin endpoint `POST /api/admin/sync-teams` that runs team sync in the background. Syncs 153 teams total (NFL 34, NBA 34, NHL 32, NCAAB 23, MLB 30) via api-sports.io.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.5.0] - 2026-08-15
+
 ### Added
 
 - **Bookmaker Performance Analytics page** (Phase 2 Bookmaker Analytics): New page at `/analytics/bookmakers` for comparing and ranking sportsbooks by value, sharpness, reliability, and market coverage.
