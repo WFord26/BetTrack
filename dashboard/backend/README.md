@@ -92,6 +92,18 @@ the criteria for revisiting it are in `docs/internal/adr-019-arbitrage-sync-cade
 | `ARBITRAGE_TTL_SECONDS` | `600` | Opportunity lifetime, one sync cycle |
 | `ARBITRAGE_MIN_MIDDLE_PROBABILITY` | `0.10` | Minimum modelled hit rate for a middle |
 
+## Correlation Analysis
+
+Correlation between the legs of a parlay is detected pairwise and applied as a
+penalty on top of `calculateParlayOdds`, producing a "true odds" figure that
+accounts for legs that are not statistically independent (see
+`src/services/correlation.service.ts`).
+
+**v1 scope:** game-line legs only (`moneyline | spread | total`). Player-prop
+correlation and live/in-play hedging are deferred — the former needs the
+(unbuilt) Player Props feature, the latter needs an in-play odds feed that
+doesn't exist yet (`CurrentOdds` is pre-game only). See GitHub issue #10.
+
 ## Building
 
 ```bash

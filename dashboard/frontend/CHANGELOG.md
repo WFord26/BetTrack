@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Correlation Analysis UI** (Phase 3, issue #10): Real-time parlay correlation warnings in the bet slip, plus a reference dashboard.
+  - `src/components/analytics/ParlayValidator.tsx`: Wired into `BetSlip.tsx` for parlays — debounces on leg changes, calls `POST /analytics/correlation/parlay` with a draft slip, and shows a 🟢/🟡/🔴/⛔ warning badge with inline true odds and a suggested fix.
+  - `src/pages/CorrelationDashboard.tsx`: New `/analytics/correlation` page — heatmap, hedge calculator, analysis history and education tabs; new `CORR` nav item.
+  - `src/components/analytics/CorrelationHeatmap.tsx`, `HedgeCalculator.tsx`, `CorrelationEducation.tsx`.
+  - `src/store/correlationSlice.ts`, `src/services/correlation.service.ts`, `src/types/correlation.types.ts`: Redux state, API client and shared types.
+  - `src/store/index.ts`: `correlation` reducer registered; `src/test/test-utils.tsx` updated so existing component tests keep a complete store shape.
+
 ---
 
 ## [0.5.1] - 2026-08-15

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Bet Correlation Analysis** (Phase 3, issue #10): Detects correlation between the legs of a parlay, computes a correlation-adjusted true-odds figure, and finds pre-game hedging opportunities.
+  - `prisma/schema.prisma`: New `BetLegCorrelation` (`bet_leg_correlations`) and `ParlayAnalysis` (`parlay_analyses`) models with `BetLeg`/`Bet`/`User` back-relations. Migration `20260815120000_add_bet_correlation_analysis`.
+  - `src/services/correlation.service.ts`: `correlationService` singleton with `analyzeCorrelation`, `analyzeParlay`, `analyzeDraftSlip`, `calculateTrueOdds`, `findHedgingOpportunities`, plus exported pure detectors `detectSameGameCorrelation`, `detectDerivativeCorrelation`, `detectInverseCorrelation`, `detectTemporalCorrelation`.
+  - Detection covers `moneyline`/`spread`/`total` legs: same-game (spread+total, score 0.85), derivative (moneyline+spread same side with `|line| <= 3`, score 0.90), inverse (opposite moneylines, score -1.0, hard-blocked), and temporal (same team within 48h across two games, score 0.40). Pairs sharing an existing `sgpGroupId` are reported as priced/expected correlation rather than a mistake flag.
+  - `calculateTrueOdds` layers a correlation penalty on top of `calculateParlayOdds` from `src/utils/odds-calculator.ts` — up to -30% decimal odds for positive correlation, up to +20% for inverse.
+  - `src/routes/analytics-correlation.routes.ts`: `POST /api/analytics/correlation/analyze|parlay|hedge`, `GET /api/analytics/correlation/history|education`.
+  - `findHedgingOpportunities` sources opposite-side prices from `CurrentOdds` (pre-game only — no in-play odds feed today, so live hedging is out of scope for v1).
+  - Player-prop correlation is out of scope for v1 — blocked on the (unbuilt) Player Props feature; the `SelectionType` enum has no player-prop legs yet.
+  - Tests: `tests/correlation.service.test.ts` (32) and `tests/analytics-correlation.routes.test.ts` (12).
+
 ---
 
 ## [0.4.1] - 2026-08-15

@@ -5,6 +5,7 @@ import movementReducer from './movementSlice';
 import sharpReducer from './sharpSlice';
 import bookmakerReducer from './bookmakerSlice';
 import arbitrageReducer from './arbitrageSlice';
+import correlationReducer from './correlationSlice';
 
 export const store = configureStore({
   reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
     sharp: sharpReducer,
     bookmaker: bookmakerReducer,
     arbitrage: arbitrageReducer,
+    correlation: correlationReducer,
   },
 });
 
