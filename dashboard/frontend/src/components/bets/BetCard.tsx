@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bet } from '../../types/game.types';
-import { formatCurrency, formatOdds, formatDate, formatRelativeTime, getSportDisplayName, getSportColorClass } from '../../utils/format';
+import { formatCurrency, formatOdds, formatRelativeTime } from '../../utils/format';
 import { useDarkMode } from '../../contexts/DarkModeContext';
 import api from '../../services/api';
 
@@ -9,9 +9,10 @@ interface BetCardProps {
   bet: Bet;
 }
 
+type LegLikeStatus = 'pending' | 'won' | 'lost' | 'push';
+
 export default function BetCard({ bet }: BetCardProps) {
   const { isDarkMode } = useDarkMode();
-  const [isFlipped, setIsFlipped] = useState(false);
   const [showCashOutModal, setShowCashOutModal] = useState(false);
   const [cashOutAmount, setCashOutAmount] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -20,119 +21,16 @@ export default function BetCard({ bet }: BetCardProps) {
   const [settleAmount, setSettleAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Calculate actual odds (boosted if payout is higher than expected)
-  const displayedOdds = React.useMemo(() => {
-    // Convert string values to numbers (Prisma returns Decimal as string)
-    const stake = Number(bet.stake);
-    const potentialPayout = Number(bet.potentialPayout);
-    
-    // Calculate what payout SHOULD be based on oddsAtPlacement
-    const expectedPayout = bet.oddsAtPlacement > 0
-      ? stake * (1 + bet.oddsAtPlacement / 100)
-      : stake * (1 + 100 / Math.abs(bet.oddsAtPlacement));
-    
-    // Check if actual payout is higher (boosted)
-    const isBoosted = Math.abs(potentialPayout - expectedPayout) > 0.01;
-    
-    console.log(`[BetCard ${bet.name}] Boost detection:`, {
-      oddsAtPlacement: bet.oddsAtPlacement,
-      stake: stake,
-      expectedPayout: expectedPayout.toFixed(2),
-      actualPayout: potentialPayout.toFixed(2),
-      isBoosted
-    });
-    
-    if (!isBoosted) {
-      return bet.oddsAtPlacement;
-    }
-    
-    // Back-calculate boosted odds from actual payout
-    const boostedDecimal = potentialPayout / stake;
-    const boostedAmerican = boostedDecimal >= 2
-      ? Math.round((boostedDecimal - 1) * 100)
-      : Math.round(-100 / (boostedDecimal - 1));
-    
-    console.log(`[BetCard ${bet.name}] Boosted odds:`, boostedAmerican);
-    return boostedAmerican;
-  }, [bet.oddsAtPlacement, bet.stake, bet.potentialPayout, bet.name]);
-
-  const wasBoosted = displayedOdds !== bet.oddsAtPlacement;
-
-  // Group legs by SGP
-  const groupedLegs = React.useMemo(() => {
-    const sgpGroups: { [key: string]: typeof bet.legs } = {};
-    const regularLegs: typeof bet.legs = [];
-
-    bet.legs.forEach(leg => {
-      if (leg.sgpGroupId) {
-        if (!sgpGroups[leg.sgpGroupId]) {
-          sgpGroups[leg.sgpGroupId] = [];
-        }
-        sgpGroups[leg.sgpGroupId].push(leg);
-      } else {
-        regularLegs.push(leg);
-      }
-    });
-
-    return { sgpGroups, regularLegs };
-  }, [bet.legs]);
-
-  // Status badge styling
-  const getStatusBadge = () => {
-    const statusConfig = {
-      pending: { label: 'Pending', classes: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-      won: { label: 'Won', classes: 'bg-green-100 text-green-800 border-green-200' },
-      lost: { label: 'Lost', classes: 'bg-red-100 text-red-800 border-red-200' },
-      push: { label: 'Push', classes: 'bg-gray-100 text-gray-800 border-gray-200' },
-      cancelled: { label: 'Cancelled', classes: 'bg-gray-100 text-gray-500 border-gray-200' }
-    };
-
-    const config = statusConfig[bet.status] || statusConfig.pending;
-
-    return (
-      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${config.classes}`}>
-        {config.label}
-      </span>
-    );
-  };
-
-  // Bet type badge styling
-  const getBetTypeBadge = () => {
-    const typeConfig = {
-      single: { label: 'Single', classes: 'bg-blue-100 text-blue-800' },
-      parlay: { label: 'Parlay', classes: 'bg-purple-100 text-purple-800' },
-      teaser: { label: 'Teaser', classes: 'bg-pink-100 text-pink-800' }
-    };
-
-    const config = typeConfig[bet.betType] || typeConfig.single;
-
-    return (
-      <span className={`px-2 py-0.5 text-xs font-medium rounded ${config.classes}`}>
-        {config.label}
-      </span>
-    );
-  };
-
-  // Calculate profit/loss
-  const getProfit = () => {
-    if (bet.status === 'pending' || !bet.actualPayout) {
-      return null;
-    }
-    return bet.actualPayout - bet.stake;
-  };
-
-  const profit = getProfit();
-
   // Format leg selection display
   const formatLegSelection = (leg: any) => {
     // Determine the team name based on selection
     const getTeamName = () => {
       if (!leg.game) return leg.teamName || 'Team';
-      
+
       if (leg.selectionType === 'moneyline' || leg.selectionType === 'spread') {
         return leg.selection === 'home' ? leg.game.homeTeamName : leg.game.awayTeamName;
       }
-      
+
       return leg.teamName || leg.game.homeTeamName || 'Team';
     };
 
@@ -148,20 +46,6 @@ export default function BetCard({ bet }: BetCardProps) {
       return `${direction} ${leg.line}`;
     }
     return leg.selection;
-  };
-
-  // Get leg status badge
-  const getLegStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { label: '⏳', classes: 'text-yellow-600' },
-      won: { label: '✓', classes: 'text-green-600' },
-      lost: { label: '✗', classes: 'text-red-600' },
-      push: { label: '—', classes: 'text-gray-600' }
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-
-    return <span className={`text-lg font-bold ${config.classes}`}>{config.label}</span>;
   };
 
   // Handle cash out
@@ -194,7 +78,7 @@ export default function BetCard({ bet }: BetCardProps) {
     setIsProcessing(true);
     try {
       const payload: any = { status: settleStatus };
-      
+
       // If custom amount provided, use it; otherwise let backend calculate
       if (settleAmount && parseFloat(settleAmount) > 0) {
         payload.actualPayout = parseFloat(settleAmount);
@@ -225,378 +109,149 @@ export default function BetCard({ bet }: BetCardProps) {
     }
   };
 
-  // Status color for card border
-  const getStatusColor = () => {
-    switch (bet.status) {
-      case 'won': return 'border-green-600';
-      case 'lost': return 'border-red-600';
-      case 'push': return 'border-gray-500';
-      case 'cancelled': return 'border-gray-400';
-      default: return 'border-red-600';
-    }
+  // Status-keyed palette shared by the stub column, stamp and leg dots
+  const STATUS_META: Record<string, { stub: string; stamp: string; dot: string }> = {
+    won: { stub: 'bg-sunwin-light', stamp: 'border-sunwin-light text-sunwin-light', dot: 'bg-sunwin-light' },
+    lost: { stub: 'bg-sunloss-light', stamp: 'border-sunloss-light text-sunloss-light', dot: 'bg-sunloss-light' },
+    pending: { stub: 'bg-sunpending', stamp: 'border-sunpending text-sunpending', dot: 'bg-sunpending' },
+    push: { stub: 'bg-sand-shadow', stamp: 'border-ink-muted text-ink-muted', dot: 'bg-sand-shadow' },
+    cancelled: { stub: 'bg-sand-shadow', stamp: 'border-ink-muted text-ink-muted', dot: 'bg-sand-shadow' }
   };
+
+  const statusMeta = STATUS_META[bet.status] || STATUS_META.pending;
+
+  // Ticket-stub vertical label: bet type + leg count, from real data
+  const stubLabel = bet.legs.length > 1
+    ? `${bet.betType.toUpperCase()} · ${bet.legs.length} LEG`
+    : bet.betType.toUpperCase();
+
+  // Payout figure + color, from real settled/potential payout fields
+  const payoutValue = bet.status === 'pending'
+    ? Number(bet.potentialPayout || 0)
+    : Number(bet.actualPayout ?? 0);
+
+  const payoutColorClass =
+    bet.status === 'won' ? 'text-sunwin-light' :
+    bet.status === 'lost' ? 'text-sunloss-light' :
+    bet.status === 'pending' ? 'text-gold' :
+    'text-ink-muted';
+
+  const actionBtnClass = isDarkMode
+    ? 'flex-1 font-display text-[7px] tracking-[.08em] px-2 py-1.5 bg-dusk-panel2 text-cream-muted hover:bg-ember hover:text-cream transition-colors'
+    : 'flex-1 font-display text-[7px] tracking-[.08em] px-2 py-1.5 bg-sand-panel2 text-ink-secondary border-2 border-ink hover:bg-terra hover:text-terra-text transition-colors';
 
   return (
     <>
-      {/* Playing Card Container with Flip Animation */}
-      <div 
-        className="playing-card-container cursor-pointer block"
-        style={{
-          perspective: '1000px',
-          height: '430px',
-          maxHeight: '430px',
-          width: '100%',
-          margin: 0,
-          padding: 0,
-        }}
-        onClick={() => setIsFlipped(!isFlipped)}
+      <div
+        className="ds-sand-bg flex"
+        style={
+          isDarkMode
+            ? { boxShadow: '0 8px 0 #120a22' }
+            : { border: '3px solid #3a2413', boxShadow: '6px 6px 0 #d8c19a' }
+        }
       >
+        {/* Left stub column */}
         <div
-          className="relative w-full h-full"
+          className={`flex-shrink-0 flex flex-col items-center justify-center gap-2.5 py-3 ${statusMeta.stub}`}
+          style={{ width: '78px', borderRight: '3px dashed #b39a72' }}
         >
-          {/* FRONT OF CARD */}
-          <div 
-            className="absolute inset-0 rounded-lg overflow-hidden transition-opacity duration-300"
-            style={{
-              boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
-              imageRendering: 'pixelated',
-              backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-              backgroundImage: `url(${isDarkMode ? '/cards/spade-dark.svg' : '/cards/spade-light.svg'})`,
-              backgroundSize: '150%',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              opacity: isFlipped ? 0 : 1,
-              pointerEvents: isFlipped ? 'none' : 'auto',
-              visibility: isFlipped ? 'hidden' : 'visible',
-            }}
+          <span
+            className="font-display text-[7px] tracking-[.18em] text-terra-text"
+            style={{ writingMode: 'vertical-rl' }}
           >
-          {/* Status Badge - Upper Right Corner Inside Card */}
-          <div className="absolute top-3 right-3 z-20">
-            {getStatusBadge()}
-          </div>
+            {stubLabel}
+          </span>
+        </div>
 
-          {/* Centered Content */}
-          <div className="relative z-10 h-full flex flex-col justify-center items-center text-center p-6">
-              {/* Bet Name */}
-              <h3 
-                className="text-xl font-bold text-gray-900 dark:text-white mb-4 truncate"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-                  letterSpacing: '0.05em'
-                }}
-              >
-                {bet.name}
-              </h3>
+        {/* Stamp column */}
+        <div className="flex-shrink-0 flex items-center justify-center" style={{ width: '92px' }}>
+          <span
+            className={`font-display text-[8px] tracking-[.1em] border-[3px] px-2.5 py-1.5 rotate-[9deg] ${statusMeta.stamp} ${
+              bet.status === 'pending' ? 'animate-ds-blink-slow' : ''
+            }`}
+          >
+            {bet.status.toUpperCase()}
+          </span>
+        </div>
 
-              {/* Stats Grid */}
-              <div className="space-y-3">
-                {/* Stake */}
-                <div className="flex justify-between items-center border-b-2 border-dashed border-gray-300 dark:border-gray-600 pb-2">
-                  <span 
-                    className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase"
-                    style={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                      letterSpacing: '0.05em'
-                    }}
-                  >
-                    STAKE
-                  </span>
-                  <span 
-                    className="text-xl font-bold text-gray-900 dark:text-white"
-                    style={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                      textShadow: '2px 2px 0px rgba(0,0,0,0.1)'
-                    }}
-                  >
-                    {formatCurrency(bet.stake)}
-                  </span>
-                </div>
+        {/* Body */}
+        <div className="flex-1 min-w-0" style={{ padding: '14px 16px' }}>
+          <p className="font-display text-[6.5px] text-ink-muted tracking-[.1em]">
+            PLACED {formatRelativeTime(bet.placedAt).toUpperCase()}
+            {bet.settledAt && <> &middot; SETTLED {formatRelativeTime(bet.settledAt).toUpperCase()}</>}
+          </p>
 
-                {/* Odds */}
-                <div className="flex justify-between items-center border-b-2 border-dashed border-gray-300 dark:border-gray-600 pb-2">
-                  <span 
-                    className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase"
-                    style={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                      letterSpacing: '0.05em'
-                    }}
-                  >
-                    ODDS
-                  </span>
-                  <span 
-                    className="text-xl font-bold text-red-600 dark:text-red-400"
-                    style={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                      textShadow: '2px 2px 0px rgba(0,0,0,0.1)'
-                    }}
-                  >
-                    {formatOdds(displayedOdds)}
-                  </span>
-                </div>
-
-                {/* Payout */}
-                <div className="flex justify-between items-center border-b-2 border-dashed border-gray-300 dark:border-gray-600 pb-2">
-                  <span 
-                    className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase"
-                    style={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                      letterSpacing: '0.05em'
-                    }}
-                  >
-                    PAYOUT
-                  </span>
-                  <span 
-                    className="text-xl font-bold text-gray-900 dark:text-white"
-                    style={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                      textShadow: '2px 2px 0px rgba(0,0,0,0.1)'
-                    }}
-                  >
-                    {bet.status === 'pending'
-                      ? formatCurrency(Number(bet.potentialPayout || 0))
-                      : formatCurrency(Number(bet.actualPayout || 0))}
-                  </span>
-                </div>
-
-                {/* Profit */}
-                {profit !== null && (
-                  <div className="flex justify-between items-center pt-1">
-                    <span 
-                      className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase"
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        letterSpacing: '0.05em'
-                      }}
-                    >
-                      PROFIT
-                    </span>
-                    <span 
-                      className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        textShadow: '3px 3px 0px rgba(0,0,0,0.2)'
-                      }}
-                    >
-                      {profit >= 0 ? '+' : ''}{formatCurrency(profit)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Status Badge */}
-              <div className="mt-4 flex justify-center">
-                {getStatusBadge()}
-              </div>
-              
-              {/* Click to flip hint */}
-              <p 
-                className="text-xs text-center text-gray-500 dark:text-gray-400 mt-3"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                }}
-              >
-                CLICK TO VIEW LEGS ↻
-              </p>
-            </div>
-          </div>
-
-          {/* BACK OF CARD */}
-          <div 
-          className="absolute inset-0 rounded-lg overflow-hidden transition-opacity duration-300"
-          style={{
-            boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
-            imageRendering: 'pixelated',
-            backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-            backgroundImage: `url(${isDarkMode ? '/cards/spade-dark.svg' : '/cards/spade-light.svg'})`,
-            backgroundSize: '150%',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            opacity: isFlipped ? 1 : 0,
-            pointerEvents: isFlipped ? 'auto' : 'none',
-            visibility: isFlipped ? 'visible' : 'hidden',
-          }}
-        >
-            <div 
-              className="relative z-10 overflow-y-auto card-back-scroll"
-              style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#dc2626 rgba(0,0,0,0.1)',
-                boxSizing: 'border-box',
-                padding: '24px 24px 24px 24px',
-                height: '100%',
-                maxHeight: '430px'
-              }}
-            >
-              <style>{`
-                .card-back-scroll::-webkit-scrollbar {
-                  width: 8px;
-                }
-                .card-back-scroll::-webkit-scrollbar-track {
-                  background: rgba(0,0,0,0.1);
-                  border-radius: 4px;
-                }
-                .card-back-scroll::-webkit-scrollbar-thumb {
-                  background: #dc2626;
-                  border-radius: 4px;
-                  border: 2px solid rgba(0,0,0,0.1);
-                }
-                .card-back-scroll::-webkit-scrollbar-thumb:hover {
-                  background: #b91c1c;
-                }
-              `}</style>
-              <h4 
-                className="text-sm font-bold text-gray-900 dark:text-white mb-2"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-                  letterSpacing: '0.05em'
-                }}
-              >
-                {bet.betType.toUpperCase()} • {bet.legs.length} {bet.legs.length === 1 ? 'LEG' : 'LEGS'}
-              </h4>
-
-              {/* Legs List */}
-              <div className="space-y-1">
-                {/* SGP Groups */}
-                {Object.entries(groupedLegs.sgpGroups).map(([groupId, legs]) => (
-                  <div key={`sgp-${groupId}`} className="mb-2">
-                    <div 
-                      className="text-xs font-bold text-red-600 dark:text-red-400 mb-1"
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        letterSpacing: '0.05em'
-                      }}
-                    >
-                      ⚡ SGP
+          <div className="flex flex-col gap-2.5 mt-2.5">
+            {bet.legs.map((leg, idx) => {
+              const legStatus: LegLikeStatus = (leg.status as LegLikeStatus) || 'pending';
+              const legDot = STATUS_META[legStatus]?.dot || STATUS_META.pending.dot;
+              return (
+                <div key={leg.id || idx} className="flex items-center gap-2">
+                  <span className={`w-[9px] h-[9px] rounded-full flex-shrink-0 ${legDot}`} />
+                  <div className="min-w-0">
+                    <div className="font-body text-[13.5px] font-bold text-ink truncate">
+                      {formatLegSelection(leg)}
+                      {leg.sgpGroupId && <span className="ml-1 text-ember">&#9889;</span>}
                     </div>
-                    {legs.map((leg, idx) => (
-                      <div key={leg.id || idx} className="text-xs mb-1">
-                        <div className="flex items-center justify-between">
-                          <span 
-                            className="font-bold text-gray-900 dark:text-white flex-1"
-                            style={{
-                              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                            }}
-                          >
-                            {formatLegSelection(leg)}
-                          </span>
-                          <span className="text-gray-600 dark:text-gray-400 ml-2">
-                            {formatOdds(leg.odds)}
-                          </span>
-                          {getLegStatusBadge(leg.status || 'pending')}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-
-                {/* Regular Legs */}
-                {groupedLegs.regularLegs.map((leg, index) => (
-                  <div key={leg.id || index} className="text-xs mb-1">
                     {leg.game && (
-                      <div className="text-gray-600 dark:text-gray-400 mb-0.5" style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                      }}>
+                      <div className="font-body text-[11.5px] text-ink-muted truncate">
                         {leg.game.awayTeamName} @ {leg.game.homeTeamName}
                       </div>
                     )}
-                    <div className="flex items-center justify-between">
-                      <span 
-                        className="font-bold text-gray-900 dark:text-white flex-1"
-                        style={{
-                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                        }}
-                      >
-                        {formatLegSelection(leg)}
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-400 ml-2">
-                        {formatOdds(leg.odds)}
-                      </span>
-                      {getLegStatusBadge(leg.status || 'pending')}
-                    </div>
                   </div>
-                ))}
-              </div>
-
-              {/* Date and Actions */}
-              <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
-                <p 
-                  className="text-xs text-gray-600 dark:text-gray-400 mb-2"
-                  style={{
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                  }}
-                >
-                  Placed: {formatRelativeTime(bet.placedAt)}
-                  {bet.settledAt && (
-                    <> • Settled: {formatRelativeTime(bet.settledAt)}</>
-                  )}
-                </p>
-                
-                {!bet.settledAt && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSettleStatus('won');
-                        setSettleAmount(bet.potentialPayout?.toString() || '');
-                        setShowSettleModal(true);
-                      }}
-                      className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded border-2 border-red-700 transition-colors"
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        boxShadow: '2px 2px 0px rgba(0, 0, 0, 0.3)'
-                      }}
-                    >
-                      SETTLE
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDeleteModal(true);
-                      }}
-                      className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold rounded border-2 border-gray-700 transition-colors"
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        boxShadow: '2px 2px 0px rgba(0, 0, 0, 0.3)'
-                      }}
-                    >
-                      DELETE
-                    </button>
-                  </div>
-                )}
-              </div>
-
-            </div>
+                  <span className="ml-auto font-display text-[8px] text-ink-secondary flex-shrink-0">
+                    {formatOdds(leg.odds)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
+
+          <div className="flex items-center gap-3 mt-3 pt-2.5" style={{ borderTop: '2px dotted #b39a72' }}>
+            <div className="ds-barcode flex-1 h-4" />
+            <span className="font-body text-[12px] text-ink-muted whitespace-nowrap">
+              {formatCurrency(bet.stake)} stake
+            </span>
+            <span className={`font-display text-[10px] whitespace-nowrap ${payoutColorClass}`}>
+              {formatCurrency(payoutValue)}
+            </span>
+          </div>
+
+          {!bet.settledAt && (
+            <div className="flex gap-2 mt-2.5">
+              <button
+                onClick={() => {
+                  setSettleStatus('won');
+                  setSettleAmount(bet.potentialPayout?.toString() || '');
+                  setShowSettleModal(true);
+                }}
+                className={actionBtnClass}
+              >
+                SETTLE
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className={actionBtnClass}
+              >
+                DELETE
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Modals (rendered outside card for proper z-index) */}
       {showCashOutModal && createPortal(
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border-4 border-red-600 max-w-md w-full p-6"
-               style={{
-                 boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)'
-               }}>
-            <h3 
-              className="text-lg font-bold text-gray-900 dark:text-white mb-4"
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-                letterSpacing: '0.05em'
-              }}
-            >
+        <div className="fixed inset-0 bg-dusk-shadow/70 flex items-center justify-center z-50 p-4">
+          <div className={`${isDarkMode ? 'ds-panel' : 'ds-card-ink'} max-w-md w-full p-6`}>
+            <h3 className={`font-display text-[13px] tracking-[.06em] mb-4 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
               CASH OUT BET
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <p className={`font-body text-sm mb-4 ${isDarkMode ? 'text-cream-secondary' : 'text-ink-secondary'}`}>
               Enter the amount you received for cashing out this bet.
             </p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                     style={{
-                       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                     }}>
+              <label className={`block font-display text-[7px] tracking-[.08em] mb-2 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
                 CASH OUT AMOUNT ($)
               </label>
               <input
@@ -605,13 +260,14 @@ export default function BetCard({ bet }: BetCardProps) {
                 value={cashOutAmount}
                 onChange={(e) => setCashOutAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                }}
+                className={`w-full px-4 py-2 font-body focus:outline-none ${
+                  isDarkMode
+                    ? 'bg-dusk-panel2 text-cream border-2 border-dusk-panel2 focus:border-gold'
+                    : 'bg-sand-panel2 text-ink border-2 border-ink focus:border-terra'
+                }`}
                 autoFocus
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p className={`font-body text-xs mt-1 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
                 Original stake: {formatCurrency(bet.stake)}
               </p>
             </div>
@@ -622,22 +278,18 @@ export default function BetCard({ bet }: BetCardProps) {
                   setCashOutAmount('');
                 }}
                 disabled={isProcessing}
-                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded border-2 border-gray-700 font-bold transition-colors disabled:opacity-50"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)'
-                }}
+                className={`flex-1 px-4 py-2 font-display text-[9px] tracking-[.06em] disabled:opacity-50 ${
+                  isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-secondary border-2 border-ink'
+                }`}
               >
                 CANCEL
               </button>
               <button
                 onClick={handleCashOut}
                 disabled={isProcessing || !cashOutAmount || parseFloat(cashOutAmount) <= 0}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded border-2 border-red-700 font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)'
-                }}
+                className={`flex-1 px-4 py-2 font-display text-[9px] tracking-[.06em] disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDarkMode ? 'ds-btn-press' : 'ds-btn-press-light'
+                }`}
               >
                 {isProcessing ? 'PROCESSING...' : 'CONFIRM'}
               </button>
@@ -648,44 +300,31 @@ export default function BetCard({ bet }: BetCardProps) {
       )}
 
       {showDeleteModal && createPortal(
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border-4 border-red-600 max-w-md w-full p-6"
-               style={{
-                 boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)'
-               }}>
-            <h3 
-              className="text-lg font-bold text-gray-900 dark:text-white mb-4"
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-                letterSpacing: '0.05em'
-              }}
-            >
+        <div className="fixed inset-0 bg-dusk-shadow/70 flex items-center justify-center z-50 p-4">
+          <div className={`${isDarkMode ? 'ds-panel' : 'ds-card-ink'} max-w-md w-full p-6`}>
+            <h3 className={`font-display text-[13px] tracking-[.06em] mb-4 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
               DELETE BET
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            <p className={`font-body text-sm mb-6 ${isDarkMode ? 'text-cream-secondary' : 'text-ink-secondary'}`}>
               Are you sure you want to delete this bet? This action cannot be undone.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isProcessing}
-                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded border-2 border-gray-700 font-bold transition-colors disabled:opacity-50"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)'
-                }}
+                className={`flex-1 px-4 py-2 font-display text-[9px] tracking-[.06em] disabled:opacity-50 ${
+                  isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-secondary border-2 border-ink'
+                }`}
               >
                 CANCEL
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isProcessing}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded border-2 border-red-700 font-bold transition-colors disabled:opacity-50"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)'
-                }}
+                className={`flex-1 px-4 py-2 font-display text-[9px] tracking-[.06em] disabled:opacity-50 ${
+                  isDarkMode ? 'ds-btn-press' : 'ds-btn-press-light'
+                }`}
+                style={isDarkMode ? { backgroundColor: '#ef5350', color: '#fdf3df', boxShadow: '0 4px 0 #8a2e2b' } : undefined}
               >
                 {isProcessing ? 'DELETING...' : 'DELETE'}
               </button>
@@ -696,30 +335,17 @@ export default function BetCard({ bet }: BetCardProps) {
       )}
 
       {showSettleModal && createPortal(
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border-4 border-red-600 max-w-md w-full p-6"
-               style={{
-                 boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)'
-               }}>
-            <h3 
-              className="text-lg font-bold text-gray-900 dark:text-white mb-4"
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-                letterSpacing: '0.05em'
-              }}
-            >
+        <div className="fixed inset-0 bg-dusk-shadow/70 flex items-center justify-center z-50 p-4">
+          <div className={`${isDarkMode ? 'ds-panel' : 'ds-card-ink'} max-w-md w-full p-6`}>
+            <h3 className={`font-display text-[13px] tracking-[.06em] mb-4 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
               SETTLE BET
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <p className={`font-body text-sm mb-4 ${isDarkMode ? 'text-cream-secondary' : 'text-ink-secondary'}`}>
               Manually settle this bet when games are not tracked automatically.
             </p>
-            
+
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                     style={{
-                       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                     }}>
+              <label className={`block font-display text-[7px] tracking-[.08em] mb-2 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
                 OUTCOME
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -728,15 +354,11 @@ export default function BetCard({ bet }: BetCardProps) {
                     setSettleStatus('won');
                     setSettleAmount(bet.potentialPayout?.toString() || '');
                   }}
-                  className={`px-4 py-2 rounded font-bold border-2 transition-colors ${
+                  className={`px-4 py-2 font-display text-[9px] tracking-[.06em] transition-colors ${
                     settleStatus === 'won'
-                      ? 'bg-green-600 text-white border-green-700'
-                      : 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white border-gray-300 dark:border-gray-700 hover:bg-gray-300 dark:hover:bg-gray-500'
+                      ? 'bg-sunwin-light text-terra-text'
+                      : isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-secondary border-2 border-ink'
                   }`}
-                  style={{
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                    boxShadow: settleStatus === 'won' ? '3px 3px 0px rgba(0, 0, 0, 0.3)' : 'none'
-                  }}
                 >
                   WON
                 </button>
@@ -745,15 +367,11 @@ export default function BetCard({ bet }: BetCardProps) {
                     setSettleStatus('lost');
                     setSettleAmount('0');
                   }}
-                  className={`px-4 py-2 rounded font-bold border-2 transition-colors ${
+                  className={`px-4 py-2 font-display text-[9px] tracking-[.06em] transition-colors ${
                     settleStatus === 'lost'
-                      ? 'bg-red-600 text-white border-red-700'
-                      : 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white border-gray-300 dark:border-gray-700 hover:bg-gray-300 dark:hover:bg-gray-500'
+                      ? 'bg-sunloss-light text-terra-text'
+                      : isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-secondary border-2 border-ink'
                   }`}
-                  style={{
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                    boxShadow: settleStatus === 'lost' ? '3px 3px 0px rgba(0, 0, 0, 0.3)' : 'none'
-                  }}
                 >
                   LOST
                 </button>
@@ -762,15 +380,11 @@ export default function BetCard({ bet }: BetCardProps) {
                     setSettleStatus('push');
                     setSettleAmount(bet.stake.toString());
                   }}
-                  className={`px-4 py-2 rounded font-bold border-2 transition-colors ${
+                  className={`px-4 py-2 font-display text-[9px] tracking-[.06em] transition-colors ${
                     settleStatus === 'push'
-                      ? 'bg-gray-600 text-white border-gray-700'
-                      : 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white border-gray-300 dark:border-gray-700 hover:bg-gray-300 dark:hover:bg-gray-500'
+                      ? 'bg-sand-shadow text-ink'
+                      : isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-secondary border-2 border-ink'
                   }`}
-                  style={{
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                    boxShadow: settleStatus === 'push' ? '3px 3px 0px rgba(0, 0, 0, 0.3)' : 'none'
-                  }}
                 >
                   PUSH
                 </button>
@@ -778,10 +392,7 @@ export default function BetCard({ bet }: BetCardProps) {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                     style={{
-                       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                     }}>
+              <label className={`block font-display text-[7px] tracking-[.08em] mb-2 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
                 PAYOUT AMOUNT ($)
               </label>
               <input
@@ -790,12 +401,13 @@ export default function BetCard({ bet }: BetCardProps) {
                 value={settleAmount}
                 onChange={(e) => setSettleAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-                }}
+                className={`w-full px-4 py-2 font-body focus:outline-none ${
+                  isDarkMode
+                    ? 'bg-dusk-panel2 text-cream border-2 border-dusk-panel2 focus:border-gold'
+                    : 'bg-sand-panel2 text-ink border-2 border-ink focus:border-terra'
+                }`}
               />
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+              <div className={`font-body text-xs mt-1 space-y-0.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
                 <p>Stake: {formatCurrency(Number(bet.stake))}</p>
                 <p>Expected payout (if won): {formatCurrency(Number(bet.potentialPayout || 0))}</p>
               </div>
@@ -808,22 +420,18 @@ export default function BetCard({ bet }: BetCardProps) {
                   setSettleAmount('');
                 }}
                 disabled={isProcessing}
-                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded border-2 border-gray-700 font-bold transition-colors disabled:opacity-50"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)'
-                }}
+                className={`flex-1 px-4 py-2 font-display text-[9px] tracking-[.06em] disabled:opacity-50 ${
+                  isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-secondary border-2 border-ink'
+                }`}
               >
                 CANCEL
               </button>
               <button
                 onClick={handleSettle}
                 disabled={isProcessing}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded border-2 border-red-700 font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)'
-                }}
+                className={`flex-1 px-4 py-2 font-display text-[9px] tracking-[.06em] disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDarkMode ? 'ds-btn-press' : 'ds-btn-press-light'
+                }`}
               >
                 {isProcessing ? 'SETTLING...' : 'SETTLE'}
               </button>

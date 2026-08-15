@@ -111,14 +111,14 @@ export default function Stats() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="ds-sand-bg dark:bg-dusk dark:[background-image:none] min-h-screen py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-8"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="h-6 w-48 bg-sand-divider animate-pulse mb-8"></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white rounded-lg shadow-md p-6 h-32 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+              <div key={i} className="ds-card-ink px-[18px] py-4 h-32 animate-pulse">
+                <div className="h-3 bg-sand-divider w-1/2 mb-4"></div>
+                <div className="h-6 bg-sand-divider w-3/4"></div>
               </div>
             ))}
           </div>
@@ -129,13 +129,13 @@ export default function Stats() {
 
   if (error || !stats) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="ds-sand-bg dark:bg-dusk dark:[background-image:none] min-h-screen py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p className="text-red-800 mb-4">{error || 'Failed to load statistics'}</p>
+          <div className="ds-card-ink px-6 py-6 text-center border-sunloss-light">
+            <p className="font-body text-ink mb-4">{error || 'Failed to load statistics'}</p>
             <button
               onClick={fetchStats}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="ds-btn-press-light px-6 py-2.5 text-[10px]"
             >
               Retry
             </button>
@@ -146,13 +146,14 @@ export default function Stats() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8 transition-colors">
+    <div className="ds-sand-bg dark:bg-dusk dark:[background-image:none] min-h-screen py-8 px-4 sm:px-6 lg:px-8 transition-colors">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white text-shadow-pixel tracking-wide">STATISTICS</h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
+            <p className="font-display text-[8px] text-terra tracking-[.1em] mb-3">HOW'S THE HERD?</p>
+            <h1 className="font-display text-[19px] text-ink [text-shadow:4px_4px_0_#e0a512]">STATISTICS</h1>
+            <p className="mt-3 font-body text-ink-secondary">
               Analyze your betting performance
             </p>
           </div>
@@ -164,15 +165,15 @@ export default function Stats() {
                 key={range}
                 onClick={() => setDateRange(range)}
                 className={`
-                  px-4 py-2 rounded-lg font-medium text-sm transition-all
+                  font-display text-[7.5px] px-[13px] py-2.5 border-2 border-ink transition-all
                   ${
                     dateRange === range
-                      ? 'bg-brand-600 text-white shadow-md'
-                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                      ? 'bg-terra text-terra-text shadow-[0_3px_0_#3a2413]'
+                      : 'bg-sand-panel text-ink-secondary'
                   }
                 `}
               >
-                {range === 'all' ? 'All Time' : range.toUpperCase()}
+                {range === 'all' ? 'ALL' : range.toUpperCase()}
               </button>
             ))}
           </div>
@@ -194,72 +195,86 @@ export default function Stats() {
         </div>
 
         {/* Breakdown Tables */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* By Sport */}
-          <div className="card p-6">
-            <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4">By Sport</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="ds-card-ink px-5 py-[18px]">
+            <h3 className="font-display text-[9px] text-ink mb-3.5">BY SPORT</h3>
+            <div className="overflow-x-auto tabular-nums">
+              <table className="w-full">
                 <thead>
-                  <tr className="text-left text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                    <th className="pb-2 font-medium">Sport</th>
-                    <th className="pb-2 font-medium text-center">Bets</th>
-                    <th className="pb-2 font-medium text-center">Win Rate</th>
-                    <th className="pb-2 font-medium text-right">P&L</th>
+                  <tr className="text-left border-b-2 border-ink">
+                    <th className="px-1.5 py-2 font-display text-[6.5px] text-ink-muted tracking-[.05em] uppercase">Sport</th>
+                    <th className="px-1.5 py-2 font-display text-[6.5px] text-ink-muted tracking-[.05em] uppercase text-center">Bets</th>
+                    <th className="px-1.5 py-2 font-display text-[6.5px] text-ink-muted tracking-[.05em] uppercase text-center">Win%</th>
+                    <th className="px-1.5 py-2 font-display text-[6.5px] text-ink-muted tracking-[.05em] uppercase text-right">P&L</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                <tbody>
                   {sportBreakdown.map((row) => (
-                    <tr key={row.sport}>
-                      <td className="py-3 font-medium text-gray-900 dark:text-white">
+                    <tr key={row.sport} className="border-b-2 border-sand-divider">
+                      <td className="px-1.5 py-2.5 font-body text-[14px] font-semibold text-ink">
                         {getSportDisplayName(row.sport)}
                       </td>
-                      <td className="py-3 text-center text-gray-700 dark:text-gray-300">
+                      <td className="px-1.5 py-2.5 font-body text-[14px] text-ink-secondary text-center">
                         {row.bets}
                       </td>
-                      <td className="py-3 text-center text-gray-700 dark:text-gray-300">
+                      <td className="px-1.5 py-2.5 font-body text-[14px] text-ink-secondary text-center">
                         {formatPercentage(row.winRate)}
                       </td>
-                      <td className={`py-3 text-right font-semibold ${row.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <td className={`px-1.5 py-2.5 font-body text-[14px] font-bold text-right ${row.pnl >= 0 ? 'text-sunwin-light' : 'text-sunloss-light'}`}>
                         {formatCurrency(row.pnl)}
                       </td>
                     </tr>
                   ))}
+                  {sportBreakdown.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-1.5 py-4 font-body text-sm text-ink-muted text-center">
+                        No sport data for this range.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
           {/* By Bet Type */}
-          <div className="card p-6">
-            <h3 className="font-display font-bold text-base uppercase tracking-widest text-gray-900 dark:text-white mb-4">By Bet Type</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="ds-card-ink px-5 py-[18px]">
+            <h3 className="font-display text-[9px] text-ink mb-3.5">BY BET TYPE</h3>
+            <div className="overflow-x-auto tabular-nums">
+              <table className="w-full">
                 <thead>
-                  <tr className="text-left text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                    <th className="pb-2 font-medium">Type</th>
-                    <th className="pb-2 font-medium text-center">Bets</th>
-                    <th className="pb-2 font-medium text-center">Win Rate</th>
-                    <th className="pb-2 font-medium text-right">P&L</th>
+                  <tr className="text-left border-b-2 border-ink">
+                    <th className="px-1.5 py-2 font-display text-[6.5px] text-ink-muted tracking-[.05em] uppercase">Type</th>
+                    <th className="px-1.5 py-2 font-display text-[6.5px] text-ink-muted tracking-[.05em] uppercase text-center">Bets</th>
+                    <th className="px-1.5 py-2 font-display text-[6.5px] text-ink-muted tracking-[.05em] uppercase text-center">Win%</th>
+                    <th className="px-1.5 py-2 font-display text-[6.5px] text-ink-muted tracking-[.05em] uppercase text-right">P&L</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                <tbody>
                   {betTypeBreakdown.map((row) => (
-                    <tr key={row.betType}>
-                      <td className="py-3 font-medium text-gray-900 dark:text-white capitalize">
+                    <tr key={row.betType} className="border-b-2 border-sand-divider">
+                      <td className="px-1.5 py-2.5 font-body text-[14px] font-semibold text-ink capitalize">
                         {row.betType}
                       </td>
-                      <td className="py-3 text-center text-gray-700 dark:text-gray-300">
+                      <td className="px-1.5 py-2.5 font-body text-[14px] text-ink-secondary text-center">
                         {row.bets}
                       </td>
-                      <td className="py-3 text-center text-gray-700 dark:text-gray-300">
+                      <td className="px-1.5 py-2.5 font-body text-[14px] text-ink-secondary text-center">
                         {formatPercentage(row.winRate)}
                       </td>
-                      <td className={`py-3 text-right font-semibold ${row.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <td className={`px-1.5 py-2.5 font-body text-[14px] font-bold text-right ${row.pnl >= 0 ? 'text-sunwin-light' : 'text-sunloss-light'}`}>
                         {formatCurrency(row.pnl)}
                       </td>
                     </tr>
                   ))}
+                  {betTypeBreakdown.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-1.5 py-4 font-body text-sm text-ink-muted text-center">
+                        No bet type data for this range.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

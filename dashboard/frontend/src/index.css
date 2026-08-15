@@ -32,9 +32,24 @@
   50%       { box-shadow: 0 4px 0 #991b1b, 0 8px 16px rgba(0,0,0,0.3); }
 }
 
+/* Desert Sunset — hard on/off blink (never fades) for LIVE dots/chips/stamps */
+@keyframes ds-blink {
+  0%, 49%  { opacity: 1; }
+  50%, 100% { opacity: .2; }
+}
+
+/* Desert Sunset — ticker marquee, duplicate the content row and loop */
+@keyframes ds-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 .animate-slide-in-right { animation: slide-in-right 0.3s ease-out; }
 .animate-fade-in        { animation: fade-in 0.2s ease-out; }
 .animate-pixel-pulse    { animation: pixel-pulse 2s ease-in-out infinite; }
+.animate-ds-blink       { animation: ds-blink 1s steps(1) infinite; }
+.animate-ds-blink-slow  { animation: ds-blink 1.4s steps(1) infinite; }
+.animate-ds-marquee     { animation: ds-marquee 30s linear infinite; }
 
 /* ── Root ────────────────────────────────────────────────────────────────── */
 :root {
@@ -63,10 +78,13 @@
     height: 100%;
   }
 
-  /* Headings use display (monospace) font to carry the brand identity
-   * throughout the app, not just on the landing page. Body text stays Inter. */
+  /* Headings default to the body (Space Grotesk) font, bold, so pages not yet
+   * migrated to the Desert Sunset system read cleanly. The pixel font-display
+   * (Press Start 2P) is only safe at the small, deliberately letter-spaced
+   * sizes used in the redesign — apply it explicitly per-heading there,
+   * rather than globally, so it doesn't overflow un-migrated screens. */
   h1, h2, h3 {
-    @apply font-display;
+    @apply font-body font-bold;
   }
 
   /* Focus ring — brand red instead of the default blue */
@@ -223,6 +241,101 @@
   }
   .heading-pixel-lg {
     @apply font-display font-bold text-shadow-pixel-lg;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+   * Desert Sunset design system — shared recipes for the redesigned screens
+   * (Home, Header, Footer, EnhancedDashboard + game cards + filters,
+   * BetSlip, BetHistory + BetCard, Stats + stats components, Futures).
+   * See the design handoff README for the full token/spec rationale.
+   * ══════════════════════════════════════════════════════════════════════ */
+
+  /* Notched panel (dark) — no radius/border; a hard pixel "plus" silhouette
+   * via 4 offset same-color shadows plus a 5th hard drop-shadow edge.
+   * `--ds-panel` lets callers swap the fill (defaults to dusk-panel). */
+  .ds-panel {
+    --ds-panel: #2a1a45;
+    background-color: var(--ds-panel);
+    box-shadow:
+      -4px 0 var(--ds-panel), 4px 0 var(--ds-panel),
+      0 -4px var(--ds-panel), 0 4px var(--ds-panel),
+      0 8px 0 #120a22;
+  }
+  /* Larger drop edge — landing feature cards, bet slip, futures market panel */
+  .ds-panel-lg {
+    --ds-panel: #2a1a45;
+    background-color: var(--ds-panel);
+    box-shadow:
+      -4px 0 var(--ds-panel), 4px 0 var(--ds-panel),
+      0 -4px var(--ds-panel), 0 4px var(--ds-panel),
+      0 10px 0 #120a22;
+  }
+
+  /* Ink-border card (light) — ticket/manual-paper chrome */
+  .ds-card-ink {
+    @apply bg-sand-panel border-[3px] border-ink;
+    box-shadow: 5px 5px 0 #d8c19a;
+  }
+  .ds-card-ink-lg {
+    @apply bg-sand-panel border-4 border-ink;
+    box-shadow: 8px 8px 0 #d8c19a;
+  }
+
+  /* Press button — dark (gold) and light (terracotta) variants. Active state
+   * presses down (translateY) and shortens the hard shadow edge. */
+  .ds-btn-press {
+    @apply bg-gold text-dusk font-display cursor-pointer select-none;
+    box-shadow: 0 4px 0 #8a5a10;
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .ds-btn-press:hover  { transform: translateY(-2px); box-shadow: 0 6px 0 #8a5a10; }
+  .ds-btn-press:active { transform: translateY(3px);  box-shadow: 0 2px 0 #8a5a10; }
+
+  .ds-btn-press-light {
+    @apply bg-terra text-terra-text font-display border-2 border-ink cursor-pointer select-none;
+    box-shadow: 0 4px 0 #3a2413;
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .ds-btn-press-light:hover  { transform: translateY(-2px); box-shadow: 0 6px 0 #3a2413; }
+  .ds-btn-press-light:active { transform: translateY(3px);  box-shadow: 0 2px 0 #3a2413; }
+
+  /* Odds cell — the two-sided pressable price button */
+  .ds-odds-cell-dark {
+    @apply bg-dusk-panel2 text-gold-odds font-semibold;
+    box-shadow: 0 3px 0 #120a22;
+  }
+  .ds-odds-cell-dark-inset {
+    @apply text-gold-odds font-semibold;
+    box-shadow: 0 0 0 2px #43306a inset;
+  }
+  .ds-odds-cell-light {
+    @apply bg-sand-panel2 text-ink font-semibold border-2 border-ink;
+    box-shadow: 0 2px 0 #3a2413;
+  }
+  .ds-odds-cell-selected {
+    @apply bg-gold text-dusk;
+    box-shadow: 0 0 0 2px #8a5a10 inset;
+  }
+
+  /* Ticket-stub barcode footer */
+  .ds-barcode {
+    background: repeating-linear-gradient(90deg, #3a2413 0 2px, transparent 2px 5px, #3a2413 5px 6px, transparent 6px 9px);
+  }
+
+  /* Sand halftone page background */
+  .ds-sand-bg {
+    background-color: #f3e6cc;
+    background-image: radial-gradient(#d8c5a0 1px, transparent 1px);
+    background-size: 6px 6px;
+  }
+
+  /* CRT screen scanlines + vignette overlays (absolute-position inside a
+   * `position: relative; overflow: hidden` screen element) */
+  .ds-crt-scanlines {
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.32) 0 2px, rgba(0,0,0,0) 2px 4px);
+  }
+  .ds-crt-vignette {
+    background: radial-gradient(120% 95% at 50% 45%, rgba(0,0,0,0) 50%, rgba(0,0,0,.65) 100%);
   }
 
 }

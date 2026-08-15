@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import GameFilters from '../components/filters/GameFilters';
 import EnhancedGameCard from '../components/odds/EnhancedGameCard';
 import BetSlip from '../components/bets/BetSlip';
-import { useDarkMode } from '../contexts/DarkModeContext';
 import api from '../services/api';
 
 interface Game {
@@ -15,12 +14,11 @@ interface Game {
   status: string;
   homeScore?: number | null;
   awayScore?: number | null;
-  venue?: string;ñ
+  venue?: string;
   bookmakers?: any[];
 }
 
 export default function EnhancedDashboard() {
-  const { isDarkMode } = useDarkMode();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,14 +39,14 @@ export default function EnhancedDashboard() {
   const fetchGames = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params: any = {};
       if (selectedDate) {
         params.date = selectedDate;
         params.timezoneOffset = new Date().getTimezoneOffset();
       }
-      
+
       const response = await api.get('/games', { params });
       const fetchedGames = response.data.data?.games || response.data.games || [];
       setGames(fetchedGames);
@@ -80,12 +78,18 @@ export default function EnhancedDashboard() {
     if (selectedStatus === 'live' && game.status !== 'in_progress') return false;
     if (selectedStatus === 'upcoming' && game.status !== 'scheduled') return false;
     if (selectedStatus === 'completed' && game.status !== 'final') return false;
-    
+
     // Sport filter
     if (selectedSports.length > 0 && !selectedSports.includes(game.sportKey)) return false;
-    
+
     return true;
   });
+
+  // Real live-game count from the currently filtered set
+  const liveCount = React.useMemo(
+    () => filteredGames.filter(game => game.status === 'in_progress').length,
+    [filteredGames]
+  );
 
   // Get available sports with counts
   const availableSports = React.useMemo(() => {
@@ -137,12 +141,12 @@ export default function EnhancedDashboard() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="ds-sand-bg dark:bg-dusk dark:bg-none min-h-full container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="w-12 h-12 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <div className="font-display font-bold text-xl text-gray-900 dark:text-white mb-1">Loading Games...</div>
-            <div className="text-gray-500 dark:text-gray-400 text-sm">Fetching the latest odds</div>
+            <div className="w-12 h-12 border-4 border-gold dark:border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="font-display text-[13px] text-ink dark:text-cream mb-2">Loading Games...</div>
+            <div className="font-body text-ink-muted dark:text-cream-faint text-sm">Fetching the latest odds</div>
           </div>
         </div>
       </div>
@@ -151,44 +155,21 @@ export default function EnhancedDashboard() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-900/20 border border-red-500 rounded-lg p-6">
-          <h3 className="text-red-400 font-bold text-xl mb-2">Error Loading Games</h3>
-          <p className="text-red-300">{error}</p>
+      <div className="ds-sand-bg dark:bg-dusk dark:bg-none min-h-full container mx-auto px-4 py-8">
+        <div className="ds-card-ink dark:ds-panel p-6">
+          <h3 className="font-display text-[11px] text-terra dark:text-coral mb-2">Error Loading Games</h3>
+          <p className="font-body text-ink-secondary dark:text-cream-secondary">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full bg-gray-50 dark:bg-gray-900 relative" style={{ imageRendering: 'pixelated' }}>
-      {/* 8-bit Pixel Grid Background */}
-      <div 
-        className="absolute inset-0 opacity-5 pointer-events-none"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            0deg,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
-            transparent 2px,
-            transparent 4px,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
-          ),
-          repeating-linear-gradient(
-            90deg,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
-            transparent 2px,
-            transparent 4px,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
-          )`,
-          backgroundSize: '4px 4px',
-          imageRendering: 'pixelated'
-        }}
-      />
-      
+    <div className="flex h-full ds-sand-bg dark:bg-dusk dark:bg-none relative">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-3 rounded-lg border-2 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 ds-btn-press-light dark:ds-btn-press p-3"
         aria-label="Toggle filters"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,16 +190,14 @@ export default function EnhancedDashboard() {
       )}
 
       {/* Fixed Left Sidebar */}
-      <aside className={`
-        w-80 h-screen overflow-y-auto bg-white dark:bg-gray-900 border-r-4 border-red-600 dark:border-red-700
-        fixed lg:relative z-40 lg:z-auto
-        transition-transform duration-300 ease-in-out
-        ${mobileFiltersOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}
-      style={{
-        boxShadow: '4px 0 0 rgba(220, 38, 38, 0.3)',
-        imageRendering: 'pixelated'
-      }}>
+      <aside
+        className={`
+          w-80 h-screen overflow-y-auto ds-sand-bg dark:bg-dusk dark:bg-none
+          fixed lg:relative z-40 lg:z-auto
+          transition-transform duration-300 ease-in-out
+          ${mobileFiltersOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
         <div className="p-4 pt-20 lg:pt-8">
           <GameFilters
             selectedSports={selectedSports}
@@ -240,58 +219,62 @@ export default function EnhancedDashboard() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto w-full">
         <div className="container mx-auto px-4 py-8 lg:py-8 pt-20 lg:pt-8">
-      {/* Games Count */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-display font-bold text-gray-900 dark:text-white text-shadow-pixel tracking-wide">
-          {filteredGames.length} {filteredGames.length === 1 ? 'Game' : 'Games'} Found
-        </h2>
-        {filteredGames.length !== games.length && (
-          <span className="text-gray-600 dark:text-gray-400 text-sm">
-            (filtered from {games.length} total)
-          </span>
-        )}
-      </div>
+          {/* Games Count */}
+          <div className="mb-5 flex items-center gap-3 flex-wrap">
+            <h2 className="font-display text-[13px] text-ink dark:text-cream [text-shadow:3px_3px_0_#e0a512] dark:[text-shadow:3px_3px_0_#c14d21]">
+              {filteredGames.length} {filteredGames.length === 1 ? 'GAME' : 'GAMES'}
+            </h2>
+            {liveCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 bg-sand-panel border-2 border-ink dark:bg-coral-chip dark:border-0 px-2.5 py-1">
+                <span className="w-2 h-2 rounded-full bg-coral animate-ds-blink" />
+                <span className="font-display text-[7px] text-terra dark:text-coral tracking-[.08em]">
+                  {liveCount} LIVE
+                </span>
+              </span>
+            )}
+            {filteredGames.length !== games.length && (
+              <span className="font-body text-ink-muted dark:text-cream-faint text-sm">
+                (filtered from {games.length} total)
+              </span>
+            )}
+          </div>
 
-      {/* Games Grid */}
-      {filteredGames.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-12 text-center border-4 border-red-600 dark:border-red-700"
-             style={{
-               boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
-               imageRendering: 'pixelated'
-             }}>
-          <svg className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <h3 className="font-display font-bold text-xl text-gray-900 dark:text-white text-shadow-pixel mb-2">No Games Found</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Try adjusting your filters or selecting a different date
-          </p>
-          <button
-            onClick={() => {
-              setSelectedSports([]);
-              setSelectedStatus('all');
-            }}
-            className="btn-primary"
-          >
-            Clear Filters
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-          {filteredGames.map((game) => {
-            // Filter bookmakers if a specific one is selected
-            const filteredGame = selectedBookmaker !== 'all' ? {
-              ...game,
-              bookmakers: game.bookmakers?.filter(b => b.key === selectedBookmaker)
-            } : game;
-            
-            return <EnhancedGameCard key={game.id} game={filteredGame} oddsFormat={oddsFormat} />;
-          })}
-        </div>
-      )}
+          {/* Games Grid */}
+          {filteredGames.length === 0 ? (
+            <div className="ds-card-ink dark:ds-panel p-12 text-center">
+              <svg className="w-12 h-12 mx-auto text-ink-muted dark:text-cream-faint mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <h3 className="font-display text-[13px] text-ink dark:text-cream mb-2">No Games Found</h3>
+              <p className="font-body text-ink-secondary dark:text-cream-secondary mb-4">
+                Try adjusting your filters or selecting a different date
+              </p>
+              <button
+                onClick={() => {
+                  setSelectedSports([]);
+                  setSelectedStatus('all');
+                }}
+                className="ds-btn-press-light dark:ds-btn-press font-display text-[7.5px] px-5 py-2.5"
+              >
+                Clear Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+              {filteredGames.map((game) => {
+                // Filter bookmakers if a specific one is selected
+                const filteredGame = selectedBookmaker !== 'all' ? {
+                  ...game,
+                  bookmakers: game.bookmakers?.filter(b => b.key === selectedBookmaker)
+                } : game;
 
-      {/* Bet Slip */}
-      <BetSlip />
+                return <EnhancedGameCard key={game.id} game={filteredGame} oddsFormat={oddsFormat} />;
+              })}
+            </div>
+          )}
+
+          {/* Bet Slip */}
+          <BetSlip />
         </div>
       </main>
     </div>

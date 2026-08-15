@@ -165,12 +165,26 @@ const IconTrendUp = () => (
 // ─── Shared dropdown item styling ────────────────────────────────────────────
 
 const dropdownItemClass =
-  'flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 ' +
-  'hover:bg-gray-100 dark:hover:bg-surface-700 transition-colors w-full text-left';
+  'flex items-center gap-3 px-4 py-2 text-sm text-ink dark:text-cream-secondary ' +
+  'hover:bg-sand-panel2 dark:hover:bg-dusk-panel2 transition-colors w-full text-left';
 
 const dropdownPanelClass =
-  'absolute right-0 mt-2 bg-white dark:bg-surface-800 rounded-lg shadow-lg ' +
-  'border border-gray-200 dark:border-surface-700 py-1 z-50';
+  'absolute right-0 mt-2 bg-sand-panel dark:bg-dusk-panel border-2 border-ink dark:border-0 ' +
+  'shadow-[4px_4px_0_#d8c19a] dark:shadow-[0_8px_0_#120a22] py-1 z-50';
+
+// Sunset stripe — the signature divider beneath every topbar
+function SunsetStripe({ light }: { light?: boolean }) {
+  const segs = light
+    ? ['#e0a512', '#c14d21', '#6d4a9e']
+    : ['#fcc63a', '#f97b2c', '#ef5350', '#6d4a9e', '#362251'];
+  return (
+    <div className="flex h-1.5">
+      {segs.map((c, i) => (
+        <div key={i} className="flex-1" style={{ background: c }} />
+      ))}
+    </div>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -224,13 +238,13 @@ export default function Header() {
   // '/v2' is the canonical dashboard (EnhancedDashboard). The "V2" label and
   // "NEW" badge were internal migration artifacts — removed here.
   const navItems: NavItem[] = [
-    { path: '/v2',                    label: 'Dashboard',  icon: <IconDashboard /> },
-    { path: '/history',               label: 'Bet History', icon: <IconHistory />  },
-    { path: '/futures',               label: 'Futures',     icon: <IconFutures />  },
-    { path: '/stats',                 label: 'Statistics',  icon: <IconStats />    },
-    { path: '/analytics/clv',         label: 'CLV',         icon: <IconCLV />      },
-    { path: '/analytics/sharp',       label: 'Sharp Money', icon: <IconShark />    },
-    { path: '/analytics/bookmakers',  label: 'Bookmakers',  icon: <IconBookmaker /> },
+    { path: '/v2',                    label: 'DASHBOARD', icon: <IconDashboard /> },
+    { path: '/history',               label: 'HISTORY',   icon: <IconHistory />  },
+    { path: '/futures',               label: 'FUTURES',   icon: <IconFutures />  },
+    { path: '/stats',                 label: 'STATS',     icon: <IconStats />    },
+    { path: '/analytics/clv',         label: 'CLV',       icon: <IconCLV />      },
+    { path: '/analytics/sharp',       label: 'SHARP',     icon: <IconShark />    },
+    { path: '/analytics/bookmakers',  label: 'BOOKS',     icon: <IconBookmaker /> },
   ];
 
   // User initials for avatar fallback
@@ -239,9 +253,10 @@ export default function Header() {
     : '';
 
   return (
-    <header className="bg-white dark:bg-surface-900 border-b border-gray-200 dark:border-surface-700 sticky top-0 z-40 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <header className="bg-dusk-chrome dark:bg-dusk-chrome sticky top-0 z-40 transition-colors">
+      <div className="bg-terra dark:bg-dusk-chrome shadow-[0_4px_0_#3a2413] dark:shadow-none">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-terra dark:bg-dusk-chrome">
+        <div className="flex items-center justify-between h-16 gap-4">
 
           {/* ── Logo ────────────────────────────────────────────────────── */}
           <Link
@@ -254,54 +269,57 @@ export default function Header() {
                 src={siteConfig.logoUrl}
                 alt=""
                 aria-hidden="true"
-                className="h-16 w-auto object-contain"
+                className="h-9 w-auto object-contain"
+                style={{ imageRendering: 'pixelated' }}
                 onError={e => {
                   (e.target as HTMLImageElement).style.display = 'none';
                   (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                 }}
               />
             ) : null}
-            {/* Fallback icon — brand-red, no blue gradient */}
+            {/* Fallback icon */}
             <div className={
               siteConfig.logoUrl
                 ? 'hidden'
-                : 'w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center flex-shrink-0'
+                : 'w-8 h-8 bg-gold flex items-center justify-center flex-shrink-0'
             }>
               <IconTrendUp />
             </div>
-            {/* Site name — display (monospace) font, brand identity in the app shell */}
-            <span className="font-display font-bold text-sm text-gray-900 dark:text-white hidden md:block tracking-wide">
-              {siteConfig.siteName}
+            {/* Site name — Press Start 2P pixel wordmark */}
+            <span
+              className="font-display text-[10px] text-terra-text dark:text-cream hidden md:block tracking-wide"
+              style={{ textShadow: '2px 2px 0 #7a2f11' }}
+            >
+              {siteConfig.siteName.toUpperCase()}
             </span>
           </Link>
 
           {/* ── Primary navigation ──────────────────────────────────────── */}
-          <nav className="flex items-center gap-1" aria-label="Main navigation">
+          <nav className="flex items-center gap-1.5 overflow-x-auto" aria-label="Main navigation">
             {navItems.map(item => (
               <Link
                 key={item.path}
                 to={item.path}
                 aria-current={isActive(item.path) ? 'page' : undefined}
                 className={[
-                  'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all',
+                  'flex-shrink-0 px-2.5 py-2 font-display text-[7px] tracking-wide transition-all whitespace-nowrap',
                   isActive(item.path)
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-surface-800 hover:text-gray-900 dark:hover:text-white',
+                    ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10] dark:shadow-[0_3px_0_#8a5a10]'
+                    : 'bg-terra-dark text-terra-muted dark:bg-dusk-panel dark:text-cream-muted hover:bg-[#8f3110] dark:hover:bg-dusk-panel2',
                 ].join(' ')}
               >
-                <span className="flex-shrink-0">{item.icon}</span>
-                <span className="hidden sm:inline">{item.label}</span>
+                {item.label}
               </Link>
             ))}
           </nav>
 
           {/* ── Right controls ───────────────────────────────────────────── */}
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
 
             {/* Dark mode toggle */}
             <button
               onClick={toggleDarkMode}
-              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-800 rounded-lg transition-colors"
+              className="w-[30px] h-[30px] flex items-center justify-center bg-terra-dark dark:bg-dusk-panel text-gold hover:brightness-110 transition-colors"
               title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
@@ -312,7 +330,7 @@ export default function Header() {
             <div className="relative" ref={settingsMenuRef}>
               <button
                 onClick={() => setShowSettingsMenu(v => !v)}
-                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-800 rounded-lg transition-colors"
+                className="w-[30px] h-[30px] flex items-center justify-center bg-terra-dark dark:bg-dusk-panel text-terra-muted dark:text-cream-muted hover:brightness-110 transition-colors"
                 title="Settings"
                 aria-label="Settings"
                 aria-expanded={showSettingsMenu}
@@ -354,7 +372,7 @@ export default function Header() {
                   {/* Admin — single-user mode or admin role */}
                   {(!authEnabled || (user && (user as any).isAdmin)) && (
                     <>
-                      <div className="border-t border-gray-200 dark:border-surface-700 my-1" />
+                      <div className="border-t-2 border-sand-divider dark:border-dusk-panel2 my-1" />
                       <Link
                         to="/settings/admin"
                         className={dropdownItemClass}
@@ -375,7 +393,7 @@ export default function Header() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setShowUserMenu(v => !v)}
-                  className="flex items-center gap-2 p-1.5 pl-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-800 rounded-lg transition-colors"
+                  className="flex items-center gap-2 p-1 pl-2 text-terra-muted dark:text-cream-muted hover:brightness-110 transition-colors"
                   aria-expanded={showUserMenu}
                   aria-haspopup="menu"
                   aria-label="User menu"
@@ -387,9 +405,8 @@ export default function Header() {
                       className="w-7 h-7 rounded-full"
                     />
                   ) : (
-                    // Avatar fallback — brand-red, not blue
-                    <div className="w-7 h-7 bg-brand-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-display font-bold text-xs leading-none">
+                    <div className="w-7 h-7 bg-gold flex items-center justify-center flex-shrink-0">
+                      <span className="text-dusk font-display font-bold text-xs leading-none">
                         {userInitial}
                       </span>
                     </div>
@@ -400,15 +417,15 @@ export default function Header() {
                 {showUserMenu && (
                   <div className={`${dropdownPanelClass} w-60`} role="menu">
                     {/* User info header */}
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-surface-700">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <div className="px-4 py-3 border-b-2 border-sand-divider dark:border-dusk-panel2">
+                      <p className="text-sm font-medium text-ink dark:text-cream truncate">
                         {user.name || 'User'}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                      <p className="text-xs text-ink-muted dark:text-cream-muted truncate mt-0.5">
                         {user.email}
                       </p>
-                      {/* Provider badge — info color (not brand) since it's informational */}
-                      <span className="inline-block mt-1.5 px-2 py-0.5 text-xs rounded-full bg-info-100 dark:bg-info-900 text-info-800 dark:text-info-200">
+                      {/* Provider badge */}
+                      <span className="inline-block mt-1.5 px-2 py-0.5 text-xs bg-plum/20 text-plum dark:text-cream-secondary">
                         {user.provider}
                       </span>
                     </div>
@@ -428,7 +445,7 @@ export default function Header() {
                         setShowUserMenu(false);
                         await logout();
                       }}
-                      className={`${dropdownItemClass} text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300`}
+                      className={`${dropdownItemClass} text-terra dark:text-coral hover:text-terra-dark dark:hover:text-coral`}
                       role="menuitem"
                     >
                       <IconLogOut />
@@ -440,7 +457,9 @@ export default function Header() {
             )}
           </div>
         </div>
+        </div>
       </div>
+      <SunsetStripe light={!isDarkMode} />
     </header>
   );
 }

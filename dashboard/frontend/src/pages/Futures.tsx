@@ -83,80 +83,51 @@ export default function Futures() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-sand dark:bg-dusk flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading futures...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
+          <p className="font-display text-[8px] text-ink-muted dark:text-cream-muted tracking-[.1em]">LOADING FUTURES...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 relative"
-         style={{ imageRendering: 'pixelated' }}>
-      {/* 8-bit Pixel Grid Background */}
-      <div 
-        className="absolute inset-0 opacity-5 pointer-events-none"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            0deg,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
-            transparent 2px,
-            transparent 4px,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
-          ),
-          repeating-linear-gradient(
-            90deg,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
-            transparent 2px,
-            transparent 4px,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
-          )`,
-          backgroundSize: '4px 4px',
-          imageRendering: 'pixelated'
-        }}
-      />
-      
-      {/* CRT Scanlines Effect */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-3"
-        style={{
-          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
-          backgroundSize: '100% 4px'
-        }}
-      />
-      
-      <div className="max-w-7xl mx-auto relative z-10">
+    <div className="min-h-screen bg-sand dark:bg-dusk py-8 px-4">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
-                  letterSpacing: '0.05em'
-                }}>
-              🏆 FUTURES BETTING
-            </h1>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <img
+                src="/decorations/horseshoe.png"
+                alt=""
+                width={52}
+                height={52}
+                style={{ imageRendering: 'pixelated' }}
+                className="hidden sm:block"
+              />
+              <div>
+                <p className="font-display text-[8px] text-ember tracking-[.1em] mb-3">LONG RIDES</p>
+                <h1
+                  className="font-display text-[19px] text-ink dark:text-cream"
+                  style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '4px 4px 0 #e0a512' }}
+                >
+                  FUTURES
+                </h1>
+              </div>
+            </div>
             <button
               onClick={handleSync}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors flex items-center gap-2 border-2 border-red-700"
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
-                boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
-                letterSpacing: '0.05em',
-                fontWeight: 'bold'
-              }}
+              className="ds-btn-press px-4 py-2.5 text-[7.5px] flex items-center gap-2"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Sync Odds
+              SYNC ODDS
             </button>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <p className="font-body text-ink-muted dark:text-cream-muted mb-4">
             Bet on championship winners, division titles, MVP awards, and more
           </p>
 
@@ -166,19 +137,13 @@ export default function Futures() {
               <button
                 key={sport}
                 onClick={() => setSelectedSport(sport)}
-                className={`px-4 py-2 rounded font-medium transition-colors border-2 ${
+                className={`font-display text-[7.5px] px-[13px] py-2.5 tracking-[.05em] transition-transform ${
                   selectedSport === sport
-                    ? 'bg-red-600 text-white border-red-700'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                    : 'bg-dusk-panel text-cream-muted hover:opacity-90'
                 }`}
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  textShadow: selectedSport === sport ? '2px 2px 0px rgba(0,0,0,0.5)' : 'none',
-                  boxShadow: selectedSport === sport ? '4px 4px 0px rgba(0, 0, 0, 0.3)' : 'none',
-                  letterSpacing: '0.05em'
-                }}
               >
-                {sport === 'all' ? 'All Sports' : sport.split('_').pop()?.toUpperCase()}
+                {sport === 'all' ? 'ALL SPORTS' : sport.split('_').pop()?.toUpperCase()}
               </button>
             ))}
           </div>
@@ -186,19 +151,19 @@ export default function Futures() {
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
+          <div className="bg-terra/10 border-2 border-terra rounded-lg p-4 mb-6">
+            <p className="font-body text-terra dark:text-terra-muted">{error}</p>
           </div>
         )}
 
         {/* Empty State */}
         {!loading && futures.length === 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-12 text-center">
+          <div className="ds-panel-lg rounded-lg p-12 text-center">
             <div className="text-6xl mb-4">🏆</div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              No Futures Available
+            <h3 className="font-display text-[12px] text-cream mb-3">
+              NO FUTURES AVAILABLE
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="font-body text-cream-muted mb-4">
               Click "Sync Odds" to fetch the latest futures betting markets
             </p>
           </div>
@@ -207,73 +172,74 @@ export default function Futures() {
         {/* Futures List */}
         <div className="space-y-6">
           {futures.map((future) => (
-            <div key={future.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border-4 border-red-600 dark:border-red-700"
-                 style={{
-                   boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.3)',
-                   imageRendering: 'pixelated'
-                 }}>
+            <div key={future.id} className="ds-panel-lg rounded-lg overflow-hidden">
               {/* Future Header */}
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
-                <h2 className="text-xl font-bold text-white">{future.title}</h2>
-                <p className="text-purple-100 text-sm">{future.sport.name}</p>
+              <div
+                style={{ padding: '16px 20px', background: 'linear-gradient(90deg,#c14d21,#6d4a9e)' }}
+              >
+                <h2
+                  className="font-display text-[12px] text-terra-text"
+                  style={{ textShadow: '2px 2px 0 #120a22' }}
+                >
+                  {future.title}
+                </h2>
+                <p className="font-body text-[13px] text-terra-muted mt-1.5">
+                  {future.sport.name} &middot; {future.groupedOutcomes.length} outcome{future.groupedOutcomes.length === 1 ? '' : 's'}
+                </p>
               </div>
 
               {/* Outcomes Grid */}
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {future.groupedOutcomes
-                    .sort((a, b) => b.bestOdds - a.bestOdds) // Sort by best odds (favorites first)
-                    .map((outcome, idx) => (
-                    <div
-                      key={idx}
-                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="font-semibold text-gray-900 dark:text-white flex-1">
-                          {outcome.outcome}
-                        </h3>
-                        <div className="ml-2">
-                          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                            {formatOdds(outcome.bestOdds, useDecimalOdds)}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                            Best Odds
-                          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-5">
+                {future.groupedOutcomes
+                  .slice()
+                  .sort((a, b) => b.bestOdds - a.bestOdds) // Sort by best odds (favorites first)
+                  .map((outcome, idx) => (
+                  <div key={idx} className="bg-dusk-panel2 p-4 rounded">
+                    <div className="flex gap-2.5 items-start">
+                      <h3 className="font-body text-[15px] font-bold text-cream flex-1">
+                        {outcome.outcome}
+                      </h3>
+                      <div className="text-right">
+                        <div
+                          className="font-display text-[14px] text-gold"
+                          style={{ textShadow: '2px 2px 0 #120a22' }}
+                        >
+                          {formatOdds(outcome.bestOdds, useDecimalOdds)}
+                        </div>
+                        <div className="font-display text-[5.5px] text-cream-faint tracking-[.1em] mt-1.5">
+                          BEST ODDS
                         </div>
                       </div>
-
-                      {/* Bookmaker Odds */}
-                      <div className="space-y-1 pt-3 border-t border-gray-100 dark:border-gray-700 mb-3">
-                        {outcome.bookmakers.slice(0, 3).map((bookmaker, bidx) => (
-                          <div key={bidx} className="flex justify-between text-sm">
-                            <span className="text-gray-600 dark:text-gray-400 capitalize">
-                              {bookmaker.bookmaker.replace(/_/g, ' ')}
-                            </span>
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              {formatOdds(bookmaker.price, useDecimalOdds)}
-                            </span>
-                          </div>
-                        ))}
-                        {outcome.bookmakers.length > 3 && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 pt-1">
-                            +{outcome.bookmakers.length - 3} more books
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Add to Bet Slip Button */}
-                      <button
-                        onClick={() => handleAddToBetSlip(future, outcome)}
-                        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 font-medium"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        Add to Bet Slip
-                      </button>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Bookmaker Odds */}
+                    <div className="flex flex-col gap-1.5 mt-3 pt-2.5 border-t-2 border-dusk-ring">
+                      {outcome.bookmakers.slice(0, 3).map((bookmaker, bidx) => (
+                        <div key={bidx} className="flex justify-between font-body text-[12.5px]">
+                          <span className="text-cream-muted capitalize">
+                            {bookmaker.bookmaker.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-cream font-semibold">
+                            {formatOdds(bookmaker.price, useDecimalOdds)}
+                          </span>
+                        </div>
+                      ))}
+                      {outcome.bookmakers.length > 3 && (
+                        <div className="font-body text-[11px] text-cream-faint pt-1">
+                          +{outcome.bookmakers.length - 3} more books
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Add to Bet Slip Button */}
+                    <button
+                      onClick={() => handleAddToBetSlip(future, outcome)}
+                      className="ds-btn-press mt-3 w-full font-display text-[7.5px] py-2.5 text-center"
+                    >
+                      + ADD TO SLIP
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
