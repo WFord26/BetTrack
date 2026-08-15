@@ -8,9 +8,10 @@ FastMCP server providing sports data from The Odds API (betting odds) and ESPN A
 BetTrack/
 ├── mcp/                        # MCP server (Python FastMCP)
 │   ├── sports_mcp_server.py    # Main server entry point
+│   ├── dashboard_mcp_server.py # Dashboard MCP integration server
 │   ├── sports_api/             # API handlers and formatters
-│   ├── scripts/build/          # PowerShell build system
 │   └── releases/               # Built MCPB packages
+├── scripts/                    # PowerShell + shell build system
 ├── dashboard/                  # Optional web dashboard
 │   ├── backend/                # Node.js + TypeScript + Prisma
 │   └── frontend/               # React + Vite + Redux
@@ -59,24 +60,25 @@ BetTrack/
 **Build Script Location**: `scripts/build.ps1` (centralized build system)
 
 ```powershell
-# Navigate to build script directorycd scripts
+# Navigate to build script (run from project root)
+cd scripts
 
 # Build MCP Server MCPB package only
-.\build.ps1 -VersionBump patch  # or -Beta for testing
+.\build.ps1 -MCP -VersionBump patch -BumpMCP  # or add -Beta for testing
 
 # Build Dashboard only (backend + frontend)
 .\build.ps1 -Dashboard -BumpBackend -BumpFrontend
 
 # Build everything (MCP + Dashboard)
-.\build.ps1 -Dashboard -VersionBump patch -BumpBackend -BumpFrontend
+.\build.ps1 -MCP -Dashboard -VersionBump patch -BumpMCP -BumpBackend -BumpFrontend
 
 # Beta build with version bumps
-.\build.ps1 -Dashboard -BumpDashboard -BumpBackend -BumpFrontend -VersionBump patch -Beta
+.\build.ps1 -MCP -Dashboard -BumpMCP -BumpDashboard -BumpBackend -BumpFrontend -VersionBump patch -Beta
 
 # Verify build outputs
-ls ../../releases/  # Check for new .mcpb file
-ls ../../../dashboard/dist/backend/  # Check for compiled JS files
-ls ../../../dashboard/dist/frontend/  # Check for bundled assets
+ls ../mcp/releases/  # Check for new .mcpb file
+ls ../dashboard/dist/backend/  # Check for compiled JS files
+ls ../dashboard/dist/frontend/  # Check for bundled assets
 ```
 
 **Build verification checklist**:
@@ -98,32 +100,34 @@ ls ../../../dashboard/dist/frontend/  # Check for bundled assets
 **Location**: `scripts/build.ps1` (centralized for MCP + Dashboard)
 
 ```powershell
-# Navigate to build script
+# Navigate to build script (run from project root)
 cd scripts
 
 # Build MCP MCPB package only
-.\build.ps1 -VersionBump patch
+.\build.ps1 -MCP -VersionBump patch -BumpMCP
 
 # Build Dashboard only (backend + frontend to dist/)
 .\build.ps1 -Dashboard -BumpBackend -BumpFrontend
 
 # Build everything (MCP + Dashboard)
-.\build.ps1 -Dashboard -VersionBump patch -BumpBackend -BumpFrontend
+.\build.ps1 -MCP -Dashboard -VersionBump patch -BumpMCP -BumpBackend -BumpFrontend
 
 # Beta build (uses git hash or incremental numbering)
-.\build.ps1 -Beta  # MCP only
+.\build.ps1 -MCP -Beta  # MCP only
 .\build.ps1 -Dashboard -Beta -BumpDashboard  # Dashboard beta
 
 # Full release (version bump + GitHub release + git tag)
-.\build.ps1 -VersionBump minor -Release
+.\build.ps1 -MCP -VersionBump minor -Release
 
 # Clean build artifacts
 .\build.ps1 -Clean
 ```
 
 **Build Flags**:
-- `-VersionBump <patch|minor|major>`: Bump MCP server version
-- `-Dashboard`: Build dashboard components
+- `-MCP`: Build the MCP server MCPB package
+- `-Dashboard`: Build dashboard components (backend + frontend)
+- `-VersionBump <patch|minor|major>`: Bump version (used with `-BumpMCP` or `-BumpDashboard`)
+- `-BumpMCP`: Bump MCP server version (manifest.json and mcp/package.json)
 - `-BumpDashboard`: Bump dashboard root package.json version
 - `-BumpBackend`: Bump backend/package.json version
 - `-BumpFrontend`: Bump frontend/package.json version
@@ -132,10 +136,10 @@ cd scripts
 - `-Clean`: Remove build artifacts
 
 **Version Management**:
-- `-VersionBump`: Updates MCP `manifest.json` and `package.json`
-- `-BumpDashboard`: Updates dashboard root `package.json`
-- `-BumpBackend`: Updates `dashboard/backend/package.json`
-- `-BumpFrontend`: Updates `dashboard/frontend/package.json`
+- `-BumpMCP` + `-VersionBump`: Updates MCP `manifest.json` and `mcp/package.json`
+- `-BumpDashboard` + `-VersionBump`: Updates dashboard root `package.json`
+- `-BumpBackend` + `-VersionBump`: Updates `dashboard/backend/package.json`
+- `-BumpFrontend` + `-VersionBump`: Updates `dashboard/frontend/package.json`
 - Beta builds use git commit hash: `v0.1.13-beta.928845c`
 - Beta with version bump: incremental beta numbering (`v0.1.14-beta.1`)
 - Release flag creates git tag and pushes to GitHub
@@ -156,7 +160,7 @@ cd scripts
   "mcpServers": {
     "sports-data-local": {
       "command": "python",
-      "args": ["C:/path/to/BetTrack/src/sports_mcp_server.py"],
+      "args": ["C:/path/to/BetTrack/mcp/sports_mcp_server.py"],
       "env": {
         "ODDS_API_KEY": "your_api_key_here",
         "BOOKMAKERS_FILTER": "draftkings,fanduel",
@@ -168,8 +172,8 @@ cd scripts
 ```
 
 **Key Behavior**:
-- First run creates `.env`src/` directory for `.env` if `SPORTS_MCP_CONFIG_DIR` not set
-- All development work happens in `src/` folder (MCP server code)
+- First run creates `.env` if `SPORTS_MCP_CONFIG_DIR` not set
+- All development work happens in `mcp/` folder (MCP server code)
 - Config directory: `${APPDATA}/Claude/sports-mcp-config` (survives updates)
 - Development mode: Uses script directory for `.env` if `SPORTS_MCP_CONFIG_DIR` not set
 
@@ -193,8 +197,8 @@ npm run sync:odds      # Manual odds sync via admin API (background)
 npm run resolve:outcomes  # Resolve bet outcomes via admin API (background)
 
 # Build for production (REQUIRED before push)
-# Use centralized build script:
-cd ../../mcp/scripts/build
+# Use centralized build script (run from project root):
+cd ../../scripts
 .\build.ps1 -Dashboard -BumpBackend -BumpFrontend
 # Outputs: dashboard/dist/backend/ and dashboard/dist/frontend/
 ```
@@ -712,7 +716,7 @@ python sports_mcp_server.py
 
 # Build MCP server MCPB package (REQUIRED before push)
 cd scripts
-.\build.ps1 -VersionBump patch
+.\build.ps1 -MCP -VersionBump patch -BumpMCP
 
 # Build dashboard to dist/ (REQUIRED before push)
 cd scripts
@@ -720,7 +724,7 @@ cd scripts
 
 # Build everything (MCP + Dashboard)
 cd scripts
-.\build.ps1 -Dashboard -VersionBump patch -BumpBackend -BumpFrontend
+.\build.ps1 -MCP -Dashboard -VersionBump patch -BumpMCP -BumpBackend -BumpFrontend
 
 # Dashboard backend
 cd dashboard/backend

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/ToastProvider';
 import { DarkModeProvider } from './contexts/DarkModeContext';
@@ -208,9 +208,11 @@ function App() {
   );
 }
 
-// Global BetSlip wrapper
+// Global BetSlip wrapper — hidden on the landing page
 function GlobalBetSlip() {
   const { useDecimalOdds } = usePreferences();
+  const { pathname } = useLocation();
+  if (pathname === '/') return null;
   return <BetSlip useDecimalOdds={useDecimalOdds} />;
 }
 
