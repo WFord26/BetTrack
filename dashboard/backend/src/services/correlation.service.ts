@@ -398,13 +398,45 @@ class CorrelationService {
       .filter((leg): leg is NonNullable<typeof leg> => Boolean(leg));
   }
 
-  /** Fetch two persisted `BetLeg` rows and analyze correlation between them. */
-  async analyzeLegPair(betLeg1Id: string, betLeg2Id: string): Promise<Correlation | null> {
+  /**
+   * Fetch two persisted `BetLeg` rows and analyze correlation between them.
+   *
+   * When `userId` is provided (OAuth mode), both legs' parent bets must
+   * belong to that user — otherwise a signed-in user who obtains another
+   * user's bet-leg IDs could learn whether those private legs are
+   * same-game/inverse/temporal etc. Missing and unauthorized legs are
+   * reported identically ("not found") so existence isn't leaked either.
+   */
+  async analyzeLegPair(
+    betLeg1Id: string,
+    betLeg2Id: string,
+    userId?: string
+  ): Promise<Correlation | null> {
+    if (userId) {
+      await this.assertLegsOwnedBy([betLeg1Id, betLeg2Id], userId);
+    }
+
     const [legA, legB] = await this.fetchLegsWithGame([betLeg1Id, betLeg2Id]);
     if (!legA || !legB) {
       throw new Error('One or both bet legs not found');
     }
     return this.analyzeCorrelation(legA, legB);
+  }
+
+  /** Throws a "not found" error unless every leg's parent bet belongs to `userId`. */
+  private async assertLegsOwnedBy(betLegIds: string[], userId: string): Promise<void> {
+    const legs = await prisma.betLeg.findMany({
+      where: { id: { in: betLegIds } },
+      select: { id: true, bet: { select: { userId: true } } },
+    });
+
+    const ownedIds = new Set(
+      legs.filter((leg) => leg.bet.userId === userId).map((leg) => leg.id)
+    );
+
+    if (!betLegIds.every((id) => ownedIds.has(id))) {
+      throw new Error('One or both bet legs not found');
+    }
   }
 
   /** Analyze a placed `Bet` — loads its legs (with game) and persists a `ParlayAnalysis`. */
@@ -508,12 +540,21 @@ class CorrelationService {
    * Pre-game hedging opportunities for a moneyline leg: the opposite side
    * of the same game across every bookmaker with fresh odds.
    *
+   * When `userId` is provided (OAuth mode), the leg's parent bet must
+   * belong to that user — otherwise a signed-in user who obtains another
+   * user's moneyline leg ID could fetch hedge options and infer the
+   * private original side from the returned opposite selection. Missing
+   * and unauthorized legs are reported identically ("not found").
+   *
    * Scope: pre-game only — `CurrentOdds` has no in-play feed today, so
    * live hedging (e.g. mid-game cash-out math) is out of scope for v1.
    */
-  async findHedgingOpportunities(betLegId: string): Promise<HedgeOption[]> {
-    const leg = await prisma.betLeg.findUnique({ where: { id: betLegId } });
-    if (!leg) {
+  async findHedgingOpportunities(betLegId: string, userId?: string): Promise<HedgeOption[]> {
+    const leg = await prisma.betLeg.findUnique({
+      where: { id: betLegId },
+      include: { bet: { select: { userId: true } } },
+    });
+    if (!leg || (userId && leg.bet.userId !== userId)) {
       throw new Error(`Bet leg ${betLegId} not found`);
     }
 

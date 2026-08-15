@@ -217,6 +217,63 @@ describe('correlationService.analyzeCorrelation', () => {
   });
 });
 
+describe('correlationService.analyzeLegPair', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const legRows = [
+    { id: 'leg-1', gameId: GAME_A, selectionType: 'moneyline', selection: 'home', teamName: null, line: null, odds: -110, sgpGroupId: null, game: { commenceTime: new Date() } },
+    { id: 'leg-2', gameId: GAME_A, selectionType: 'moneyline', selection: 'away', teamName: null, line: null, odds: -110, sgpGroupId: null, game: { commenceTime: new Date() } },
+  ];
+
+  it('skips the ownership check and returns the correlation when no userId is provided (no-auth mode)', async () => {
+    (mockPrisma.betLeg.findMany as jest.Mock).mockResolvedValueOnce(legRows);
+
+    const result = await correlationService.analyzeLegPair('leg-1', 'leg-2');
+
+    expect(result?.type).toBe('inverse');
+    expect(mockPrisma.betLeg.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows the analysis when both legs belong to the caller', async () => {
+    (mockPrisma.betLeg.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 'leg-1', bet: { userId: 'user-1' } },
+        { id: 'leg-2', bet: { userId: 'user-1' } },
+      ])
+      .mockResolvedValueOnce(legRows);
+
+    const result = await correlationService.analyzeLegPair('leg-1', 'leg-2', 'user-1');
+
+    expect(result?.type).toBe('inverse');
+    expect(mockPrisma.betLeg.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects with a not-found error when one leg belongs to a different user', async () => {
+    (mockPrisma.betLeg.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'leg-1', bet: { userId: 'user-1' } },
+      { id: 'leg-2', bet: { userId: 'someone-else' } },
+    ]);
+
+    await expect(correlationService.analyzeLegPair('leg-1', 'leg-2', 'user-1')).rejects.toThrow(
+      'not found'
+    );
+    // The ownership check should short-circuit before the second, data-bearing fetch.
+    expect(mockPrisma.betLeg.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects with a not-found error when a leg does not exist at all', async () => {
+    (mockPrisma.betLeg.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'leg-1', bet: { userId: 'user-1' } },
+    ]);
+
+    await expect(correlationService.analyzeLegPair('leg-1', 'missing', 'user-1')).rejects.toThrow(
+      'not found'
+    );
+  });
+});
+
 describe('correlationService.calculateTrueOdds', () => {
   it('matches the plain parlay product when legs are independent', () => {
     const legs = [
@@ -369,5 +426,35 @@ describe('correlationService.findHedgingOpportunities', () => {
   it('throws when the leg does not exist', async () => {
     (mockPrisma.betLeg.findUnique as jest.Mock).mockResolvedValue(null);
     await expect(correlationService.findHedgingOpportunities('missing')).rejects.toThrow('not found');
+  });
+
+  it('returns opportunities when the leg belongs to the caller', async () => {
+    (mockPrisma.betLeg.findUnique as jest.Mock).mockResolvedValue({
+      id: 'leg-1',
+      gameId: GAME_A,
+      selectionType: 'moneyline',
+      selection: 'home',
+      odds: -150,
+      bet: { userId: 'user-1' },
+    } as any);
+    (mockPrisma.currentOdds.findMany as jest.Mock).mockResolvedValue([]);
+
+    const options = await correlationService.findHedgingOpportunities('leg-1', 'user-1');
+    expect(options).toEqual([]);
+  });
+
+  it('rejects with a not-found error when the leg belongs to a different user', async () => {
+    (mockPrisma.betLeg.findUnique as jest.Mock).mockResolvedValue({
+      id: 'leg-1',
+      gameId: GAME_A,
+      selectionType: 'moneyline',
+      selection: 'home',
+      odds: -150,
+      bet: { userId: 'someone-else' },
+    } as any);
+
+    await expect(correlationService.findHedgingOpportunities('leg-1', 'user-1')).rejects.toThrow(
+      'not found'
+    );
   });
 });

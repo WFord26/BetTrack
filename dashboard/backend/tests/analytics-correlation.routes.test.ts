@@ -50,9 +50,11 @@ jest.mock('../src/services/correlation.service', () => {
 import app from '../src/app';
 import { correlationService } from '../src/services/correlation.service';
 import { prisma } from '../src/config/database';
+import { getScopedUserId } from '../src/middleware/auth-session.middleware';
 
 const mockService = correlationService as jest.Mocked<typeof correlationService>;
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
+const mockGetScopedUserId = getScopedUserId as jest.Mock;
 
 describe('Analytics Correlation Routes', () => {
   beforeEach(() => {
@@ -96,6 +98,21 @@ describe('Analytics Correlation Routes', () => {
         .send({ betLeg1Id: '11111111-1111-1111-1111-111111111111', betLeg2Id: '22222222-2222-2222-2222-222222222222' });
 
       expect(res.status).toBe(404);
+    });
+
+    it('forwards the scoped user id so ownership is enforced in OAuth mode', async () => {
+      mockGetScopedUserId.mockReturnValueOnce('user-1');
+      mockService.analyzeLegPair.mockResolvedValue(null);
+
+      await request(app)
+        .post('/api/analytics/correlation/analyze')
+        .send({ betLeg1Id: '11111111-1111-1111-1111-111111111111', betLeg2Id: '22222222-2222-2222-2222-222222222222' });
+
+      expect(mockService.analyzeLegPair).toHaveBeenCalledWith(
+        '11111111-1111-1111-1111-111111111111',
+        '22222222-2222-2222-2222-222222222222',
+        'user-1'
+      );
     });
   });
 
@@ -221,6 +238,20 @@ describe('Analytics Correlation Routes', () => {
         .send({ betLegId: '11111111-1111-1111-1111-111111111111' });
 
       expect(res.status).toBe(404);
+    });
+
+    it('forwards the scoped user id so ownership is enforced in OAuth mode', async () => {
+      mockGetScopedUserId.mockReturnValueOnce('user-1');
+      mockService.findHedgingOpportunities.mockResolvedValue([]);
+
+      await request(app)
+        .post('/api/analytics/correlation/hedge')
+        .send({ betLegId: '11111111-1111-1111-1111-111111111111' });
+
+      expect(mockService.findHedgingOpportunities).toHaveBeenCalledWith(
+        '11111111-1111-1111-1111-111111111111',
+        'user-1'
+      );
     });
   });
 

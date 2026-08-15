@@ -18,6 +18,7 @@ import {
   selectCorrelationAnalyzing,
 } from '../../store/correlationSlice';
 import { BetLeg } from '../../types/game.types';
+import { DraftLegInput } from '../../types/correlation.types';
 import { formatOdds } from '../../utils/format';
 
 const DEBOUNCE_MS = 400;
@@ -32,6 +33,31 @@ function riskIcon(recommendation: string, riskLevel: string): string {
   if (riskLevel === 'high') return '🔴';
   if (riskLevel === 'medium') return '🟡';
   return '🟢';
+}
+
+/**
+ * Draft legs don't get an `sgpGroupId` until `betService.createBet` persists
+ * them, so a same-game spread + total built live in the slip would send
+ * `sgpGroupId: undefined` and get scored as unpriced high-risk correlation
+ * instead of an expected SGP pair. Derive a stable id from `gameId` for any
+ * game with 2+ legs in this slip so the backend treats it as priced.
+ */
+export function buildDraftLegs(gameLegs: BetLeg[]): DraftLegInput[] {
+  const gameLegCounts = new Map<string, number>();
+  gameLegs.forEach((leg) => {
+    gameLegCounts.set(leg.gameId, (gameLegCounts.get(leg.gameId) ?? 0) + 1);
+  });
+
+  return gameLegs.map((leg) => ({
+    gameId: leg.gameId,
+    selectionType: leg.selectionType,
+    selection: leg.selection,
+    teamName: leg.teamName,
+    line: leg.line,
+    odds: leg.userAdjustedOdds ?? leg.odds,
+    sgpGroupId:
+      leg.sgpGroupId ?? (gameLegCounts.get(leg.gameId)! > 1 ? `draft-sgp-${leg.gameId}` : undefined),
+  }));
 }
 
 export default function ParlayValidator({ legs, useDecimalOdds = false }: Props) {
@@ -53,19 +79,7 @@ export default function ParlayValidator({ legs, useDecimalOdds = false }: Props)
     }
 
     debounceRef.current = setTimeout(() => {
-      dispatch(
-        analyzeDraftSlip(
-          gameLegs.map((leg) => ({
-            gameId: leg.gameId,
-            selectionType: leg.selectionType,
-            selection: leg.selection,
-            teamName: leg.teamName,
-            line: leg.line,
-            odds: leg.userAdjustedOdds ?? leg.odds,
-            sgpGroupId: leg.sgpGroupId ?? undefined,
-          }))
-        )
-      );
+      dispatch(analyzeDraftSlip(buildDraftLegs(gameLegs)));
     }, DEBOUNCE_MS);
 
     return () => {

@@ -21,6 +21,13 @@ export interface CorrelationState {
   hedging: boolean;
   loading: boolean;
   error: string | null;
+  /**
+   * requestId of the most recently dispatched analyzeDraftSlip thunk. If the
+   * user edits the slip while an earlier debounced request is still in
+   * flight, a slow response for that stale request must not overwrite the
+   * current slip's warning/true-odds with outdated data.
+   */
+  latestDraftRequestId: string | null;
 }
 
 const initialState: CorrelationState = {
@@ -32,6 +39,7 @@ const initialState: CorrelationState = {
   hedging: false,
   loading: false,
   error: null,
+  latestDraftRequestId: null,
 };
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────────
@@ -88,6 +96,9 @@ const correlationSlice = createSlice({
   reducers: {
     clearDraftAnalysis(state) {
       state.draftAnalysis = null;
+      // Invalidate so a fulfillment for a request made before this clear
+      // (e.g. the last leg was just removed) can't repopulate stale data.
+      state.latestDraftRequestId = null;
     },
     clearHedgeOptions(state) {
       state.hedgeOptions = [];
@@ -98,15 +109,19 @@ const correlationSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(analyzeDraftSlip.pending, (state) => {
+      .addCase(analyzeDraftSlip.pending, (state, action) => {
         state.analyzing = true;
         state.error = null;
+        state.latestDraftRequestId = action.meta.requestId;
       })
       .addCase(analyzeDraftSlip.fulfilled, (state, action) => {
+        // A newer request has since superseded this one — drop the stale result.
+        if (action.meta.requestId !== state.latestDraftRequestId) return;
         state.draftAnalysis = action.payload;
         state.analyzing = false;
       })
       .addCase(analyzeDraftSlip.rejected, (state, action) => {
+        if (action.meta.requestId !== state.latestDraftRequestId) return;
         state.analyzing = false;
         state.error = action.payload as string;
       });

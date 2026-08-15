@@ -65,7 +65,11 @@ router.post(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { betLeg1Id, betLeg2Id } = req.body;
-      const correlation = await correlationService.analyzeLegPair(betLeg1Id, betLeg2Id);
+      const correlation = await correlationService.analyzeLegPair(
+        betLeg1Id,
+        betLeg2Id,
+        getScopedUserId(req)
+      );
 
       res.json({
         success: true,
@@ -157,7 +161,10 @@ router.post(
   validateBody(hedgeSchema),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const opportunities = await correlationService.findHedgingOpportunities(req.body.betLegId);
+      const opportunities = await correlationService.findHedgingOpportunities(
+        req.body.betLegId,
+        getScopedUserId(req)
+      );
       res.json({
         success: true,
         data: { opportunities, count: opportunities.length },
