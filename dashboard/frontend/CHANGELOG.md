@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.5.2] - 2026-08-15
+
 ### Added
 
 - **Correlation Analysis UI** (Phase 3, issue #10): Real-time parlay correlation warnings in the bet slip, plus a reference dashboard.
