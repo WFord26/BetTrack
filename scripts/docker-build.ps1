@@ -138,7 +138,7 @@ function Test-DockerAvailable {
 function Test-GHCRLogin {
     if (-not $env:GITHUB_TOKEN) {
         Write-ColorOutput "GITHUB_TOKEN environment variable not set" -Type Warning
-        Write-ColorOutput "Set with: `$env:GITHUB_TOKEN = 'your_pat_token'" -Type Info
+        Write-ColorOutput "Set with: `$env:GITHUB_TOKEN = (gh auth token)  # see docs/CREDENTIALS.md" -Type Info
         return $false
     }
     return $true

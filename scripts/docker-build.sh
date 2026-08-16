@@ -25,7 +25,8 @@
 #   ghcr.io/<owner>/<repository>/frontend:<version>
 #
 # Example full build + push:
-#   GITHUB_TOKEN=ghp_xxx ./docker-build.sh --backend --frontend --version 2026.05.13 --push
+#   export GITHUB_TOKEN="$(gh auth token)"   # see docs/CREDENTIALS.md
+#   ./docker-build.sh --backend --frontend --version 2026.05.13 --push
 # =============================================================================
 set -euo pipefail
 
@@ -120,7 +121,7 @@ ghcr_login() {
     local owner="$1"
     if [[ -z "${GITHUB_TOKEN:-}" ]]; then
         log_error "GITHUB_TOKEN environment variable not set"
-        log_info "Set with: export GITHUB_TOKEN='your_pat_token'"
+        log_info "Set with: export GITHUB_TOKEN=\"\$(gh auth token)\"  # see docs/CREDENTIALS.md"
         exit 1
     fi
     log_info "Logging into ghcr.io..."

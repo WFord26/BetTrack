@@ -118,6 +118,7 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 
 ### General Documentation
 
+- **[Credentials & Secrets](docs/CREDENTIALS.md)** - Where API keys and tokens belong, and where they must never live
 - **[Release Process](docs/RELEASE-PROCESS.md)** - Version management and release workflow
 - **[CI/CD & Testing](docs/CI-CD-TESTING.md)** - Automated testing and deployment
 - **[Build Quick Reference](scripts/QUICK_REFERENCE.md)** - Common build commands

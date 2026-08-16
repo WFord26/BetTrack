@@ -1,0 +1,36 @@
+# Gitleaks configuration for BetTrack.
+# Extends the upstream default ruleset and adds project specific allowances.
+# See docs/CREDENTIALS.md for where credentials are supposed to live.
+
+title = "BetTrack gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "odds-api-key-assignment"
+description = "Odds API key assigned to a literal value"
+regex = '''(?i)(odds_api_key|dashboard_api_key)\s*[:=]\s*['"]?[a-f0-9]{20,}['"]?'''
+tags = ["key", "odds-api"]
+
+[allowlist]
+description = "Templates, docs, and fixtures that carry placeholder values only"
+
+paths = [
+  '''\.env\.example$''',
+  '''\.env\.production\.example$''',
+  '''\.env\.prod\.example$''',
+  '''docs/CREDENTIALS\.md$''',
+  '''\.gitleaks\.toml$''',
+  '''(^|/)node_modules/''',
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+]
+
+regexes = [
+  '''your_[a-z_]*(token|key|secret)''',
+  '''ghp_your_token_here''',
+  '''<your[-_][a-z-]+>''',
+  '''(?i)changeme|placeholder|example[-_]?key|dummy''',
+  '''secrets\.GITHUB_TOKEN''',
+]

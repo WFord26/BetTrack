@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# BetTrack pre-commit hook: block staged credentials before they become a commit.
+# Install with: ./scripts/install-git-hooks.sh
+# Bypass once (use sparingly): git commit --no-verify
+
+set -uo pipefail
+
+fail=0
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+# 1. Never allow a real .env file to be staged, even with -f
+while IFS= read -r f; do
+  case "$(basename "$f")" in
+    .env|.env.local|.env.production|.env.development)
+      echo "BLOCKED: $f is an environment file and must never be committed."
+      fail=1
+      ;;
+  esac
+done <<< "$staged"
+
+# 2. Scan staged content for credential shaped strings
+patterns='(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{50,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|xox[baprs]-[A-Za-z0-9-]{10,}'
+
+while IFS= read -r f; do
+  [ -f "$f" ] || continue
+  case "$f" in
+    *.env.example|*.gitleaks.toml|docs/CREDENTIALS.md) continue ;;
+  esac
+  if git show ":$f" 2>/dev/null | grep -nEq "$patterns"; then
+    echo "BLOCKED: $f contains what looks like a live credential."
+    git show ":$f" | grep -nE "$patterns" | sed 's/\(.\{12\}\).*/\1.../' | head -3
+    fail=1
+  fi
+done <<< "$staged"
+
+# 3. Defer to gitleaks when it is installed
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --redact --config .gitleaks.toml --no-banner; then
+    echo "BLOCKED: gitleaks flagged the staged changes."
+    fail=1
+  fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo
+  echo "Nothing was committed. See docs/CREDENTIALS.md for where secrets belong."
+  echo "If this is a false positive, add an allowlist entry to .gitleaks.toml."
+  exit 1
+fi
+
+exit 0

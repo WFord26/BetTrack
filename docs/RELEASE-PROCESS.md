@@ -37,7 +37,7 @@ cd mcp/scripts/build
 .\build.ps1 -FullRelease -VersionBump patch
 
 # With Docker push to GitHub Container Registry
-$env:GITHUB_TOKEN = "your_github_pat_token"
+$env:GITHUB_TOKEN = (gh auth token)   # see docs/CREDENTIALS.md
 .\build.ps1 -FullRelease -VersionBump patch -PushDocker
 
 # Minor or major releases
@@ -96,11 +96,15 @@ Compress-Archive -Path "../../dashboard/dist/frontend/*" -DestinationPath "front
 
 ### Prerequisites
 
-1. **GitHub Personal Access Token** with `write:packages` permission
-2. **Set environment variable**:
+1. **GitHub credentials** with `write:packages` scope, stored in the `gh` CLI
+   keyring rather than in a file: `gh auth login --scopes "repo,write:packages"`
+2. **Export it for this shell only** (never into a repository `.env`):
    ```powershell
-   $env:GITHUB_TOKEN = "ghp_your_token_here"
+   $env:GITHUB_TOKEN = (gh auth token)
    ```
+
+   See [CREDENTIALS.md](CREDENTIALS.md) for the full policy and the shell
+   profile alternative.
 
 ### Manual Docker Build & Push
 
@@ -244,7 +248,7 @@ Beta releases use git commit hashes for version suffixes:
 
 1. **Check Docker is running**: `docker --version`
 2. **Verify login**: `docker login ghcr.io -u <username>`
-3. **Check GITHUB_TOKEN**: `echo $env:GITHUB_TOKEN`
+3. **Check GITHUB_TOKEN is set**: `[bool]$env:GITHUB_TOKEN` (do not echo the value). Re-set with `$env:GITHUB_TOKEN = (gh auth token)`
 4. **Build single arch first**: Use `-Platform "linux/amd64"` for faster debugging
 
 ### GitHub Release Fails

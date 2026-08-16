@@ -3,8 +3,8 @@
 ## TL;DR - Run a Full Release
 
 ```powershell
-# 1. Set GitHub token (first time only)
-$env:GITHUB_TOKEN = "your_github_pat_token"
+# 1. Load GitHub token from the gh keyring (per shell, never into a .env)
+$env:GITHUB_TOKEN = (gh auth token)
 
 # 2. Navigate to build scripts
 cd scripts
@@ -102,13 +102,11 @@ See [dashboard/secrets/README.md](../dashboard/secrets/README.md) for advanced s
 # Install GitHub CLI (for releases)
 winget install GitHub.cli
 
-# Authenticate
-gh auth login
+# Authenticate (stores credentials in the OS keychain, not on disk)
+gh auth login --scopes "repo,write:packages"
 
-# Create GitHub PAT (for Docker push)
-# Go to: https://github.com/settings/tokens
-# Scopes: write:packages, repo
-$env:GITHUB_TOKEN = "ghp_your_token_here"
+# Load it into this shell for Docker push
+$env:GITHUB_TOKEN = (gh auth token)
 
 # Verify Docker
 docker --version
@@ -117,8 +115,8 @@ docker login ghcr.io -u <username>
 
 ### Every Release
 ```powershell
-# Set GitHub token (if not in profile)
-$env:GITHUB_TOKEN = "your_token"
+# Load GitHub token (skip if your $PROFILE already sets it)
+$env:GITHUB_TOKEN = (gh auth token)
 ```
 
 ## Automated Release (GitHub Actions)
@@ -156,7 +154,7 @@ docker pull ghcr.io/<owner>/sports-odds-mcp-frontend:2026.01.12
 
 ## Troubleshooting
 
-**Docker push fails**: Check `$env:GITHUB_TOKEN` is set  
+**Docker push fails**: Check `[bool]$env:GITHUB_TOKEN` is `True`, then re-set with `$env:GITHUB_TOKEN = (gh auth token)`  
 **GitHub release fails**: Run `gh auth login`  
 **Build fails**: Run `.\build.ps1 -Clean` first  
 **Wrong versions**: Check package.json files manually
