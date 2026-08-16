@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **17 analytics tools** (in `dashboard_api/tools.py` after the merge below), backed by the new `/api/mcp/analytics/*` routes. All require an API key with the `stats` permission and are read only apart from the stateless stake calculator.
+  - Arbitrage: `get_arbitrage_opportunities` (filters for min profit, arb type, market type, and `max_snapshot_age` so stale lines can be rejected before acting), `get_arbitrage_history`, `get_arbitrage_stats`, `calculate_arbitrage_stakes`
+  - Closing line value: `get_clv_summary`, `get_clv_by_sport`, `get_clv_by_bookmaker`, `get_clv_report` (sport, bet type, and date range filters)
+  - Sharp money: `get_sharp_action`, `get_contrarian_plays`, `get_game_sharp_indicators`
+  - Line movement: `get_line_movements` (steam, reverse, gradual, injury, or all), `get_game_line_movements`
+  - Market disagreement: `get_market_disagreement`
+  - Bookmaker analytics: `get_bookmaker_rankings`, `compare_bookmakers`, `get_bookmaker_metrics`
+- **`_clean_params()` helper**: strips `None` values before they reach `aiohttp`, which would otherwise serialise them as the literal string `"None"` into the query string and make the backend parse a bogus value. Booleans are converted to `"true"`/omitted rather than passed through, since `aiohttp` rejects bool query params.
+- **Dashboard tools merged into the packaged server**: `sports_mcp_server.py` now registers the BetTrack dashboard tools on the same server whenever `DASHBOARD_API_KEY` is set. Previously `manifest.json` pointed only at `sports_mcp_server.py`, so `dashboard_mcp_server.py` shipped inside the `.mcpb` but was never started — anyone installing from Releases got zero dashboard tools with no indication why.
+  - New `dashboard_api/` package: `client.py` (config, shared session, `make_request`) and `tools.py` (`register_dashboard_tools(mcp)` attaching all 26 tools). No tool logic is duplicated between the two entry points.
+  - Registration is conditional and non-fatal. Without a key the server logs one explanatory line and runs sports-only, so nobody sees dashboard tools they cannot call. An `ImportError` from a partial install degrades to sports-only rather than taking the whole server down.
+  - `client.configure()` reads the environment lazily rather than at import time, so `DASHBOARD_API_KEY` and `DASHBOARD_API_URL` can now live in the same persistent `.env` as `ODDS_API_KEY` instead of only in the process environment.
+  - Tool count: 23 sports tools alone, 49 with a dashboard key configured.
+
+### Changed
+
+- **`dashboard_mcp_server.py` reduced to a thin standalone entry point** (322 lines to ~70). It still runs the dashboard tools on their own for pointing a second server at a different dashboard instance or debugging in isolation, and now also loads a neighbouring `.env`.
+- **`scripts/build.sh` and `scripts/build.ps1`**: both now copy Python package directories from a list (`sports_api`, `dashboard_api`) and warn on a missing one instead of silently shipping an incomplete package. `build.ps1` additionally copies `dashboard_mcp_server.py`, which it had never included — only `build.sh` did, so macOS/Linux and Windows builds produced different archives.
+- **`manifest.json`**: description now mentions the optional dashboard integration.
+- **`.env.example` and `INSTALL_INSTRUCTIONS.md`**: document `DASHBOARD_API_KEY` / `DASHBOARD_API_URL`, the `bets` and `stats` permissions each tool group needs, and how to tell from the startup log which mode the server is in.
+
+### Security
+
+- **Real HTTPS enforcement warning**: plain `http://` pointed at a non-loopback `DASHBOARD_API_URL` now logs an explicit warning that the API key and bet data will travel unencrypted. Previously this was only a comment in `.env.example`. Loopback addresses (`localhost`, `127.0.0.1`, `::1`) stay silent.
+
+### Fixed
+
+- **Network errors no longer abort a tool call**: `aiohttp.ClientError` from an unreachable or down dashboard is caught and returned as a readable `{"error": "Dashboard unreachable", ...}` result instead of propagating as an exception.
+- Trailing slashes on `DASHBOARD_API_URL` are stripped, so `https://host/` no longer produces `https://host//api/...`.
+
 ---
 
 ## [0.4.2] - 2026-08-15

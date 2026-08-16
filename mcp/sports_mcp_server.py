@@ -128,6 +128,41 @@ espn_handler = ESPNAPIHandler()
 
 
 # ============================================================================
+# DASHBOARD TOOLS (optional)
+# ============================================================================
+# The BetTrack dashboard tools live in the `dashboard_api` package and are
+# attached to this same server when DASHBOARD_API_KEY is configured. Without
+# a key we register nothing at all, so a user who only wants sports data
+# never sees dashboard tools they cannot call.
+#
+# This must run after load_dotenv() above, since the key normally comes from
+# the persistent .env rather than the process environment.
+
+dashboard_tool_names: list[str] = []
+
+try:
+    from dashboard_api import client as dashboard_client
+    from dashboard_api.tools import register_dashboard_tools
+
+    if dashboard_client.configure():
+        dashboard_tool_names = register_dashboard_tools(mcp)
+        logger.info(
+            f"Dashboard connected at {dashboard_client.get_api_url()} "
+            f"({len(dashboard_tool_names)} tools registered)"
+        )
+    else:
+        logger.info(
+            "DASHBOARD_API_KEY not set. Dashboard tools are unavailable; "
+            "sports data tools work normally. Add DASHBOARD_API_KEY to your "
+            ".env to enable bet tracking and analytics."
+        )
+except ImportError as exc:
+    # A partial install should degrade to sports-only rather than refusing
+    # to start and taking the sports tools down with it.
+    logger.warning(f"Dashboard tools could not be loaded: {exc}")
+
+
+# ============================================================================
 # THE ODDS API TOOLS
 # ============================================================================
 
@@ -1375,6 +1410,7 @@ if __name__ == "__main__":
     logger.info("Starting Sports Data MCP Server...")
     logger.info(f"Odds API configured: {odds_handler is not None}")
     logger.info(f"ESPN API configured: True")
-    
+    logger.info(f"Dashboard configured: {len(dashboard_tool_names) > 0}")
+
     # Run the server
     mcp.run()

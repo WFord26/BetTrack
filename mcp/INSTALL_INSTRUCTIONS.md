@@ -69,16 +69,47 @@ Try asking Claude:
 
 ## Dashboard Integration (Optional)
 
-The dashboard MCP server (`dashboard_mcp_server.py`) connects Claude to your self-hosted BetTrack dashboard. Configure it with:
+The BetTrack dashboard tools are built into this same server. There is nothing
+extra to install — add a key to the same `.env` file and restart Claude
+Desktop:
 
 ```bash
 DASHBOARD_API_KEY=sk_your_api_key_here
 DASHBOARD_API_URL=https://your-dashboard.example.com
 ```
 
-> **Security:** `DASHBOARD_API_URL` **must** use `https://` for any hosted or production deployment.
-> Using plain `http://` exposes your API key and bet data to network interception.
-> `http://localhost:3001` is acceptable **only** for local development on your own machine.
+Generate the key in the dashboard under **Settings -> API Keys**. Grant it:
+
+- **`bets`** for bet tracking tools (create a bet, list bets, exposure by game)
+- **`stats`** for the analytics tools (arbitrage, closing line value, sharp
+  money, line movement, market disagreement, bookmaker metrics)
+
+Leave `DASHBOARD_API_KEY` unset and the server still runs normally; you just
+get the sports data tools, and no dashboard tools appear in Claude. The
+startup log tells you which mode you are in:
+
+```
+Dashboard connected at https://your-dashboard.example.com (26 tools registered)
+```
+
+or
+
+```
+DASHBOARD_API_KEY not set. Dashboard tools are unavailable; sports data tools work normally.
+```
+
+> **Security:** `DASHBOARD_API_URL` **must** use `https://` for any hosted or
+> production deployment. Plain `http://` exposes your API key and bet data to
+> anything on the network path. `http://localhost:3001` is acceptable **only**
+> for local development on your own machine. The server logs a warning if you
+> point a plain `http://` URL at a non-loopback host.
+
+### Running the dashboard tools on their own
+
+`dashboard_mcp_server.py` runs the dashboard tools with no sports data tools
+attached. Most users do not need it — the combined server above already
+includes everything. It is useful for pointing a second MCP server at a
+different dashboard instance, or for debugging dashboard tools in isolation.
 
 ## Support
 
@@ -88,20 +119,24 @@ For issues or questions:
 
 ## Features
 
-### Odds API Tools (15 tools available)
-- Get available sports
-- Get betting odds
-- Get live scores
-- Search for team odds
-- Get event-specific odds
+### Sports Data Tools (always available)
 
-### ESPN API Tools
-- Live scoreboards
-- Team information
-- League standings
-- Team schedules
-- Latest news
-- Player information
-- Game summaries
+**The Odds API** — available sports, betting odds, live scores, event odds,
+and natural language odds search across 70+ markets including player props.
+
+**ESPN API** — live scoreboards, team info and schedules, league standings,
+latest news, player and game lookups, plus formatted scoreboard and standings
+tables.
+
+### Dashboard Tools (when DASHBOARD_API_KEY is set)
+
+**Bets and games** — create a bet, list your bets, bet details, active games,
+game odds, team search, betting stats summary, advice context, and games
+annotated with your open exposure.
+
+**Analytics** (requires the `stats` permission on the key) — arbitrage
+opportunities with a stake calculator, closing line value by sport and by
+bookmaker, sharp money and contrarian plays, line movement including steam and
+reverse moves, market disagreement, and bookmaker rankings and comparisons.
 
 Enjoy your sports data access in Claude!
