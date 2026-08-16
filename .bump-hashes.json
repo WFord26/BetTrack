@@ -3,8 +3,9 @@
   "packages": {
     "mcp": {
       "name": "sports-data-mcp",
-      "hash": "ae800b36423e7544c81c55fb20bbe7cc66b97fe80d35461fbf54e5e2e2c69e28",
+      "hash": "6d028f50b372fcd8a1a5c6d884565a525abb49f618e13b9b9821dc8a8cfc0e91",
       "files": {
+        "mcp/.env": "bcb52a5e31d343c5189530e185895c727b76e5cf261e5808c63dd2794154ca5e",
         "mcp/.env.example": "bcb52a5e31d343c5189530e185895c727b76e5cf261e5808c63dd2794154ca5e",
         "mcp/.mcpbignore": "52fb5b93afa01bb1acad28e896112dae0ed91f8d38503294463a93e77d619604",
         "mcp/build/sports-data-mcp/.env.example": "e0aa68ebfbb53281afce1ed552f768a8e90dec64f4bffee0a050e90145fb26a6",
@@ -27,7 +28,7 @@
         "mcp/espn-api-spec.json": "d220e675759399c13dd57697da5350e38fc370df0682bb0efd99531fa875f832",
         "mcp/icon.png": "6f2c14a78513cb43045fce510e899af7490cc20b5776fed3864d8e863435f61a",
         "mcp/INSTALL_INSTRUCTIONS.md": "25d767cc22033423a4f1c1daba4394aca682f4b7159bc14140ea0fa5ba2aebc2",
-        "mcp/manifest.json": "7719fe9fbd088d16621b1f38e2c89ef288cd4d2f0b71d9c29c8556a4296c8d21",
+        "mcp/manifest.json": "ce946f2fe70cf465cf17b084770e0961832d2b69babbe195654fabc43b6324d0",
         "mcp/mcpb_bootstrap.py": "58fd2a5d7267be6cc1501e711890e2530f9c3802fa6bafa505ed280ea69abed8",
         "mcp/odds-api-spec.json": "ed1a4443b0480f6fcf7d916b3d745dfc7147ed453809dede69c0f97741e0a731",
         "mcp/README.md": "9634b31a85f19392b9b6150bab9e1b213a58f78ecbe5768688f6af554a3ed9d6",
@@ -36,7 +37,7 @@
         "mcp/releases/sports-data-mcp-v0.3.2.mcpb": "47a0e22ffb7d77504308135fe50f83057bad213bf81eac9f7d0c1482ac19ffb8",
         "mcp/releases/sports-data-mcp-v0.3.3.mcpb": "3229eec545091242114880331689406c7509d2c3b140ff7655e2aa662d482686",
         "mcp/releases/sports-data-mcp-v0.3.4.mcpb": "0bcd32f39a7fd70dd7c8db4631787dbbc4e847be478a7115c8fc661dc16a799d",
-        "mcp/requirements.txt": "ab5d7f0f39753dbdca2fa6b89554ec4011c8edd6fceef7924b558d367b4542fa",
+        "mcp/requirements.txt": "59890fce81d0e02c1af8dd153571de5ed1d87843ff62eee53014d67bf0e50543",
         "mcp/setup.py": "89cc811c3c166b2e6725c0a4b8bbf1965e9f8f3c56fbc259ec71c9ccda1f5ebd",
         "mcp/sports_api/__init__.py": "160143aa2aea8ab4e2c4c7399af068d560c866e9b7f233987f0625cdde74fcd4",
         "mcp/sports_api/cache.py": "c7a8baf60ea1ad26d9114e59114db056b89748f7106e290bd3ead6bdcb538942",
@@ -220,7 +221,7 @@
     },
     "dashboard/frontend": {
       "name": "@wford26/bettrack-frontend",
-      "hash": "8e59e2bc0e7da2dd7e7e6156ebe81bcb9de5e28831845b52f3c66c73e742d149",
+      "hash": "66bcf18549c7907a13e222b1321a4c5499a2307874becb1330d19f774a5ac15a",
       "files": {
         "dashboard/frontend/.env": "7179baa64d195ca406e46380eb2cbcb93dd995ad0e77e0e13cef7eb464e2dd91",
         "dashboard/frontend/.env.example": "eebfc913c8d4337cbbbca6032303d52f89e6101b806c08e44e0db27b10539bee",
@@ -310,7 +311,7 @@
         "dashboard/frontend/src/components/Footer.tsx": "bc088ecd0a34653c2370de23dca35c5868f38b9e61830cbe121c5216351b2611",
         "dashboard/frontend/src/components/Header.tsx": "b054166074a88e990b157ab92ab17b2225276635bde452f3e47240b2e4bc35ee",
         "dashboard/frontend/src/components/odds/DisagreementBreakdown.tsx": "84a9c3068a63d996a11b1ff48fe04d00b68bd0de6205a47deb3b9689199557d7",
-        "dashboard/frontend/src/components/odds/EnhancedGameCard.tsx": "833947dddbdd8d558c5690293218fbc5ce9ea659fb8a23cc53d209a426bf4da3",
+        "dashboard/frontend/src/components/odds/EnhancedGameCard.tsx": "0c319ee7e02ab1428ae2a7fdb3db44d7b338d969d7ac89e29bdfc84b19002b99",
         "dashboard/frontend/src/components/odds/GameCard.tsx": "713c53b9b4f38c848eb072bee5996493b0891737421e0852cfacae949ce2c504",
         "dashboard/frontend/src/components/odds/HighDisagreementGames.tsx": "3cc9887b955c298925575bfbd7375eedbc12d6225f784eec16d10d700e1f6463",
         "dashboard/frontend/src/components/odds/OddsCell.test.tsx": "7bae99838b9f3634fd4458bebff377bab4440de04e0f3d5ef362f24e8a0350bb",
@@ -347,7 +348,7 @@
         "dashboard/frontend/src/pages/BookmakerPerformance.tsx": "4491ff30630dc4d5e9b10da04f2c3e3c55498fd0d58a5911f24cde6253005ab3",
         "dashboard/frontend/src/pages/CLVAnalytics.tsx": "bec2fd752d794b36794644ad82906637957f3561d22bc876b3ad97cdf1b447c0",
         "dashboard/frontend/src/pages/CorrelationDashboard.tsx": "d32809b6a7ff7f6b303af02bff0bc7c304cdba776930f3aff6332679743d3fe3",
-        "dashboard/frontend/src/pages/EnhancedDashboard.tsx": "d944866986fedab1cc3095a24229ef61b12c5cb5f5a7245cf0c8bda1b62a8f86",
+        "dashboard/frontend/src/pages/EnhancedDashboard.tsx": "59d8544c52750b7d87201960cb7e15a3d3e294fec7a57ee0b4a781eacb1cb12c",
         "dashboard/frontend/src/pages/Futures.tsx": "87a28aa86e32116aa618850cd57e2acb0e72642c93edd49723552ee63c767fb6",
         "dashboard/frontend/src/pages/GameDetail.tsx": "4cb743f37d7ab0994517e7aa62a36478cf42ceb3e87d6eaf9414b0778f3a3957",
         "dashboard/frontend/src/pages/Home.tsx": "0ba7e2aaffb48775c9134efababac98627e6bf4ca7450e70c6712d2f6dfcf366",
