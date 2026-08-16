@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addLeg } from '../../store/betSlipSlice';
 import { formatTime, getSportDisplayName } from '../../utils/format';
+import { useDarkMode } from '../../contexts/DarkModeContext';
 
 interface Bookmaker {
   key: string;
@@ -46,6 +47,18 @@ interface EnhancedGameCardProps {
   oddsFormat?: 'american' | 'decimal' | 'fractional';
 }
 
+const BOOKMAKER_INFO: Record<string, { logo: string; color: string; useImage?: boolean }> = {
+  draftkings: { logo: '/bookmaker/draftkings.png', color: 'bg-green-600', useImage: true },
+  fanduel: { logo: '/bookmaker/fanduel.png', color: 'bg-blue-600', useImage: true },
+  betmgm: { logo: '/bookmaker/betmgm.png', color: 'bg-yellow-600', useImage: true },
+  betrivers: { logo: '/bookmaker/betrivers.png', color: 'bg-blue-500', useImage: true },
+  betus: { logo: '/bookmaker/betus.png', color: 'bg-red-600', useImage: true },
+  mybookieag: { logo: '📚', color: 'bg-purple-600' },
+  pointsbet: { logo: '⚡', color: 'bg-red-600' },
+  bovada: { logo: '🐂', color: 'bg-red-700' },
+  mybookie: { logo: '📚', color: 'bg-purple-600' },
+};
+
 // Map sport keys to image files
 const SPORT_IMAGES: Record<string, string> = {
   'basketball_nba': '/sports/basketball.png',
@@ -61,16 +74,16 @@ const SPORT_IMAGES: Record<string, string> = {
 function formatGameTime(commenceTime: string, status: string): string {
   if (status === 'in_progress') return 'LIVE';
   if (status === 'final') return 'FINAL';
-
+  
   const date = new Date(commenceTime);
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-
+  
   if (diffMins < 60 && diffMins > 0) {
     return `${diffMins}m`;
   }
-
+  
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
@@ -101,11 +114,13 @@ function formatOddsValue(american: number, format: 'american' | 'decimal' | 'fra
 }
 
 export default function EnhancedGameCard({ game, oddsFormat = 'american' }: EnhancedGameCardProps) {
+  const [expandedBookmakers, setExpandedBookmakers] = useState(false);
+  const [blinkOn, setBlinkOn] = useState(true);
   const dispatch = useDispatch();
-
+  
   const isLive = game.status === 'in_progress';
   const isCompleted = game.status === 'final';
-
+  
   const gameTime = useMemo(() => formatGameTime(game.commenceTime, game.status), [game.commenceTime, game.status]);
   const sportImage = SPORT_IMAGES[game.sportKey] || '/sports/basketball.png';
   const isBaseball = game.sportKey === 'baseball_mlb';
@@ -145,10 +160,16 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
     return null;
   }, [isBaseball, isLive, game.period, game.clock, inningHalfLabel]);
 
+  useEffect(() => {
+    if (!isLive) return;
+    const t = setInterval(() => setBlinkOn((v) => !v), 500);
+    return () => clearInterval(t);
+  }, [isLive]);
+
   // Get best odds across all bookmakers
   const getBestOdds = () => {
     if (!game.bookmakers || game.bookmakers.length === 0) return null;
-
+    
     // Find best odds for each market type
     const bestH2H = { away: null as any, home: null as any, bookmaker: '' };
     const bestSpread = { away: null as any, home: null as any, bookmaker: '' };
@@ -163,7 +184,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
       if (h2hMarket) {
         const awayML = h2hMarket.outcomes.find(o => o.name === game.awayTeamName);
         const homeML = h2hMarket.outcomes.find(o => o.name === game.homeTeamName);
-
+        
         if (awayML && (!bestH2H.away || awayML.price > bestH2H.away.price)) {
           bestH2H.away = awayML;
           if (!bestH2H.bookmaker) bestH2H.bookmaker = bookmaker.key;
@@ -178,7 +199,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
       if (spreadMarket) {
         const awaySpread = spreadMarket.outcomes.find(o => o.name === game.awayTeamName);
         const homeSpread = spreadMarket.outcomes.find(o => o.name === game.homeTeamName);
-
+        
         if (awaySpread && (!bestSpread.away || awaySpread.price > bestSpread.away.price)) {
           bestSpread.away = awaySpread;
           if (!bestSpread.bookmaker) bestSpread.bookmaker = bookmaker.key;
@@ -193,7 +214,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
       if (totalMarket) {
         const over = totalMarket.outcomes.find(o => o.name === 'Over');
         const under = totalMarket.outcomes.find(o => o.name === 'Under');
-
+        
         if (over && (!bestTotal.over || over.price > bestTotal.over.price)) {
           bestTotal.over = over;
           if (!bestTotal.bookmaker) bestTotal.bookmaker = bookmaker.key;
@@ -216,9 +237,16 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
   const totalOver = bestOdds?.bestTotal.over;
   const totalUnder = bestOdds?.bestTotal.under;
 
-  // Get primary bookmaker for the footer chip
+  // Get primary bookmaker for icon display
   const primaryBookmaker = game.bookmakers?.[0]?.key || 'draftkings';
-  const hasBookmakerData = !!(game.bookmakers && game.bookmakers.length > 0);
+  const bookmakerInfo = BOOKMAKER_INFO[primaryBookmaker] || { logo: '🎲', color: 'bg-gray-600', useImage: false };
+  
+  console.log('Game data:', { 
+    id: game.id, 
+    period: game.period, 
+    clock: game.clock, 
+    status: game.status 
+  });
 
   // Handle adding bet to bet slip
   const handleAddToBetSlip = (type: 'moneyline' | 'spread' | 'total', selection: 'home' | 'away' | 'over' | 'under', odds: number, line?: number) => {
@@ -239,67 +267,120 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
     }));
   };
 
-  const oddsCellClasses = 'ds-odds-cell-light dark:ds-odds-cell-dark w-full px-1.5 py-1.5 text-center text-[13px] font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed';
-  const marketLabelClasses = 'font-display text-[6px] text-ink-muted dark:text-cream-faint tracking-[.08em] uppercase text-center';
+  const { isDarkMode } = useDarkMode();
 
   return (
-    <div className="flex flex-col">
-      {/* Scoreboard */}
-      <div className="ds-card-ink dark:ds-panel p-4">
-        {/* Header row */}
-        <div className="flex items-center gap-2.5 mb-3.5">
-          <img
-            src={sportImage}
-            alt={getSportDisplayName(game.sportKey)}
-            className="w-5 h-5"
-            style={{ imageRendering: 'pixelated' }}
-          />
-          <span className="font-display text-[7px] text-ink-muted dark:text-cream-muted tracking-[.1em] uppercase">
-            {getSportDisplayName(game.sportKey)}
-          </span>
-          <span
-            className={`ml-auto font-display text-[7px] px-[9px] py-1.5 tracking-[.08em] ${
-              isLive
-                ? 'bg-[#c0392b] dark:bg-coral text-terra-text dark:text-dusk animate-ds-blink'
-                : isCompleted
-                ? 'bg-ink dark:bg-dusk-ring text-sand dark:text-cream-muted'
-                : 'bg-ink dark:bg-dusk-panel2 text-sand dark:text-cream-muted'
-            }`}
+    <div className="relative group">
+      {/* 8-bit Scoreboard */}
+      <div
+        className="pixel-card"
+        style={{
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          backgroundColor: isDarkMode ? '#020617' : '#f8fafc',
+          color: isDarkMode ? '#e5e7eb' : '#1e293b',
+          border: `4px solid ${isDarkMode ? '#e5e7eb' : '#cbd5e1'}`,
+          padding: '12px',
+          boxShadow: isDarkMode ? '0 0 0 2px rgba(229,231,235,0.12) inset, 0 8px 16px rgba(0,0,0,0.4)' : '0 0 0 2px rgba(203,213,225,0.3) inset, 0 8px 16px rgba(0,0,0,0.1)',
+          imageRendering: 'pixelated',
+          userSelect: 'none',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Pixel grid overlay */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: isDarkMode 
+              ? 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)'
+              : 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)',
+            backgroundSize: '6px 6px',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Bookmaker Icon - Upper Left */}
+        <div className="absolute top-2 left-2 z-20">
+          <div 
+            className="flex items-center justify-center"
+            title={primaryBookmaker.charAt(0).toUpperCase() + primaryBookmaker.slice(1)}
           >
-            {gameTime}
-          </span>
+            {bookmakerInfo.useImage ? (
+              <img 
+                src={bookmakerInfo.logo} 
+                alt={primaryBookmaker}
+                className="h-14 w-auto"
+              />
+            ) : (
+              <span className="text-4xl">{bookmakerInfo.logo}</span>
+            )}
+          </div>
         </div>
 
-        {/* Score row */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-2.5 items-center mb-3.5">
-          {/* Away Team */}
+        {/* Sport Icon */}
+        <div className="absolute top-2 right-2 w-10 h-10 opacity-60">
+          <img 
+            src={sportImage}
+            alt={getSportDisplayName(game.sportKey)} 
+            className="w-full h-full"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </div>
+
+        {/* Top Section - Sport Name and Status */}
+        <div className="flex justify-center items-center mb-3 relative z-10">
           <div className="text-center">
-            <div
-              className="font-display text-[22px] text-gold-away dark:text-gold [text-shadow:2px_2px_0_#3a2413] dark:[text-shadow:3px_3px_0_#120a22]"
+            <div className="text-[9px] tracking-wider opacity-90 mb-1">
+              {getSportDisplayName(game.sportKey).substring(0, 15).toUpperCase()}
+            </div>
+            <div 
+              className={`px-2 py-0.5 text-[10px] font-bold tracking-wider ${
+                isLive 
+                  ? `${blinkOn ? 'bg-red-600 text-white' : 'bg-red-900 text-red-300'} border-2 border-red-600` 
+                  : isCompleted
+                  ? 'bg-gray-700 text-gray-300 border-2 border-gray-600'
+                  : 'bg-gray-800 text-gray-400 border-2 border-gray-700'
+              } transition-colors`}
             >
+              {gameTime}
+            </div>
+          </div>
+        </div>
+
+        {/* Scores and Team Info */}
+        <div className="flex justify-between items-center my-4 relative z-10 gap-2">
+          {/* Away Team */}
+          <div className="text-center flex-1">
+            <div className="text-[32px] font-bold tracking-wider mb-1" style={{ color: '#38bdf8' }}>
               {game.awayScore ?? '--'}
             </div>
-            <Link
-              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.awayTeamName)}`}
-              className="font-body text-[13.5px] font-semibold mt-2 leading-tight block text-ink dark:text-cream hover:text-gold-away dark:hover:text-gold transition-colors"
+            <Link 
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.awayTeamName)}`} 
+              className="text-[9px] font-bold tracking-wide hover:text-[#38bdf8] transition-colors block px-1 leading-tight"
+              style={{ minHeight: '28px' }}
             >
               {game.awayTeamName}
             </Link>
           </div>
-
+          
           {/* Period/Clock Info */}
-          <div className="min-w-16 text-center">
+          <div className="text-center px-3">
             {isLive && (game.period || game.clock || game.inningHalf || baseballSituation) ? (
-              <div className="px-[10px] py-2 bg-ink dark:bg-[#3a1424] dark:shadow-[0_0_0_2px_#ef5350]">
+              <div 
+                className={`px-3 py-2 rounded text-white font-bold ${
+                  blinkOn ? 'bg-red-600' : 'bg-red-900'
+                } transition-colors border-2 border-red-500`}
+              >
                 {isBaseball ? (
                   <>
                     {baseballInningLine && (
-                      <div className="font-display text-[8px] text-[#f6a34c] dark:text-coral leading-tight">
+                      <div className="text-[8px] tracking-wider leading-tight">
                         {baseballInningLine}
                       </div>
                     )}
                     {baseballSituation && (
-                      <div className="font-display text-[7px] text-terra-text dark:text-cream mt-1 leading-tight">
+                      <div className="text-[7px] tracking-wider leading-tight mt-0.5 text-yellow-200">
                         {baseballSituation}
                       </div>
                     )}
@@ -307,12 +388,12 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
                 ) : (
                   <>
                     {game.period && (
-                      <div className="font-display text-[8px] text-[#f6a34c] dark:text-coral leading-tight">
+                      <div className="text-[8px] tracking-wider leading-tight">
                         {game.period.match(/^\d+$/) ? `Q${game.period}` : game.period}
                       </div>
                     )}
                     {game.clock && (
-                      <div className="font-display text-[7px] text-terra-text dark:text-cream mt-1 leading-tight">
+                      <div className="text-[9px] tracking-wider leading-tight mt-0.5">
                         {game.clock}
                       </div>
                     )}
@@ -320,20 +401,19 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
                 )}
               </div>
             ) : (
-              <div className="font-display text-[9px] text-ink-muted dark:text-cream-faint">VS</div>
+              <div className="text-[10px] opacity-50">VS</div>
             )}
           </div>
-
+          
           {/* Home Team */}
-          <div className="text-center">
-            <div
-              className="font-display text-[22px] text-terra dark:text-ember [text-shadow:2px_2px_0_#3a2413] dark:[text-shadow:3px_3px_0_#120a22]"
-            >
+          <div className="text-center flex-1">
+            <div className="text-[32px] font-bold tracking-wider mb-1" style={{ color: '#f97316' }}>
               {game.homeScore ?? '--'}
             </div>
-            <Link
-              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.homeTeamName)}`}
-              className="font-body text-[13.5px] font-semibold mt-2 leading-tight block text-ink dark:text-cream hover:text-terra dark:hover:text-ember transition-colors"
+            <Link 
+              to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.homeTeamName)}`} 
+              className="text-[9px] font-bold tracking-wide hover:text-[#f97316] transition-colors block px-1 leading-tight"
+              style={{ minHeight: '28px' }}
             >
               {game.homeTeamName}
             </Link>
@@ -342,32 +422,35 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
 
         {/* Betting Odds - Only show for scheduled and in_progress games */}
         {game.status !== 'final' && (
-          <div className="flex flex-col gap-1.5 border-t-2 border-sand-divider dark:border-dusk-panel2 pt-3">
-            {/* Moneyline Row */}
-            <div className="grid grid-cols-[1fr_76px_1fr] gap-1.5 items-center">
+          <div className="mt-3 pt-3 border-t-2 border-gray-300 dark:border-gray-700 relative z-10">
+            <div className="text-[9px] space-y-1">
+              {/* Moneyline Row */}
+              <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-center">
               <button
                 onClick={() => awayML && handleAddToBetSlip('moneyline', 'away', awayML.price)}
                 disabled={!awayML}
-                className={oddsCellClasses}
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#38bdf8] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {awayML ? formatOddsValue(awayML.price, oddsFormat) : '--'}
               </button>
-              <div className={marketLabelClasses}>Moneyline</div>
+              <div className="text-[8px] font-bold tracking-wider uppercase opacity-60 whitespace-nowrap text-center">
+                Moneyline
+              </div>
               <button
                 onClick={() => homeML && handleAddToBetSlip('moneyline', 'home', homeML.price)}
                 disabled={!homeML}
-                className={oddsCellClasses}
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#f97316] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {homeML ? formatOddsValue(homeML.price, oddsFormat) : '--'}
               </button>
             </div>
 
             {/* Spread Row */}
-            <div className="grid grid-cols-[1fr_76px_1fr] gap-1.5 items-center">
+            <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-center">
               <button
                 onClick={() => awaySpread && handleAddToBetSlip('spread', 'away', awaySpread.price, awaySpread.point)}
                 disabled={!awaySpread}
-                className={oddsCellClasses}
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#38bdf8] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {awaySpread ? (
                   <>
@@ -375,11 +458,13 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
                   </>
                 ) : '--'}
               </button>
-              <div className={marketLabelClasses}>Spread</div>
+              <div className="text-[8px] font-bold tracking-wider uppercase opacity-60 whitespace-nowrap text-center">
+                Spread
+              </div>
               <button
                 onClick={() => homeSpread && handleAddToBetSlip('spread', 'home', homeSpread.price, homeSpread.point)}
                 disabled={!homeSpread}
-                className={oddsCellClasses}
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#f97316] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {homeSpread ? (
                   <>
@@ -390,11 +475,11 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
             </div>
 
             {/* Total Row */}
-            <div className="grid grid-cols-[1fr_76px_1fr] gap-1.5 items-center">
+            <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-center">
               <button
                 onClick={() => totalOver && handleAddToBetSlip('total', 'over', totalOver.price, totalOver.point)}
                 disabled={!totalOver}
-                className={oddsCellClasses}
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-green-500 px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {totalOver ? (
                   <>
@@ -402,11 +487,13 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
                   </>
                 ) : '--'}
               </button>
-              <div className={marketLabelClasses}>Total</div>
+              <div className="text-[8px] font-bold tracking-wider uppercase opacity-60 whitespace-nowrap text-center">
+                Total
+              </div>
               <button
                 onClick={() => totalUnder && handleAddToBetSlip('total', 'under', totalUnder.price, totalUnder.point)}
                 disabled={!totalUnder}
-                className={oddsCellClasses}
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-green-500 px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {totalUnder ? (
                   <>
@@ -416,31 +503,27 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               </button>
             </div>
           </div>
+        </div>
         )}
       </div>
 
-      {/* Footer: Details + Bookmaker */}
-      <div className="flex gap-2 mt-3.5">
-        <Link
-          to={`/game/${game.id}`}
-          className="ds-btn-press-light dark:ds-btn-press flex-1 font-display text-[7.5px] py-2.5 text-center"
-        >
-          DETAILS
-        </Link>
-        {hasBookmakerData && (
-          <div
-            className="w-[110px] bg-sand-panel border-2 border-ink text-ink-secondary dark:bg-dusk-panel dark:border-0 dark:text-cream-muted dark:shadow-[0_0_0_2px_#43306a_inset] font-display text-[7.5px] py-2.5 text-center flex items-center justify-center"
-            title={primaryBookmaker}
-          >
-            {primaryBookmaker.slice(0, 12).toUpperCase()}
-          </div>
-        )}
-      </div>
+      {/* View Details Button */}
+      <Link
+        to={`/game/${game.id}`}
+        className="block mt-2 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-center font-bold text-[10px] tracking-wider transition-all transform hover:scale-[1.02]"
+        style={{
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          border: '2px solid #dc2626',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+        }}
+      >
+        VIEW DETAILS →
+      </Link>
 
       {/* Venue */}
       {game.venue && (
-        <div className="mt-1.5 font-body text-ink-muted dark:text-cream-faint text-[8px] text-center tracking-wide">
-          {game.venue}
+        <div className="mt-1 text-gray-500 dark:text-gray-600 text-[8px] text-center tracking-wide">
+          📍 {game.venue}
         </div>
       )}
     </div>
