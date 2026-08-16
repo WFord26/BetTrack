@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { logger } from '../config/logger';
 import { requireSessionAuth } from '../middleware/auth-session.middleware';
 
@@ -7,6 +7,27 @@ const router = Router();
 const prisma = new PrismaClient();
 
 router.use(requireSessionAuth);
+
+// `GameStats.stats` and `PlayerGameStats.stats` are free-form JSON whose shape
+// varies by sport, so they are read defensively rather than typed per sport.
+
+/** Narrows a JSON column to an object, falling back to `{}` for null/array/scalar. */
+const toStatsObject = (stats: Prisma.JsonValue): Prisma.JsonObject =>
+  stats !== null && typeof stats === 'object' && !Array.isArray(stats) ? stats : {};
+
+/** Reads a nested numeric stat by key path, returning 0 when absent or non-numeric. */
+const readStatNumber = (stats: Prisma.JsonValue, ...path: string[]): number => {
+  let current: Prisma.JsonValue = stats;
+
+  for (const key of path) {
+    if (current === null || typeof current !== 'object' || Array.isArray(current)) {
+      return 0;
+    }
+    current = current[key] ?? null;
+  }
+
+  return typeof current === 'number' ? current : 0;
+};
 
 // GET /api/stats/game/:gameId
 // Enhanced with historical team averages
@@ -82,23 +103,23 @@ router.get('/game/:gameId', async (req: Request, res: Response, next: NextFuncti
         const totalGames = teamGames.length;
         if (totalGames === 0) return null;
 
-        const avgStats: any = {};
-        
+        const avgStats: Record<string, string> = {};
+
         // Aggregate stats based on sport type
         if (game.sport.key.includes('basketball')) {
-          const totals = teamGames.reduce((acc, g: any) => ({
-            points: acc.points + (g.stats.points || 0),
-            rebounds: acc.rebounds + (g.stats.rebounds || 0),
-            assists: acc.assists + (g.stats.assists || 0),
+          const totals = teamGames.reduce((acc, g) => ({
+            points: acc.points + readStatNumber(g.stats, 'points'),
+            rebounds: acc.rebounds + readStatNumber(g.stats, 'rebounds'),
+            assists: acc.assists + readStatNumber(g.stats, 'assists'),
           }), { points: 0, rebounds: 0, assists: 0 });
 
           avgStats.points = (totals.points / totalGames).toFixed(1);
           avgStats.rebounds = (totals.rebounds / totalGames).toFixed(1);
           avgStats.assists = (totals.assists / totalGames).toFixed(1);
         } else if (game.sport.key.includes('football')) {
-          const totals = teamGames.reduce((acc, g: any) => ({
-            yards: acc.yards + (g.stats.yards?.total || 0),
-            touchdowns: acc.touchdowns + (g.stats.touchdowns?.total || 0),
+          const totals = teamGames.reduce((acc, g) => ({
+            yards: acc.yards + readStatNumber(g.stats, 'yards', 'total'),
+            touchdowns: acc.touchdowns + readStatNumber(g.stats, 'touchdowns', 'total'),
           }), { yards: 0, touchdowns: 0 });
 
           avgStats.yards = (totals.yards / totalGames).toFixed(1);
@@ -144,7 +165,7 @@ router.get('/team/:teamId', async (req: Request, res: Response, next: NextFuncti
     }
 
     // Build filter
-    const where: any = {
+    const where: Prisma.GameStatsWhereInput = {
       teamId,
     };
 
@@ -226,20 +247,20 @@ router.get('/team/:teamId', async (req: Request, res: Response, next: NextFuncti
     });
 
     // Calculate averages
-    const calculateAvgStats = (games: any[]) => {
+    const calculateAvgStats = (games: { stats: Prisma.JsonValue }[]) => {
       if (games.length === 0) return null;
-      
-      const totals = games.reduce((acc, game) => {
-        const stats = game.stats as any;
-        Object.keys(stats).forEach(key => {
-          if (typeof stats[key] === 'number') {
-            acc[key] = (acc[key] || 0) + stats[key];
+
+      const totals = games.reduce<Record<string, number>>((acc, game) => {
+        const stats = toStatsObject(game.stats);
+        Object.entries(stats).forEach(([key, value]) => {
+          if (typeof value === 'number') {
+            acc[key] = (acc[key] || 0) + value;
           }
         });
         return acc;
-      }, {} as any);
+      }, {});
 
-      const averages: any = {};
+      const averages: Record<string, string> = {};
       Object.keys(totals).forEach(key => {
         averages[key] = (totals[key] / games.length).toFixed(1);
       });
@@ -317,7 +338,7 @@ router.get('/teams/:league/:teamName', async (req: Request, res: Response, next:
 
     // Reuse existing team stats logic with the resolved numeric teamId
     const teamId = team.id;
-    const where: any = { teamId };
+    const where: Prisma.GameStatsWhereInput = { teamId };
 
     if (location === 'home') where.isHome = true;
     else if (location === 'away') where.isHome = false;
@@ -361,16 +382,16 @@ router.get('/teams/:league/:teamName', async (req: Request, res: Response, next:
     const homeGames = await prisma.gameStats.findMany({ where: { teamId, isHome: true } });
     const awayGames = await prisma.gameStats.findMany({ where: { teamId, isHome: false } });
 
-    const calculateAvgStats = (games: any[]) => {
+    const calculateAvgStats = (games: { stats: Prisma.JsonValue }[]) => {
       if (games.length === 0) return {};
-      const totals = games.reduce((acc, game) => {
-        const stats = game.stats as any;
-        Object.keys(stats).forEach(key => {
-          if (typeof stats[key] === 'number') acc[key] = (acc[key] || 0) + stats[key];
+      const totals = games.reduce<Record<string, number>>((acc, game) => {
+        const stats = toStatsObject(game.stats);
+        Object.entries(stats).forEach(([key, value]) => {
+          if (typeof value === 'number') acc[key] = (acc[key] || 0) + value;
         });
         return acc;
-      }, {} as any);
-      const averages: any = {};
+      }, {});
+      const averages: Record<string, string> = {};
       Object.keys(totals).forEach(key => { averages[key] = (totals[key] / games.length).toFixed(1); });
       return averages;
     };

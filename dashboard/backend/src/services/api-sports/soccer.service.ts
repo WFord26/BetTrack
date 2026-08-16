@@ -10,6 +10,66 @@ const apiSportsClient = new ApiSportsClient({
 
 const prisma = new PrismaClient();
 
+// ─── API-Football response shapes ─────────────────────────────────────────────
+// Every field is optional: the upstream payload varies by endpoint and fixture
+// state, and the code below already falls back for anything missing.
+
+/** API-Football wraps every payload in a `response` array. */
+interface ApiFootballResponse<T> {
+  response?: T[];
+}
+
+interface FixtureTeam {
+  id?: number;
+  name?: string;
+}
+
+interface Fixture {
+  fixture?: {
+    id?: number;
+    date?: string;
+    status?: { long?: string; short?: string };
+  };
+  league?: { id?: number; name?: string };
+  teams?: { home?: FixtureTeam; away?: FixtureTeam };
+  goals?: { home?: number | null; away?: number | null };
+}
+
+/** One `{ type, value }` pair from /fixtures/statistics. */
+interface TeamStatistic {
+  type?: string;
+  value?: string | number | null;
+}
+
+interface TeamStatisticsEntry {
+  team?: FixtureTeam;
+  statistics?: TeamStatistic[];
+}
+
+/** A single player's stat block from /fixtures/players. */
+interface PlayerStatistics {
+  games?: { position?: string; rating?: string | null; minutes?: number | null };
+  goals?: { total?: number | null; assists?: number | null };
+  shots?: { total?: number | null; on?: number | null };
+  passes?: { total?: number | null; key?: number | null; accuracy?: number | string | null };
+  dribbles?: { attempts?: number | null; success?: number | null };
+  duels?: { total?: number | null; won?: number | null };
+  tackles?: { total?: number | null; interceptions?: number | null };
+  fouls?: { drawn?: number | null; committed?: number | null };
+  cards?: { yellow?: number | null; red?: number | null };
+  goalkeeper?: { saves?: number | null; conceded?: number | null };
+}
+
+interface FixturePlayer {
+  player?: { id?: number; name?: string };
+  statistics?: PlayerStatistics[];
+}
+
+interface FixturePlayersEntry {
+  team?: FixtureTeam;
+  players?: FixturePlayer[];
+}
+
 /**
  * Soccer stats service
  * Supports multiple soccer leagues (EPL, MLS, UEFA, etc.)
@@ -30,18 +90,18 @@ export class SoccerService {
   /**
    * Get live soccer games across all configured leagues
    */
-  async getLiveGames(): Promise<any[]> {
+  async getLiveGames(): Promise<Fixture[]> {
     try {
-      const allGames: any[] = [];
+      const allGames: Fixture[] = [];
 
       // Check each league for live games
-      for (const [leagueName, leagueId] of Object.entries(this.leagueIds)) {
-        const response = await apiSportsClient.get('/fixtures', {
+      for (const leagueId of Object.values(this.leagueIds)) {
+        const response = await apiSportsClient.get<ApiFootballResponse<Fixture>>('/fixtures', {
           league: leagueId,
           live: 'all'
         });
 
-        const games = (response as any).response || [];
+        const games = response.response || [];
         allGames.push(...games);
       }
 
@@ -69,11 +129,11 @@ export class SoccerService {
       }
 
       // Fetch game statistics from API-Sports
-      const response = await apiSportsClient.get('/fixtures/statistics', {
+      const response = await apiSportsClient.get<ApiFootballResponse<TeamStatisticsEntry>>('/fixtures/statistics', {
         fixture: externalGameId
       });
 
-      const statsData = (response as any).response || [];
+      const statsData = response.response || [];
       if (statsData.length === 0) {
         logger.warn(`No stats data for game: ${externalGameId}`);
         return;
@@ -99,9 +159,9 @@ export class SoccerService {
 
         // Parse statistics into a usable format
         const statistics = teamData.statistics || [];
-        const stats: any = {};
+        const stats: Record<string, string | number | null | undefined> = {};
 
-        statistics.forEach((stat: any) => {
+        statistics.forEach(stat => {
           const key = stat.type?.toLowerCase().replace(/ /g, '_');
           let value = stat.value;
 
@@ -110,7 +170,7 @@ export class SoccerService {
             value = parseFloat(value.replace('%', ''));
           }
 
-          stats[key] = value;
+          stats[String(key)] = value;
         });
 
         // Ensure common stats are present
@@ -177,11 +237,11 @@ export class SoccerService {
       }
 
       // Fetch player statistics
-      const response = await apiSportsClient.get('/fixtures/players', {
+      const response = await apiSportsClient.get<ApiFootballResponse<FixturePlayersEntry>>('/fixtures/players', {
         fixture: externalGameId
       });
 
-      const playersData = (response as any).response || [];
+      const playersData = response.response || [];
 
       for (const teamData of playersData) {
         const teamExternalId = teamData.team?.id?.toString();
@@ -286,13 +346,13 @@ export class SoccerService {
   /**
    * Helper to get fixture details (scores, status)
    */
-  private async getFixtureDetails(externalGameId: string): Promise<any> {
+  private async getFixtureDetails(externalGameId: string): Promise<Fixture | null> {
     try {
-      const response = await apiSportsClient.get('/fixtures', {
+      const response = await apiSportsClient.get<ApiFootballResponse<Fixture>>('/fixtures', {
         id: externalGameId
       });
 
-      return (response as any).response?.[0] || null;
+      return response.response?.[0] || null;
     } catch (error) {
       logger.error(`Error fetching fixture details for ${externalGameId}:`, error);
       return null;

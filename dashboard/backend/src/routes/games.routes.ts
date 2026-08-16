@@ -1,11 +1,31 @@
 import { Router, Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { requireSessionAuth } from '../middleware/auth-session.middleware';
+import { getErrorMessage } from '../utils/error-message';
 
 const router = Router();
 
 router.use(requireSessionAuth);
+
+// Bookmaker card shape consumed by the frontend game list.
+interface OddsOutcome {
+  name: string;
+  price: number;
+  point?: number;
+}
+
+interface OddsMarket {
+  key: 'h2h' | 'spreads' | 'totals';
+  outcomes: OddsOutcome[];
+}
+
+interface BookmakerOdds {
+  key: string;
+  title: string;
+  markets: OddsMarket[];
+}
 
 /**
  * GET /api/games
@@ -16,7 +36,7 @@ router.get('/', async (req: Request, res: Response) => {
     const { date, sport, status, timezoneOffset, bookmaker } = req.query;
     
     // Build where clause
-    const where: any = {};
+    const where: Prisma.GameWhereInput = {};
     
     // Filter by date (timezone-aware filtering)
     if (date && typeof date === 'string') {
@@ -96,18 +116,18 @@ router.get('/', async (req: Request, res: Response) => {
       const totalOdds = game.currentOdds.find(o => o.marketType === 'totals');
       
       // Group odds by bookmaker for frontend card format
-      const bookmakerOddsMap = new Map<string, any>();
+      const bookmakerOddsMap = new Map<string, BookmakerOdds>();
       game.currentOdds.forEach(odd => {
-        if (!bookmakerOddsMap.has(odd.bookmaker)) {
-          bookmakerOddsMap.set(odd.bookmaker, {
+        let bookmaker = bookmakerOddsMap.get(odd.bookmaker);
+        if (!bookmaker) {
+          bookmaker = {
             key: odd.bookmaker,
             title: odd.bookmaker.charAt(0).toUpperCase() + odd.bookmaker.slice(1),
             markets: []
-          });
+          };
+          bookmakerOddsMap.set(odd.bookmaker, bookmaker);
         }
-        
-        const bookmaker = bookmakerOddsMap.get(odd.bookmaker);
-        
+
         if (odd.marketType === 'h2h' && odd.homePrice && odd.awayPrice) {
           bookmaker.markets.push({
             key: 'h2h',
@@ -189,12 +209,12 @@ router.get('/', async (req: Request, res: Response) => {
         count: games.length
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error fetching games:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch games',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -232,12 +252,12 @@ router.get('/:id', async (req: Request, res: Response) => {
       status: 'success',
       data: game
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error fetching game:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch game',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -251,7 +271,7 @@ router.get('/:id/odds', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { bookmaker, marketType } = req.query;
     
-    const where: any = { gameId: id };
+    const where: Prisma.CurrentOddsWhereInput = { gameId: id };
     if (bookmaker && typeof bookmaker === 'string') {
       where.bookmaker = bookmaker;
     }
@@ -271,12 +291,12 @@ router.get('/:id/odds', async (req: Request, res: Response) => {
       status: 'success',
       data: odds
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error fetching game odds:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch odds',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -293,9 +313,9 @@ router.get('/:id/odds/history', async (req: Request, res: Response) => {
     const hoursAgo = new Date();
     hoursAgo.setHours(hoursAgo.getHours() - parseInt(hours as string));
     
-    const where: any = {
+    const where: Prisma.OddsSnapshotWhereInput = {
       gameId: id,
-      timestamp: { gte: hoursAgo }
+      capturedAt: { gte: hoursAgo }
     };
     
     if (bookmaker && typeof bookmaker === 'string') {
@@ -316,12 +336,12 @@ router.get('/:id/odds/history', async (req: Request, res: Response) => {
       status: 'success',
       data: history
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error fetching odds history:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch odds history',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
