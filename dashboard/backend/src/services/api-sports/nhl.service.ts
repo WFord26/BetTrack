@@ -1,9 +1,6 @@
-import { ApiSportsClient } from './client';
-import { PrismaClient } from '@prisma/client';
+import { ApiSportsResponse } from './client';
+import { BaseStatsService } from './base-stats.service';
 import { logger } from '../../config/logger';
-import { env } from '../../config/env';
-
-const prisma = new PrismaClient();
 
 interface NHLGame {
   id: number;
@@ -18,16 +15,8 @@ interface NHLGame {
     short: string;
   };
   teams: {
-    home: {
-      id: number;
-      name: string;
-      logo: string;
-    };
-    away: {
-      id: number;
-      name: string;
-      logo: string;
-    };
+    home: { id: number; name: string; logo: string };
+    away: { id: number; name: string; logo: string };
   };
   scores: {
     home: number | null;
@@ -42,28 +31,38 @@ interface NHLGame {
   };
 }
 
-export class NHLStatsService {
-  private client: ApiSportsClient;
+/** Period scores arrive as "2-1" strings; pull out one side's goal count. */
+function parsePeriodScore(score: string | null | undefined): number {
+  if (!score) return 0;
+  const match = score.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
+}
 
+export class NHLStatsService extends BaseStatsService<NHLGame> {
   constructor() {
-    if (!env.API_SPORTS_KEY) {
-      throw new Error('API_SPORTS_KEY is required for NHLStatsService');
-    }
-    
-    this.client = new ApiSportsClient({
-      apiKey: env.API_SPORTS_KEY,
-      sport: 'hockey',
+    super({
+      label: 'NHL',
+      sportKey: 'icehockey_nhl',
+      apiSport: 'hockey',
+      leagueId: 57,
     });
+  }
+
+  extractGameId(game: NHLGame): string {
+    return game.id.toString();
+  }
+
+  protected liveGameParams(): Record<string, unknown> {
+    return { league: this.leagueId, season: new Date().getFullYear().toString() };
   }
 
   async syncGameStats(apiSportsGameId: string): Promise<void> {
     try {
       logger.info(`Syncing NHL game stats for API-Sports ID: ${apiSportsGameId}`);
 
-      const gameResponse = await this.client.get<{ response: NHLGame[] }>(
-        '/games',
-        { id: apiSportsGameId }
-      );
+      const gameResponse = await this.client.get<ApiSportsResponse<NHLGame>>('/games', {
+        id: apiSportsGameId,
+      });
 
       if (!gameResponse.response?.length) {
         logger.warn(`No game found for NHL game ${apiSportsGameId}`);
@@ -71,95 +70,30 @@ export class NHLStatsService {
       }
 
       const gameData = gameResponse.response[0];
-      
-      const game = await prisma.game.findFirst({
-        where: {
-          externalId: apiSportsGameId,
-          sport: {
-            key: 'icehockey_nhl',
-          },
-        },
-      });
+      const game = await this.findGameByApiId(apiSportsGameId);
 
       if (!game) {
         logger.warn(`Game not found in database for API-Sports ID: ${apiSportsGameId}`);
         return;
       }
 
-      // Parse period scores
-      const parsePeriodScore = (score: string | null): number => {
-        if (!score) return 0;
-        const match = score.match(/\d+/);
-        return match ? parseInt(match[0]) : 0;
-      };
+      for (const side of ['home', 'away'] as const) {
+        const team = await this.resolveTeam(gameData.teams[side]);
+        if (!team) continue;
 
-      // Upsert stats for home team
-      const homeTeam = await this.findTeam(gameData.teams.home.name, 'icehockey_nhl');
-      if (homeTeam) {
-        const periodScores = [
-          parsePeriodScore(gameData.periods.first?.split('-')[0] || null),
-          parsePeriodScore(gameData.periods.second?.split('-')[0] || null),
-          parsePeriodScore(gameData.periods.third?.split('-')[0] || null),
-        ];
+        // "2-1" — index 0 is the home half of the period score, 1 the away.
+        const half = side === 'home' ? 0 : 1;
 
-        await prisma.gameStats.upsert({
-          where: {
-            gameId_teamId: {
-              gameId: game.id,
-              teamId: homeTeam.id,
-            },
-          },
-          create: {
-            gameId: game.id,
-            teamId: homeTeam.id,
-            isHome: true,
-            quarterScores: periodScores,
-            stats: {
-              goals: gameData.scores.home,
-            },
-          },
-          update: {
-            quarterScores: periodScores,
-            stats: {
-              goals: gameData.scores.home,
-            },
-            updatedAt: new Date(),
-          },
-        });
-      }
-
-      // Upsert stats for away team
-      const awayTeam = await this.findTeam(gameData.teams.away.name, 'icehockey_nhl');
-      if (awayTeam) {
-        const periodScores = [
-          parsePeriodScore(gameData.periods.first?.split('-')[1] || null),
-          parsePeriodScore(gameData.periods.second?.split('-')[1] || null),
-          parsePeriodScore(gameData.periods.third?.split('-')[1] || null),
-        ];
-
-        await prisma.gameStats.upsert({
-          where: {
-            gameId_teamId: {
-              gameId: game.id,
-              teamId: awayTeam.id,
-            },
-          },
-          create: {
-            gameId: game.id,
-            teamId: awayTeam.id,
-            isHome: false,
-            quarterScores: periodScores,
-            stats: {
-              goals: gameData.scores.away,
-            },
-          },
-          update: {
-            quarterScores: periodScores,
-            stats: {
-              goals: gameData.scores.away,
-            },
-            updatedAt: new Date(),
-          },
+        await this.upsertGameStats({
+          gameId: game.id,
+          teamId: team.id,
+          isHome: side === 'home',
+          quarterScores: [
+            parsePeriodScore(gameData.periods.first?.split('-')[half]),
+            parsePeriodScore(gameData.periods.second?.split('-')[half]),
+            parsePeriodScore(gameData.periods.third?.split('-')[half]),
+          ],
+          stats: { goals: gameData.scores[side] },
         });
       }
 
@@ -168,101 +102,5 @@ export class NHLStatsService {
       logger.error(`Failed to sync NHL game stats: ${error}`);
       throw error;
     }
-  }
-
-  async getLiveGames(): Promise<string[]> {
-    try {
-      const response = await this.client.get<{ response: NHLGame[] }>(
-        '/games',
-        { 
-          live: 'all',
-          league: '57', // NHL league ID
-          season: new Date().getFullYear().toString(),
-        }
-      );
-      
-      const liveGames = response.response.map(g => g.id.toString());
-      logger.info(`Found ${liveGames.length} live NHL games`);
-      
-      return liveGames;
-    } catch (error) {
-      logger.error(`Failed to fetch live NHL games: ${error}`);
-      return [];
-    }
-  }
-
-  async syncTeams(season: number = new Date().getFullYear() - 2): Promise<number> {
-    try {
-      logger.info(`Syncing NHL teams for season ${season}`);
-
-      interface ApiTeam {
-        id: number;
-        name: string;
-        code?: string;
-        logo: string;
-      }
-
-      const response = await this.client.get<{ response: ApiTeam[] }>(
-        '/teams',
-        { league: 57, season }
-      );
-
-      if (!response.response?.length) {
-        logger.warn('No NHL teams returned from API-Sports');
-        return 0;
-      }
-
-      const sport = await prisma.sport.findUnique({ where: { key: 'icehockey_nhl' } });
-      if (!sport) {
-        logger.error('Sport "icehockey_nhl" not found. Run /api/admin/init-sports first.');
-        return 0;
-      }
-
-      let count = 0;
-      for (const team of response.response) {
-        const existing = await prisma.team.findFirst({
-          where: { apiSportsTeamId: team.id, sportId: sport.id },
-        });
-
-        if (existing) {
-          await prisma.team.update({
-            where: { id: existing.id },
-            data: {
-              name: team.name,
-              abbreviation: team.code || null,
-              logoUrl: team.logo || null,
-            },
-          });
-        } else {
-          await prisma.team.create({
-            data: {
-              sportId: sport.id,
-              apiSportsTeamId: team.id,
-              name: team.name,
-              abbreviation: team.code || null,
-              logoUrl: team.logo || null,
-            },
-          });
-        }
-        count++;
-      }
-
-      logger.info(`Synced ${count} NHL teams for season ${season}`);
-      return count;
-    } catch (error) {
-      logger.error(`Failed to sync NHL teams: ${error}`);
-      throw error;
-    }
-  }
-
-  private async findTeam(teamName: string, sportKey: string) {
-    return await prisma.team.findFirst({
-      where: {
-        name: { contains: teamName, mode: 'insensitive' },
-        sport: {
-          key: sportKey,
-        },
-      },
-    });
   }
 }

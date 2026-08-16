@@ -49,6 +49,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`BaseStatsService` — de-duplicated the API-Sports stats services** (tech debt, issue #72): `src/services/api-sports/` went from seven near-identical services (2,948 lines, no shared base, no tests) to an abstract base plus thin per-sport adapters (~2,115 lines, 35 tests)
+  - Backend: new `base-stats.service.ts` — `BaseStatsService<TGame>` owns client construction, quota accounting, live-game fetching, `syncTeams`/`syncTeamStats`, and the team/game/player Prisma helpers; `ScheduledStatsService<TGame>` adds the date-range walk for the three sports (NFL, NCAAF, MLB) with a usable dated `/games` query
+  - Backend: new `american-football.service.ts` — NFL and NCAAF share a host and therefore a `/games` payload, so schedule handling, game reconciliation and season labelling collapse into one class; only the differing `/games/statistics` shapes stay per-sport
+  - Backend: new `status.ts` — one `mapApiStatusToLocal` covering the football, baseball and generic live short codes (they don't collide), plus the Jan/Feb `resolveAmericanFootballSeason` rule, replacing three near-copies
+  - Backend: `stats-sync.service.ts` — `syncAllLiveStats` is one loop instead of seven copy-pasted blocks; `syncAllTeams` is a table instead of six. `getLiveGames()` now returns raw payloads uniformly across all seven services
+  - Backend: all seven services share the `config/database` Prisma client rather than constructing eight separate connection pools
+  - Tests: new `tests/base-stats.service.test.ts` (35 tests) — this directory previously had none
+  - Fixes surfaced by the consolidation (four bugs that existed in some copies but not others) are listed in [dashboard/backend/CHANGELOG.md](backend/CHANGELOG.md)
+
 - **TypeScript `any` reduction — top 6 offenders** (tech debt, issue #71): Cleared every explicit `any` from `admin.routes.ts`, `stats.routes.ts`, `games.routes.ts`, `clv.service.ts`, `sharp-indicator.service.ts` and `api-sports/soccer.service.ts`; repo-wide annotations dropped from 253 to 178
   - Backend: New `src/utils/error-message.ts` with `getErrorMessage(error: unknown)`, replacing 23 `catch (error: any)` blocks that existed only to read `error.message`
   - Backend: Prisma-derived types throughout — `Prisma.*WhereInput` for filter builders, `Prisma.*GetPayload` for query results, and narrowing helpers (`toStatsObject`, `readStatNumber`, `toBookmakerLines`) for the free-form JSON columns on `GameStats` and `LineMovement`

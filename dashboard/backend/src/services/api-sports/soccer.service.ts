@@ -1,23 +1,11 @@
-import { PrismaClient } from '@prisma/client';
-import { ApiSportsClient } from './client';
+import { ApiSportsResponse } from './client';
+import { BaseStatsService } from './base-stats.service';
+import { prisma } from '../../config/database';
 import { logger } from '../../config/logger';
-
-// Initialize API-Sports client for soccer via API-Football.
-const apiSportsClient = new ApiSportsClient({
-  apiKey: process.env.API_SPORTS_KEY || '',
-  sport: 'football'
-});
-
-const prisma = new PrismaClient();
 
 // ─── API-Football response shapes ─────────────────────────────────────────────
 // Every field is optional: the upstream payload varies by endpoint and fixture
 // state, and the code below already falls back for anything missing.
-
-/** API-Football wraps every payload in a `response` array. */
-interface ApiFootballResponse<T> {
-  response?: T[];
-}
 
 interface FixtureTeam {
   id?: number;
@@ -71,40 +59,53 @@ interface FixturePlayersEntry {
 }
 
 /**
- * Soccer stats service
- * Supports multiple soccer leagues (EPL, MLS, UEFA, etc.)
+ * Soccer stats service, covering several leagues (EPL, MLS, UEFA, ...) at
+ * once.
+ *
+ * Unlike the other sports this maps to no single internal `Sport.key` and no
+ * single API-Sports league, so it opts out of the base class's sport-scoped
+ * lookups and `/teams` sync, and overrides the live-games fetch to fan out
+ * across its league list.
  */
-
-export class SoccerService {
+export class SoccerService extends BaseStatsService<Fixture> {
   // Common soccer league IDs from API-Sports
   private leagueIds = {
-    EPL: 39,       // English Premier League
-    LaLiga: 140,   // Spanish La Liga
-    SerieA: 135,   // Italian Serie A
+    EPL: 39,        // English Premier League
+    LaLiga: 140,    // Spanish La Liga
+    SerieA: 135,    // Italian Serie A
     Bundesliga: 78, // German Bundesliga
-    Ligue1: 61,    // French Ligue 1
-    MLS: 253,      // Major League Soccer
-    UCL: 2         // UEFA Champions League
+    Ligue1: 61,     // French Ligue 1
+    MLS: 253,       // Major League Soccer
+    UCL: 2,         // UEFA Champions League
   };
 
-  /**
-   * Get live soccer games across all configured leagues
-   */
+  constructor() {
+    super({ label: 'Soccer', apiSport: 'football' });
+  }
+
+  protected get gamesEndpoint(): string {
+    return '/fixtures';
+  }
+
+  extractGameId(fixture: Fixture): string {
+    return String(fixture.fixture?.id);
+  }
+
+  /** One live query per configured league — API-Football has no all-league filter. */
   async getLiveGames(): Promise<Fixture[]> {
     try {
       const allGames: Fixture[] = [];
 
-      // Check each league for live games
       for (const leagueId of Object.values(this.leagueIds)) {
-        const response = await apiSportsClient.get<ApiFootballResponse<Fixture>>('/fixtures', {
+        const response = await this.client.get<ApiSportsResponse<Fixture>>(this.gamesEndpoint, {
           league: leagueId,
-          live: 'all'
+          live: 'all',
         });
 
-        const games = response.response || [];
-        allGames.push(...games);
+        allGames.push(...(response.response || []));
       }
 
+      logger.info(`Found ${allGames.length} live Soccer games`);
       return allGames;
     } catch (error) {
       logger.error('Error fetching live soccer games:', error);
@@ -112,26 +113,19 @@ export class SoccerService {
     }
   }
 
-  /**
-   * Sync game stats for a specific soccer game
-   */
   async syncGameStats(externalGameId: string): Promise<void> {
     try {
-      // Find the game in our database
-      const game = await prisma.game.findUnique({
-        where: { externalId: externalGameId },
-        include: { homeTeam: true, awayTeam: true }
-      });
+      const game = await this.findGameWithTeamsByApiId(externalGameId);
 
       if (!game) {
         logger.warn(`Game not found: ${externalGameId}`);
         return;
       }
 
-      // Fetch game statistics from API-Sports
-      const response = await apiSportsClient.get<ApiFootballResponse<TeamStatisticsEntry>>('/fixtures/statistics', {
-        fixture: externalGameId
-      });
+      const response = await this.client.get<ApiSportsResponse<TeamStatisticsEntry>>(
+        '/fixtures/statistics',
+        { fixture: externalGameId }
+      );
 
       const statsData = response.response || [];
       if (statsData.length === 0) {
@@ -139,29 +133,23 @@ export class SoccerService {
         return;
       }
 
-      // Process each team's statistics
       for (const teamData of statsData) {
         if (!game.homeTeam) continue;
-        
+
         const teamExternalId = teamData.team?.id?.toString();
         const isHome = teamExternalId === game.homeTeam.externalId;
         const teamId = isHome ? game.homeTeamId : game.awayTeamId;
-        
+
         if (!teamId) {
           logger.warn(`Missing teamId for game ${game.id}`);
           continue;
         }
 
-        // Extract match score
         const fixtureData = await this.getFixtureDetails(externalGameId);
         const homeScore = fixtureData?.goals?.home || 0;
-        const awayScore = fixtureData?.goals?.away || 0;
 
-        // Parse statistics into a usable format
-        const statistics = teamData.statistics || [];
         const stats: Record<string, string | number | null | undefined> = {};
-
-        statistics.forEach(stat => {
+        for (const stat of teamData.statistics || []) {
           const key = stat.type?.toLowerCase().replace(/ /g, '_');
           let value = stat.value;
 
@@ -171,48 +159,32 @@ export class SoccerService {
           }
 
           stats[String(key)] = value;
-        });
+        }
 
-        // Ensure common stats are present
-        const standardizedStats = {
-          shots_on_goal: stats.shots_on_goal || 0,
-          shots_off_goal: stats.shots_off_goal || 0,
-          total_shots: stats.total_shots || 0,
-          blocked_shots: stats.blocked_shots || 0,
-          shots_insidebox: stats.shots_insidebox || 0,
-          shots_outsidebox: stats.shots_outsidebox || 0,
-          fouls: stats.fouls || 0,
-          corner_kicks: stats.corner_kicks || 0,
-          offsides: stats.offsides || 0,
-          ball_possession: stats.ball_possession || 0,
-          yellow_cards: stats.yellow_cards || 0,
-          red_cards: stats.red_cards || 0,
-          goalkeeper_saves: stats.goalkeeper_saves || 0,
-          total_passes: stats.total_passes || 0,
-          passes_accurate: stats.passes_accurate || 0,
-          passes_percentage: stats['passes_%'] || 0
-        };
-
-        // Upsert game stats
-        await prisma.gameStats.upsert({
-          where: {
-            gameId_teamId: {
-              gameId: game.id,
-              teamId
-            }
+        await this.upsertGameStats({
+          gameId: game.id,
+          teamId,
+          isHome,
+          // Soccer has no periods to break out, so record the final score.
+          quarterScores: [homeScore],
+          stats: {
+            shots_on_goal: stats.shots_on_goal || 0,
+            shots_off_goal: stats.shots_off_goal || 0,
+            total_shots: stats.total_shots || 0,
+            blocked_shots: stats.blocked_shots || 0,
+            shots_insidebox: stats.shots_insidebox || 0,
+            shots_outsidebox: stats.shots_outsidebox || 0,
+            fouls: stats.fouls || 0,
+            corner_kicks: stats.corner_kicks || 0,
+            offsides: stats.offsides || 0,
+            ball_possession: stats.ball_possession || 0,
+            yellow_cards: stats.yellow_cards || 0,
+            red_cards: stats.red_cards || 0,
+            goalkeeper_saves: stats.goalkeeper_saves || 0,
+            total_passes: stats.total_passes || 0,
+            passes_accurate: stats.passes_accurate || 0,
+            passes_percentage: stats['passes_%'] || 0,
           },
-          update: {
-            quarterScores: [homeScore], // Soccer doesn't have quarters, just final score
-            stats: standardizedStats,
-            updatedAt: new Date()
-          },
-          create: {
-            gameId: game.id,
-            teamId,
-            isHome,
-            quarterScores: [homeScore],
-            stats: standardizedStats
-          }
         });
       }
 
@@ -222,117 +194,66 @@ export class SoccerService {
     }
   }
 
-  /**
-   * Sync player stats for a specific soccer game
-   */
   async syncPlayerStats(externalGameId: string): Promise<void> {
     try {
-      const game = await prisma.game.findUnique({
-        where: { externalId: externalGameId }
-      });
+      const game = await this.findGameByApiId(externalGameId);
 
       if (!game) {
         logger.warn(`Game not found: ${externalGameId}`);
         return;
       }
 
-      // Fetch player statistics
-      const response = await apiSportsClient.get<ApiFootballResponse<FixturePlayersEntry>>('/fixtures/players', {
-        fixture: externalGameId
-      });
+      const response = await this.client.get<ApiSportsResponse<FixturePlayersEntry>>(
+        '/fixtures/players',
+        { fixture: externalGameId }
+      );
 
-      const playersData = response.response || [];
-
-      for (const teamData of playersData) {
+      for (const teamData of response.response || []) {
         const teamExternalId = teamData.team?.id?.toString();
-        
-        // Find team in our database
-        const team = await prisma.team.findFirst({
-          where: { externalId: teamExternalId }
-        });
+        if (!teamExternalId) continue;
 
+        // Soccer teams are not synced through /teams, so they carry no
+        // apiSportsTeamId — match on the odds-sourced external id instead.
+        const team = await prisma.team.findFirst({ where: { externalId: teamExternalId } });
         if (!team) continue;
 
-        const players = teamData.players || [];
-
-        for (const playerData of players) {
-          // Ensure player exists in database
-          const playerExternalId = playerData.player?.id?.toString();
-          const playerName = playerData.player?.name || '';
-          
-          let player = await prisma.player.findFirst({
-            where: { externalId: playerExternalId }
+        for (const playerData of teamData.players || []) {
+          const player = await this.upsertPlayer({
+            externalId: playerData.player?.id?.toString(),
+            fullName: playerData.player?.name || '',
+            teamId: team.id,
           });
-          
-          if (player) {
-            player = await prisma.player.update({
-              where: { id: player.id },
-              data: {
-                firstName: playerName.split(' ')[0] || '',
-                lastName: playerName.split(' ').slice(1).join(' ') || '',
-                teamId: team.id
-              }
-            });
-          } else {
-            player = await prisma.player.create({
-              data: {
-                externalId: playerExternalId,
-                firstName: playerName.split(' ')[0] || '',
-                lastName: playerName.split(' ').slice(1).join(' ') || '',
-                teamId: team.id
-              }
-            });
-          }
 
-          // Prepare player stats
           const playerStats = playerData.statistics?.[0] || {};
-          
-          const stats = {
-            position: playerStats.games?.position || 'N/A',
-            rating: playerStats.games?.rating || null,
-            minutes: playerStats.games?.minutes || 0,
-            goals: playerStats.goals?.total || 0,
-            assists: playerStats.goals?.assists || 0,
-            shots_total: playerStats.shots?.total || 0,
-            shots_on: playerStats.shots?.on || 0,
-            passes_total: playerStats.passes?.total || 0,
-            passes_key: playerStats.passes?.key || 0,
-            passes_accuracy: playerStats.passes?.accuracy || 0,
-            dribbles_attempts: playerStats.dribbles?.attempts || 0,
-            dribbles_success: playerStats.dribbles?.success || 0,
-            duels_total: playerStats.duels?.total || 0,
-            duels_won: playerStats.duels?.won || 0,
-            tackles_total: playerStats.tackles?.total || 0,
-            interceptions: playerStats.tackles?.interceptions || 0,
-            fouls_drawn: playerStats.fouls?.drawn || 0,
-            fouls_committed: playerStats.fouls?.committed || 0,
-            yellow_cards: playerStats.cards?.yellow || 0,
-            red_cards: playerStats.cards?.red || 0,
-            saves: playerStats.goalkeeper?.saves || 0,
-            goals_conceded: playerStats.goalkeeper?.conceded || 0
-          };
 
-          // Upsert player game stats
-          const teamId = team.id;
-          if (!teamId) {
-            logger.warn(`Missing teamId for player ${player.id} in game ${game.id}`);
-            continue;
-          }
-          
-          await prisma.playerGameStats.upsert({
-            where: {
-              gameId_playerId: {
-                gameId: game.id,
-                playerId: player.id
-              }
+          await this.upsertPlayerGameStats({
+            gameId: game.id,
+            playerId: player.id,
+            teamId: team.id,
+            stats: {
+              position: playerStats.games?.position || 'N/A',
+              rating: playerStats.games?.rating || null,
+              minutes: playerStats.games?.minutes || 0,
+              goals: playerStats.goals?.total || 0,
+              assists: playerStats.goals?.assists || 0,
+              shots_total: playerStats.shots?.total || 0,
+              shots_on: playerStats.shots?.on || 0,
+              passes_total: playerStats.passes?.total || 0,
+              passes_key: playerStats.passes?.key || 0,
+              passes_accuracy: playerStats.passes?.accuracy || 0,
+              dribbles_attempts: playerStats.dribbles?.attempts || 0,
+              dribbles_success: playerStats.dribbles?.success || 0,
+              duels_total: playerStats.duels?.total || 0,
+              duels_won: playerStats.duels?.won || 0,
+              tackles_total: playerStats.tackles?.total || 0,
+              interceptions: playerStats.tackles?.interceptions || 0,
+              fouls_drawn: playerStats.fouls?.drawn || 0,
+              fouls_committed: playerStats.fouls?.committed || 0,
+              yellow_cards: playerStats.cards?.yellow || 0,
+              red_cards: playerStats.cards?.red || 0,
+              saves: playerStats.goalkeeper?.saves || 0,
+              goals_conceded: playerStats.goalkeeper?.conceded || 0,
             },
-            update: { stats },
-            create: {
-              gameId: game.id,
-              playerId: player.id,
-              teamId,
-              stats
-            }
           });
         }
       }
@@ -343,13 +264,11 @@ export class SoccerService {
     }
   }
 
-  /**
-   * Helper to get fixture details (scores, status)
-   */
+  /** Fixture details (scores, status) for a single fixture id. */
   private async getFixtureDetails(externalGameId: string): Promise<Fixture | null> {
     try {
-      const response = await apiSportsClient.get<ApiFootballResponse<Fixture>>('/fixtures', {
-        id: externalGameId
+      const response = await this.client.get<ApiSportsResponse<Fixture>>('/fixtures', {
+        id: externalGameId,
       });
 
       return response.response?.[0] || null;
@@ -359,5 +278,3 @@ export class SoccerService {
     }
   }
 }
-
-export const soccerService = new SoccerService();

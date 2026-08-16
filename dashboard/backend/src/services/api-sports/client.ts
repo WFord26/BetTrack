@@ -2,10 +2,18 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import { RateLimiter } from 'limiter';
 import { logger } from '../../config/logger';
 
+/** API-Sports splits its catalogue across one host per sport family. */
+export type ApiSportsSport = 'american-football' | 'basketball' | 'hockey' | 'baseball' | 'football';
+
 interface ApiSportsConfig {
   apiKey: string;
-  sport: 'american-football' | 'basketball' | 'hockey' | 'baseball' | 'football';
+  sport: ApiSportsSport;
   tier?: 'free' | 'pro' | 'ultra' | 'mega';
+}
+
+/** Every API-Sports endpoint wraps its payload in a `response` array. */
+export interface ApiSportsResponse<T> {
+  response?: T[];
 }
 
 const BASE_URLS = {
