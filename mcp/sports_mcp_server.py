@@ -28,6 +28,7 @@ from sports_api.formatter import (
     format_standings_table,
     format_odds_comparison
 )
+from sports_api.cache import ResponseCache
 from sports_api.team_reference import (
     get_team_reference_table,
     find_team_id,
@@ -100,8 +101,8 @@ if odds_api_key_str:
     if len(keys) == 1:
         odds_api_keys = keys[0]  # Single key as string
     else:
-        odds_api_keys = keys  # Multiple keys as list
-        logger.info(f"🎲 Easter egg activated! Round-robin mode with {len(keys)} API keys")
+        odds_api_keys = keys  # Multiple keys, drained one at a time
+        logger.info(f"🎲 Easter egg activated! {len(keys)} API keys loaded")
 
 # Load bookmaker configuration
 bookmakers_filter_str = os.getenv("BOOKMAKERS_FILTER", "").strip()
@@ -119,12 +120,63 @@ if bookmakers_filter:
 else:
     logger.info(f"No bookmaker filter set. Showing up to {bookmakers_limit} bookmakers per game.")
 
+# ============================================================================
+# RESPONSE CACHE
+# ============================================================================
+# One cache shared by both handlers, so the Odds and ESPN namespaces are
+# bounded together rather than each growing to its own limit. Cache keys are
+# namespaced ("odds"/"espn"), so there is no risk of collision.
+
+def _env_int(name: str, default: int) -> int:
+    """Read an int from the environment, falling back on anything unparseable."""
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning(f"Invalid {name} value: {raw!r}. Using default: {default}")
+        return default
+
+
+cache_enabled = os.getenv("CACHE_ENABLED", "true").strip().lower() not in (
+    "false", "0", "no", "off"
+)
+cache_max_entries = _env_int("CACHE_MAX_ENTRIES", 256)
+
+response_cache = ResponseCache(max_entries=cache_max_entries, enabled=cache_enabled)
+
+# Per-endpoint TTL overrides. Anything unset keeps the handler default.
+odds_ttls = {
+    key: _env_int(env_name, default)
+    for key, env_name, default in (
+        ("sports", "CACHE_TTL_SPORTS", 3600),
+        ("odds", "CACHE_TTL_ODDS", 60),
+        ("scores", "CACHE_TTL_SCORES", 60),
+        ("event_odds", "CACHE_TTL_ODDS", 60),
+    )
+}
+espn_ttls = {
+    "scoreboard": _env_int("CACHE_TTL_SCOREBOARD", 30),
+    "summary": _env_int("CACHE_TTL_SCOREBOARD", 30),
+}
+
+if cache_enabled:
+    logger.info(
+        f"Response cache enabled (max {cache_max_entries} entries, "
+        f"odds TTL {odds_ttls['odds']}s, scoreboard TTL {espn_ttls['scoreboard']}s)"
+    )
+else:
+    logger.info("Response cache DISABLED via CACHE_ENABLED. Every call hits the API.")
+
 odds_handler = OddsAPIHandler(
-    api_key=odds_api_keys, 
+    api_key=odds_api_keys,
     bookmakers_filter=bookmakers_filter,
-    bookmakers_limit=bookmakers_limit
+    bookmakers_limit=bookmakers_limit,
+    cache=response_cache,
+    ttls=odds_ttls,
 ) if odds_api_keys else None
-espn_handler = ESPNAPIHandler()
+espn_handler = ESPNAPIHandler(cache=response_cache, ttls=espn_ttls)
 
 
 # ============================================================================
@@ -1403,6 +1455,78 @@ async def get_visual_scoreboard(
 
 
 # ============================================================================
+# DIAGNOSTICS
+# ============================================================================
+
+@mcp.tool()
+def get_api_status() -> dict:
+    """
+    Report Odds API quota, key health, and response cache statistics.
+
+    Use this when the user asks how many API requests they have left, why a
+    request failed, whether their keys are working, or how much the cache is
+    saving them. It makes no upstream API calls, so it costs no quota.
+
+    Returns:
+        Dictionary with:
+          odds_api: per key status with quota remaining. Keys are masked to
+              their first and last 4 characters. Status is one of:
+              healthy    — usable
+              exhausted  — out of credits; the Odds API quota resets monthly
+              invalid    — rejected as a bad key; retired for this session
+          cache: hit rate, entry count, and upstream requests avoided
+          dashboard: whether the BetTrack dashboard tools are registered
+
+    Example:
+        get_api_status() -> {"odds_api": {...}, "cache": {...}}
+    """
+    status = {
+        "cache": response_cache.stats(),
+        "dashboard": {
+            "configured": len(dashboard_tool_names) > 0,
+            "tools_registered": len(dashboard_tool_names),
+        },
+    }
+
+    if odds_handler:
+        status["odds_api"] = odds_handler.get_key_status()
+    else:
+        status["odds_api"] = {
+            "configured": False,
+            "note": "ODDS_API_KEY is not set. ESPN tools work without it.",
+        }
+
+    status["espn_api"] = {"configured": True, "requires_key": False}
+    return status
+
+
+@mcp.tool()
+def clear_cache() -> dict:
+    """
+    Drop all cached API responses, forcing the next call to hit the API live.
+
+    Use this only when the user explicitly wants fresh data and suspects a
+    cached response is stale — for example right after a line moves. Normal
+    use does not need it, since entries expire on their own within 30 to 60
+    seconds. Clearing costs quota on the next call.
+
+    Returns:
+        Dictionary with the number of entries removed
+
+    Example:
+        clear_cache() -> {"success": True, "entries_cleared": 12}
+    """
+    removed = response_cache.invalidate()
+    logger.info(f"Cache cleared on request ({removed} entries)")
+
+    return {
+        "success": True,
+        "entries_cleared": removed,
+        "note": "The next call for each query will fetch live data.",
+    }
+
+
+# ============================================================================
 # SERVER ENTRY POINT
 # ============================================================================
 
@@ -1411,6 +1535,9 @@ if __name__ == "__main__":
     logger.info(f"Odds API configured: {odds_handler is not None}")
     logger.info(f"ESPN API configured: True")
     logger.info(f"Dashboard configured: {len(dashboard_tool_names) > 0}")
+    logger.info(f"Response cache: {'enabled' if cache_enabled else 'disabled'}")
+    if odds_handler and len(odds_handler.api_keys) > 1:
+        logger.info(f"Odds API keys loaded: {len(odds_handler.api_keys)}")
 
     # Run the server
     mcp.run()
