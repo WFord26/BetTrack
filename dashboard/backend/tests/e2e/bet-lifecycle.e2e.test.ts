@@ -31,7 +31,6 @@ jest.mock('../../src/config/env', () => ({
     DATABASE_URL: 'postgresql://test:test@localhost:5432/test_db',
     ODDS_API_KEY: 'test-odds-api-key',
     AUTH_MODE: 'none',        // standalone mode → no auth required
-    JWT_SECRET: 'test-secret',
     SESSION_SECRET: 'test-session-secret',
     CORS_ORIGIN: '',
     LOG_LEVEL: 'silent',

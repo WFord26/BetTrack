@@ -9,7 +9,6 @@ import { jest } from '@jest/globals';
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://test:test@localhost:5432/test_db';
 process.env.ODDS_API_KEY = 'test-api-key';
-process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.SESSION_SECRET = 'test-session-secret';
 
 // NOTE: Prisma is NOT mocked here to allow integration tests to use real database
