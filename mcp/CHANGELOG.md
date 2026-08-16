@@ -9,6 +9,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.3] - 2026-08-16
+
+### Added
+
+- **Response cache** (`sports_api/cache.py`): TTL cache in front of every Odds API and ESPN request. Repeated questions inside a conversation no longer each cost a request against the 500 a month free tier.
+  - Concurrent identical requests are coalesced: 8 parallel calls for the same scoreboard issue 1 upstream request, not 8.
+  - Only successful responses are stored, so an upstream blip cannot be cached into a full TTL window of guaranteed failure.
+  - Bounded with oldest-first eviction, so a long session cannot grow it without limit.
+  - Default lifetimes: odds and scores 60s, ESPN scoreboards 30s, standings and news 300s, team lists 24h, sports list 1h. All tunable via `CACHE_TTL_*`; `CACHE_ENABLED=false` turns the layer off.
+- **Failure aware key rotation** (`sports_api/key_manager.py`): replaces round-robin-per-request. One key is drained before the next is touched, so the remaining keys stay at full quota as reserve and the reported "requests remaining" is a real number rather than an average across keys.
+  - A key is parked as `exhausted` the moment the API reports zero remaining, so the next call rotates instead of spending a request to rediscover it.
+  - HTTP 401/403 is classified by response body: an out-of-credits message parks the key as `exhausted` (recoverable, the quota resets monthly), anything else retires it as `invalid` for the session. Previously a dead key was retried every Nth request forever.
+  - A key failure retries the request on the next key, at most once per key. A 5xx is treated as the API's fault, not the key's, and is not retried.
+  - Duplicate keys are deduplicated, since the same key twice gave a false sense of quota headroom.
+- **`get_api_status` tool**: quota remaining per key, key health, cache hit rate, and upstream requests avoided. Makes no API calls, so it costs no quota. Keys are masked to first and last 4 characters.
+- **`clear_cache` tool**: drops cached responses when the user explicitly wants live data, for example right after a line moves.
+- **`sports_api/team_matching.py`**: word aware team matching and league inference from a team name.
+
+### Changed
+
+- **`search_odds` no longer fans out across four sports by default.** It infers the league from the team name ("Chiefs" to NFL, "Red Sox" to MLB) and queries only that one, falling back to the full sweep only when the name is genuinely ambiguous (such as "Rangers") or the guess returns nothing. A typical unfiltered search drops from 4 requests to 1.
+- **`search_odds` now reports `sports_searched`**, and surfaces per-sport failures under `partial_errors` instead of silently returning fewer results.
+- **`markets` defaults to `h2h` explicitly** in `get_odds` and `get_event_odds`. The API already defaulted to it, but omitting the parameter produced a second cache entry for a request identical to the explicit one.
+- **`_filter_bookmakers` no longer mutates in place.** With responses now cached, editing the response rewrote the cached entry, so a later hit would be filtered a second time and any caller holding the response would see it change underneath them.
+- Successful responses carry a `cached` flag so callers can tell whether a result cost quota.
+
+
+- **`dashboard_mcp_server.py` reduced to a thin standalone entry point** (322 lines to ~70). It still runs the dashboard tools on their own for pointing a second server at a different dashboard instance or debugging in isolation, and now also loads a neighbouring `.env`.
+- **`scripts/build.sh` and `scripts/build.ps1`**: both now copy Python package directories from a list (`sports_api`, `dashboard_api`) and warn on a missing one instead of silently shipping an incomplete package. `build.ps1` additionally copies `dashboard_mcp_server.py`, which it had never included — only `build.sh` did, so macOS/Linux and Windows builds produced different archives.
+- **`manifest.json`**: description now mentions the optional dashboard integration.
+- **`.env.example` and `INSTALL_INSTRUCTIONS.md`**: document `DASHBOARD_API_KEY` / `DASHBOARD_API_URL`, the `bets` and `stats` permissions each tool group needs, and how to tell from the startup log which mode the server is in.
+
+### Security
+
+- **Real HTTPS enforcement warning**: plain `http://` pointed at a non-loopback `DASHBOARD_API_URL` now logs an explicit warning that the API key and bet data will travel unencrypted. Previously this was only a comment in `.env.example`. Loopback addresses (`localhost`, `127.0.0.1`, `::1`) stay silent.
+
+### Fixed
+
+- **Naive substring team matching.** `query.lower() in team.lower()` meant "LA" matched Dal**la**s Mavericks, At**la**nta Hawks, and Phi**la**delphia 76ers, and "Sox" could not distinguish Boston from Chicago. Matching is now word aware, with short queries required to match a whole word or a known abbreviation.
+
+
+- **17 analytics tools** (in `dashboard_api/tools.py` after the merge below), backed by the new `/api/mcp/analytics/*` routes. All require an API key with the `stats` permission and are read only apart from the stateless stake calculator.
+  - Arbitrage: `get_arbitrage_opportunities` (filters for min profit, arb type, market type, and `max_snapshot_age` so stale lines can be rejected before acting), `get_arbitrage_history`, `get_arbitrage_stats`, `calculate_arbitrage_stakes`
+  - Closing line value: `get_clv_summary`, `get_clv_by_sport`, `get_clv_by_bookmaker`, `get_clv_report` (sport, bet type, and date range filters)
+  - Sharp money: `get_sharp_action`, `get_contrarian_plays`, `get_game_sharp_indicators`
+  - Line movement: `get_line_movements` (steam, reverse, gradual, injury, or all), `get_game_line_movements`
+  - Market disagreement: `get_market_disagreement`
+  - Bookmaker analytics: `get_bookmaker_rankings`, `compare_bookmakers`, `get_bookmaker_metrics`
+- **`_clean_params()` helper**: strips `None` values before they reach `aiohttp`, which would otherwise serialise them as the literal string `"None"` into the query string and make the backend parse a bogus value. Booleans are converted to `"true"`/omitted rather than passed through, since `aiohttp` rejects bool query params.
+- **Dashboard tools merged into the packaged server**: `sports_mcp_server.py` now registers the BetTrack dashboard tools on the same server whenever `DASHBOARD_API_KEY` is set. Previously `manifest.json` pointed only at `sports_mcp_server.py`, so `dashboard_mcp_server.py` shipped inside the `.mcpb` but was never started — anyone installing from Releases got zero dashboard tools with no indication why.
+  - New `dashboard_api/` package: `client.py` (config, shared session, `make_request`) and `tools.py` (`register_dashboard_tools(mcp)` attaching all 26 tools). No tool logic is duplicated between the two entry points.
+  - Registration is conditional and non-fatal. Without a key the server logs one explanatory line and runs sports-only, so nobody sees dashboard tools they cannot call. An `ImportError` from a partial install degrades to sports-only rather than taking the whole server down.
+  - `client.configure()` reads the environment lazily rather than at import time, so `DASHBOARD_API_KEY` and `DASHBOARD_API_URL` can now live in the same persistent `.env` as `ODDS_API_KEY` instead of only in the process environment.
+  - Tool count: 23 sports tools alone, 49 with a dashboard key configured.
+
+
+- **Network errors no longer abort a tool call**: `aiohttp.ClientError` from an unreachable or down dashboard is caught and returned as a readable `{"error": "Dashboard unreachable", ...}` result instead of propagating as an exception.
+- Trailing slashes on `DASHBOARD_API_URL` are stripped, so `https://host/` no longer produces `https://host//api/...`.
+
+---
+## [0.4.2] - 2026-08-15
+
+---
+
+## [0.4.1] - 2026-08-15
+
+---
+
+## [0.4.0] - 2026-08-15
+
+---
+
 ## [0.3.4] - 2026-05-14
 
 ### Fixed

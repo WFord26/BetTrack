@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/ToastProvider';
 import { DarkModeProvider } from './contexts/DarkModeContext';
@@ -18,6 +18,8 @@ import ValueOpportunities from './pages/ValueOpportunities';
 import LineMovementAnalytics from './pages/LineMovementAnalytics';
 import SharpMoneyAnalytics from './pages/SharpMoneyAnalytics';
 import BookmakerPerformance from './pages/BookmakerPerformance';
+import ArbitrageDashboard from './pages/ArbitrageDashboard';
+import CorrelationDashboard from './pages/CorrelationDashboard';
 import GameDetail from './pages/GameDetail';
 import TeamDetail from './pages/TeamDetail';
 import EnhancedDashboard from './pages/EnhancedDashboard';
@@ -184,6 +186,8 @@ function App() {
                   <Route path="/analytics/movements" element={<ProtectedRoute><LineMovementAnalytics /></ProtectedRoute>} />
                   <Route path="/analytics/sharp" element={<ProtectedRoute><SharpMoneyAnalytics /></ProtectedRoute>} />
                   <Route path="/analytics/bookmakers" element={<ProtectedRoute><BookmakerPerformance /></ProtectedRoute>} />
+                  <Route path="/analytics/arbitrage" element={<ProtectedRoute><ArbitrageDashboard /></ProtectedRoute>} />
+                  <Route path="/analytics/correlation" element={<ProtectedRoute><CorrelationDashboard /></ProtectedRoute>} />
                   <Route path="/game/:gameId" element={<ProtectedRoute><GameDetail /></ProtectedRoute>} />
                   <Route path="/teams/:league/:teamName" element={<ProtectedRoute><TeamDetail /></ProtectedRoute>} />
                   <Route path="/settings/preferences" element={<ProtectedRoute><Preferences /></ProtectedRoute>} />
@@ -204,9 +208,11 @@ function App() {
   );
 }
 
-// Global BetSlip wrapper
+// Global BetSlip wrapper — hidden on the landing page
 function GlobalBetSlip() {
   const { useDecimalOdds } = usePreferences();
+  const { pathname } = useLocation();
+  if (pathname === '/') return null;
   return <BetSlip useDecimalOdds={useDecimalOdds} />;
 }
 

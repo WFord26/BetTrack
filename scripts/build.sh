@@ -334,13 +334,24 @@ build_mcpb() {
         fi
     done
 
-    # Copy sports_api (no __pycache__ / .pyc)
-    if [[ -d "$MCP_ROOT/sports_api" ]]; then
-        cp -r "$MCP_ROOT/sports_api" "$pkg_dir/sports_api"
-        find "$pkg_dir/sports_api" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-        find "$pkg_dir/sports_api" -name "*.pyc" -delete 2>/dev/null || true
-        log_info "  copied: sports_api/"
-    fi
+    # Copy Python packages (no __pycache__ / .pyc)
+    # dashboard_api ships unconditionally: sports_mcp_server.py imports it and
+    # registers the dashboard tools at runtime only when DASHBOARD_API_KEY is
+    # set, so omitting it here would break the optional dashboard integration.
+    local packages=(
+        "sports_api"
+        "dashboard_api"
+    )
+    for pkg in "${packages[@]}"; do
+        if [[ -d "$MCP_ROOT/$pkg" ]]; then
+            cp -r "$MCP_ROOT/$pkg" "$pkg_dir/$pkg"
+            find "$pkg_dir/$pkg" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+            find "$pkg_dir/$pkg" -name "*.pyc" -delete 2>/dev/null || true
+            log_info "  copied: $pkg/"
+        else
+            log_warn "  MISSING package: $pkg/ (package will be incomplete)"
+        fi
+    done
 
     # Create .mcpb (ZIP)
     mkdir -p "$RELEASES_DIR"

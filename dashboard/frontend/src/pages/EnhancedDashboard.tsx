@@ -15,7 +15,7 @@ interface Game {
   status: string;
   homeScore?: number | null;
   awayScore?: number | null;
-  venue?: string;ñ
+  venue?: string;
   bookmakers?: any[];
 }
 

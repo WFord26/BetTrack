@@ -49,31 +49,31 @@ function formatBookmakerName(key: string): string {
 }
 
 function scoreColor(score: number | null, isDark: boolean): string {
-  if (score == null) return isDark ? 'text-gray-400' : 'text-gray-500';
-  if (score >= 75) return isDark ? 'text-green-400' : 'text-green-600';
-  if (score >= 50) return isDark ? 'text-yellow-400' : 'text-yellow-600';
-  return isDark ? 'text-red-400' : 'text-red-500';
+  if (score == null) return isDark ? 'text-cream-muted' : 'text-ink-muted';
+  if (score >= 75) return isDark ? 'text-[#6cbf67]' : 'text-[#4f8f3f]';
+  if (score >= 50) return isDark ? 'text-gold' : 'text-[#8a6800]';
+  return isDark ? 'text-coral' : 'text-[#c0392b]';
 }
 
 function scoreBadge(score: number | null, isDark: boolean): string {
-  if (score == null) return isDark ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-gray-100 text-gray-500 border-gray-300';
-  if (score >= 75) return isDark ? 'bg-green-900/50 text-green-300 border-green-700' : 'bg-green-50 text-green-700 border-green-200';
-  if (score >= 50) return isDark ? 'bg-yellow-900/50 text-yellow-300 border-yellow-700' : 'bg-yellow-50 text-yellow-700 border-yellow-200';
-  return isDark ? 'bg-red-900/50 text-red-300 border-red-700' : 'bg-red-50 text-red-700 border-red-200';
+  if (score == null) return isDark ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-muted border border-ink';
+  if (score >= 75) return isDark ? 'bg-[#1a3a1a] text-[#6cbf67] border border-[#4f8f3f]' : 'bg-[#e8f5e8] text-[#4f8f3f] border border-[#4f8f3f]';
+  if (score >= 50) return isDark ? 'bg-[#3a2810] text-gold border border-gold-edge' : 'bg-[#fdf3dd] text-[#8a6800] border border-[#b8860b]';
+  return isDark ? 'bg-coral-chip text-coral border border-coral' : 'bg-[#fceaea] text-[#c0392b] border border-[#c0392b]';
 }
 
 function limitBadge(profile: LimitProfile, isDark: boolean): string {
   switch (profile) {
-    case 'high':   return isDark ? 'bg-blue-900/50 text-blue-300 border-blue-700' : 'bg-blue-50 text-blue-700 border-blue-200';
-    case 'medium': return isDark ? 'bg-purple-900/50 text-purple-300 border-purple-700' : 'bg-purple-50 text-purple-700 border-purple-200';
-    case 'low':    return isDark ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-600 border-gray-300';
+    case 'high':   return isDark ? 'bg-dusk-panel2 text-gold border border-gold-edge' : 'bg-sand-panel2 text-terra border-2 border-ink';
+    case 'medium': return isDark ? 'bg-dusk-panel2 text-plum border border-plum' : 'bg-sand-panel2 text-plum border-2 border-ink';
+    case 'low':    return isDark ? 'bg-dusk-panel2 text-cream-muted border border-dusk-ring' : 'bg-sand-panel2 text-ink-muted border border-sand-divider';
   }
 }
 
 function sharpRatingColor(rating: number, isDark: boolean): string {
-  if (rating >= 8) return isDark ? 'text-blue-400' : 'text-blue-600';
-  if (rating >= 5) return isDark ? 'text-purple-400' : 'text-purple-600';
-  return isDark ? 'text-gray-400' : 'text-gray-500';
+  if (rating >= 8) return isDark ? 'text-gold' : 'text-terra';
+  if (rating >= 5) return isDark ? 'text-plum' : 'text-plum';
+  return isDark ? 'text-cream-muted' : 'text-ink-muted';
 }
 
 function formatPercent(value: number | undefined | null): string {
@@ -111,76 +111,63 @@ function RankingRow({
   isSelected: boolean;
   onSelect: () => void;
 }) {
-  const rowBg = isSelected
-    ? isDarkMode ? 'bg-blue-900/30 border-blue-700' : 'bg-blue-50 border-blue-200'
-    : isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-white border-gray-200 hover:bg-gray-50';
-  const textPrimary = isDarkMode ? 'text-white' : 'text-gray-900';
-  const textSecondary = isDarkMode ? 'text-gray-400' : 'text-gray-500';
+  const rowCls = isSelected
+    ? isDarkMode ? 'ds-panel border-l-4 border-gold p-4' : 'ds-card-ink border-l-4 border-terra p-4'
+    : isDarkMode ? 'ds-panel p-4 hover:brightness-110 transition-all' : 'ds-card-ink p-4 hover:brightness-105 transition-all';
 
   return (
-    <button
-      onClick={onSelect}
-      className={`w-full text-left rounded-lg border p-4 transition-colors cursor-pointer ${rowBg}`}
-    >
+    <button onClick={onSelect} className={`w-full text-left cursor-pointer ${rowCls}`}>
       <div className="flex items-center gap-4">
-        {/* Rank badge */}
-        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-          rank === 1 ? (isDarkMode ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-700') :
-          rank === 2 ? (isDarkMode ? 'bg-gray-600 text-gray-200' : 'bg-gray-200 text-gray-700') :
-          rank === 3 ? (isDarkMode ? 'bg-orange-900 text-orange-200' : 'bg-orange-100 text-orange-700') :
-          (isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500')
+        <div className={`flex-shrink-0 w-9 h-9 flex items-center justify-center font-display text-[11px] ${
+          rank === 1 ? (isDarkMode ? 'bg-gold text-dusk' : 'bg-gold text-ink') :
+          rank === 2 ? (isDarkMode ? 'bg-dusk-panel2 text-cream-secondary' : 'bg-sand-shadow text-ink-secondary') :
+          rank === 3 ? (isDarkMode ? 'bg-[#3a2810] text-ember' : 'bg-[#f3e4d0] text-terra') :
+          (isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-muted border border-ink')
         }`}>
           {rank}
         </div>
 
-        {/* Name + limit badge */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className={`font-semibold text-sm ${textPrimary}`}>
+            <p className={`font-body font-semibold text-sm ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
               {formatBookmakerName(bm.bookmaker)}
             </p>
-            <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${limitBadge(bm.limitProfile, isDarkMode)}`}>
+            <span className={`font-display text-[6px] tracking-[.06em] px-1.5 py-0.5 ${limitBadge(bm.limitProfile, isDarkMode)}`}>
               {bm.limitProfile.charAt(0).toUpperCase() + bm.limitProfile.slice(1)} limits
             </span>
           </div>
-          <p className={`text-xs mt-0.5 ${textSecondary}`}>
+          <p className={`font-body text-xs mt-0.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
             {bm.totalGamesOffered} games · {bm.sportsCovered.length} sports
           </p>
         </div>
 
-        {/* Key stats */}
         <div className="hidden sm:grid grid-cols-3 gap-4 text-center flex-shrink-0">
           <div>
-            <p className={`text-xs ${textSecondary}`}>Score</p>
-            <p className={`text-sm font-bold ${scoreColor(bm.recommendationScore, isDarkMode)}`}>
+            <p className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>SCORE</p>
+            <p className={`font-display text-[11px] mt-1 ${scoreColor(bm.recommendationScore, isDarkMode)}`}>
               {bm.recommendationScore != null ? Math.round(bm.recommendationScore) : '—'}
             </p>
           </div>
           <div>
-            <p className={`text-xs ${textSecondary}`}>Sharp</p>
-            <p className={`text-sm font-bold ${sharpRatingColor(bm.sharpBookRating, isDarkMode)}`}>
+            <p className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>SHARP</p>
+            <p className={`font-display text-[11px] mt-1 ${sharpRatingColor(bm.sharpBookRating, isDarkMode)}`}>
               {bm.sharpBookRating}/10
             </p>
           </div>
           <div>
-            <p className={`text-xs ${textSecondary}`}>Best Odds</p>
-            <p className={`text-sm font-bold ${textPrimary}`}>
+            <p className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>BEST ODDS</p>
+            <p className={`font-display text-[11px] mt-1 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
               {formatPercent(bm.bestOddsFrequency)}
             </p>
           </div>
         </div>
 
-        {/* Recommendation score pill */}
-        <div className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded border ${scoreBadge(bm.recommendationScore, isDarkMode)}`}>
+        <div className={`flex-shrink-0 font-display text-[7px] tracking-[.04em] px-2 py-1 ${scoreBadge(bm.recommendationScore, isDarkMode)}`}>
           {bm.recommendationScore != null ? `${Math.round(bm.recommendationScore)}/100` : '—'}
         </div>
 
-        {/* Chevron */}
-        <svg
-          width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
-          className={`flex-shrink-0 ${textSecondary} transition-transform ${isSelected ? 'rotate-90' : ''}`}
-        >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+          className={`flex-shrink-0 transition-transform ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'} ${isSelected ? 'rotate-90' : ''}`}>
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </div>
@@ -199,14 +186,12 @@ function StatCard({
   sub?: string;
   isDarkMode: boolean;
 }) {
-  const cardBg = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
-  const textPrimary = isDarkMode ? 'text-white' : 'text-gray-900';
-  const textSecondary = isDarkMode ? 'text-gray-400' : 'text-gray-500';
+  const cardCls = isDarkMode ? 'ds-panel p-4' : 'ds-card-ink p-4';
   return (
-    <div className={`rounded-lg border p-4 ${cardBg}`}>
-      <p className={`text-xs ${textSecondary} mb-1`}>{label}</p>
-      <p className={`text-2xl font-bold ${textPrimary}`}>{value}</p>
-      {sub && <p className={`text-xs mt-1 ${textSecondary}`}>{sub}</p>}
+    <div className={cardCls}>
+      <p className={`font-display text-[6px] tracking-[.1em] mb-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>{label}</p>
+      <p className={`font-display text-[16px] mt-2 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>{value}</p>
+      {sub && <p className={`font-body text-xs mt-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>{sub}</p>}
     </div>
   );
 }
@@ -226,173 +211,117 @@ function DetailPanel({
   outlierDays: number;
   onOutlierDaysChange: (days: number) => void;
 }) {
-  const textPrimary = isDarkMode ? 'text-white' : 'text-gray-900';
-  const textSecondary = isDarkMode ? 'text-gray-400' : 'text-gray-500';
-  const cardBg = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
-  const pillBg = isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700';
+  const cardCls = isDarkMode ? 'ds-panel' : 'ds-card-ink';
+  const pillCls = isDarkMode ? 'bg-dusk-panel2 text-cream-muted font-display text-[6.5px] tracking-[.06em] px-2 py-0.5' : 'bg-sand-panel2 text-ink-muted font-display text-[6.5px] tracking-[.06em] px-2 py-0.5 border border-sand-divider';
+  const selectCls = `font-display text-[7px] px-2 py-1.5 focus:outline-none ${isDarkMode ? 'bg-dusk-panel2 text-cream border-0' : 'bg-sand-panel2 text-ink border-2 border-ink'}`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className={`rounded-lg border p-4 ${cardBg}`}>
-        <div className="flex items-start gap-4">
+      <div className={`${cardCls} p-4`}>
+        <div className="flex items-start gap-4 flex-wrap">
           <div>
-            <h2 className={`text-xl font-bold ${textPrimary}`}>{formatBookmakerName(bm.bookmaker)}</h2>
-            <p className={`text-sm ${textSecondary}`}>{bm.bookmaker}</p>
+            <h2 className={`font-display text-[13px] tracking-wide ${isDarkMode ? 'text-cream' : 'text-ink'}`}>{formatBookmakerName(bm.bookmaker)}</h2>
+            <p className={`font-body text-xs mt-1 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>{bm.bookmaker}</p>
           </div>
           <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
-            <span className={`text-sm font-bold px-2 py-1 rounded border ${scoreBadge(bm.recommendationScore, isDarkMode)}`}>
+            <span className={`font-display text-[7px] tracking-[.04em] px-2 py-1 ${scoreBadge(bm.recommendationScore, isDarkMode)}`}>
               {bm.recommendationScore != null ? `${Math.round(bm.recommendationScore)}/100 score` : '— score'}
             </span>
-            <span className={`text-sm px-2 py-1 rounded border font-medium ${limitBadge(bm.limitProfile, isDarkMode)}`}>
+            <span className={`font-display text-[7px] tracking-[.04em] px-2 py-1 ${limitBadge(bm.limitProfile, isDarkMode)}`}>
               {bm.limitProfile.charAt(0).toUpperCase() + bm.limitProfile.slice(1)} limits · ~${bm.estimatedMaxBet.toLocaleString()} max
             </span>
           </div>
         </div>
       </div>
 
-      {/* Key metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard
-          label="Sharp Book Rating"
-          value={<span className={sharpRatingColor(bm.sharpBookRating, isDarkMode)}>{bm.sharpBookRating}/10</span>}
-          sub="Based on first-mover frequency"
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Best Odds Frequency"
-          value={formatPercent(bm.bestOddsFrequency)}
-          sub="% of markets with best line"
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Market Efficiency"
-          value={<span className={scoreColor(bm.marketEfficiency, isDarkMode)}>{Math.round(bm.marketEfficiency)}</span>}
-          sub="0–100 composite score"
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Uptime"
-          value={formatPercent(bm.uptimePercentage)}
-          sub="Odds availability rate"
-          isDarkMode={isDarkMode}
-        />
+        <StatCard label="Sharp Book Rating" value={<span className={sharpRatingColor(bm.sharpBookRating, isDarkMode)}>{bm.sharpBookRating}/10</span>} sub="Based on first-mover frequency" isDarkMode={isDarkMode} />
+        <StatCard label="Best Odds Frequency" value={formatPercent(bm.bestOddsFrequency)} sub="% of markets with best line" isDarkMode={isDarkMode} />
+        <StatCard label="Market Efficiency" value={<span className={scoreColor(bm.marketEfficiency, isDarkMode)}>{Math.round(bm.marketEfficiency)}</span>} sub="0–100 composite score" isDarkMode={isDarkMode} />
+        <StatCard label="Uptime" value={formatPercent(bm.uptimePercentage)} sub="Odds availability rate" isDarkMode={isDarkMode} />
       </div>
 
-      {/* Movement & timing */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard
-          label="First Mover Rate"
-          value={formatPercent(bm.firstMoverFrequency)}
-          sub="% of events led by this book"
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Movement Lag"
-          value={formatSeconds(bm.lineMovementLag)}
-          sub="Avg time behind first mover"
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Odds Update Freq"
-          value={formatSeconds(bm.oddsUpdateFrequency)}
-          sub="Avg seconds between updates"
-          isDarkMode={isDarkMode}
-        />
-        <StatCard
-          label="Outlier Rate"
-          value={formatPercent(bm.outlierFrequency)}
-          sub="% of markets off consensus"
-          isDarkMode={isDarkMode}
-        />
+        <StatCard label="First Mover Rate" value={formatPercent(bm.firstMoverFrequency)} sub="% of events led by this book" isDarkMode={isDarkMode} />
+        <StatCard label="Movement Lag" value={formatSeconds(bm.lineMovementLag)} sub="Avg time behind first mover" isDarkMode={isDarkMode} />
+        <StatCard label="Odds Update Freq" value={formatSeconds(bm.oddsUpdateFrequency)} sub="Avg seconds between updates" isDarkMode={isDarkMode} />
+        <StatCard label="Outlier Rate" value={formatPercent(bm.outlierFrequency)} sub="% of markets off consensus" isDarkMode={isDarkMode} />
       </div>
 
       {/* Coverage */}
-      <div className={`rounded-lg border p-4 ${cardBg}`}>
-        <p className={`font-semibold text-sm mb-3 ${textPrimary}`}>Market Coverage</p>
+      <div className={`${cardCls} p-4`}>
+        <p className={`font-display text-[8px] tracking-[.08em] mb-3 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>MARKET COVERAGE</p>
         <div className="mb-3">
-          <p className={`text-xs ${textSecondary} mb-1.5`}>
-            Sports ({bm.sportsCovered.length})
+          <p className={`font-display text-[6px] tracking-[.1em] mb-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+            SPORTS ({bm.sportsCovered.length})
           </p>
           <div className="flex flex-wrap gap-1.5">
             {bm.sportsCovered.length > 0 ? bm.sportsCovered.map(sport => (
-              <span key={sport} className={`text-xs px-2 py-0.5 rounded ${pillBg}`}>{sport}</span>
+              <span key={sport} className={pillCls}>{sport}</span>
             )) : (
-              <span className={`text-xs ${textSecondary}`}>No data</span>
+              <span className={`font-body text-xs ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>No data</span>
             )}
           </div>
         </div>
         <div>
-          <p className={`text-xs ${textSecondary} mb-1.5`}>
-            Market types ({bm.marketsCovered.length})
+          <p className={`font-display text-[6px] tracking-[.1em] mb-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+            MARKET TYPES ({bm.marketsCovered.length})
           </p>
           <div className="flex flex-wrap gap-1.5">
             {bm.marketsCovered.length > 0 ? bm.marketsCovered.map(m => (
-              <span key={m} className={`text-xs px-2 py-0.5 rounded ${pillBg}`}>{m}</span>
+              <span key={m} className={pillCls}>{m}</span>
             )) : (
-              <span className={`text-xs ${textSecondary}`}>No data</span>
+              <span className={`font-body text-xs ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>No data</span>
             )}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+        <div className={`grid grid-cols-2 gap-3 mt-3 pt-3 border-t-2 ${isDarkMode ? 'border-dusk-panel2' : 'border-sand-divider'}`}>
           <div>
-            <p className={`text-xs ${textSecondary}`}>Total Games</p>
-            <p className={`text-lg font-bold ${textPrimary}`}>{bm.totalGamesOffered.toLocaleString()}</p>
+            <p className={`font-display text-[6px] tracking-[.1em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>TOTAL GAMES</p>
+            <p className={`font-display text-[16px] mt-1 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>{bm.totalGamesOffered.toLocaleString()}</p>
           </div>
           <div>
-            <p className={`text-xs ${textSecondary}`}>Total Markets</p>
-            <p className={`text-lg font-bold ${textPrimary}`}>{bm.totalMarketsOffered.toLocaleString()}</p>
+            <p className={`font-display text-[6px] tracking-[.1em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>TOTAL MARKETS</p>
+            <p className={`font-display text-[16px] mt-1 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>{bm.totalMarketsOffered.toLocaleString()}</p>
           </div>
         </div>
       </div>
 
       {/* Outlier stats */}
-      <div className={`rounded-lg border p-4 ${cardBg}`}>
+      <div className={`${cardCls} p-4`}>
         <div className="flex items-center justify-between mb-3">
-          <p className={`font-semibold text-sm ${textPrimary}`}>Consensus Outlier Analysis</p>
+          <p className={`font-display text-[8px] tracking-[.08em] ${isDarkMode ? 'text-cream' : 'text-ink'}`}>OUTLIER ANALYSIS</p>
           <div className="flex items-center gap-2">
-            <label className={`text-xs ${textSecondary}`}>Window:</label>
-            <select
-              value={outlierDays}
-              onChange={(e) => onOutlierDaysChange(parseInt(e.target.value))}
-              className={`text-xs rounded border px-2 py-1 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-900'}`}
-            >
-              {[7, 30, 90].map(d => (
-                <option key={d} value={d}>{d}d</option>
-              ))}
+            <label className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>WINDOW:</label>
+            <select value={outlierDays} onChange={(e) => onOutlierDaysChange(parseInt(e.target.value))} className={selectCls}>
+              {[7, 30, 90].map(d => (<option key={d} value={d}>{d}d</option>))}
             </select>
           </div>
         </div>
 
         {outlierLoading ? (
           <div className="flex items-center justify-center py-6">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+            <div className="animate-spin h-6 w-6 border-4 border-gold border-t-transparent" />
           </div>
         ) : outlierStats ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <p className={`text-xs ${textSecondary}`}>Records Analyzed</p>
-              <p className={`text-lg font-bold ${textPrimary}`}>{outlierStats.totalRecords.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className={`text-xs ${textSecondary}`}>Outlier Count</p>
-              <p className={`text-lg font-bold ${textPrimary}`}>{outlierStats.outlierCount.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className={`text-xs ${textSecondary}`}>Outlier Rate</p>
-              <p className={`text-lg font-bold ${scoreColor(100 - outlierStats.outlierRate, isDarkMode)}`}>
-                {outlierStats.outlierRate.toFixed(1)}%
-              </p>
-            </div>
-            <div>
-              <p className={`text-xs ${textSecondary}`}>Avg Deviation</p>
-              <p className={`text-lg font-bold ${textPrimary}`}>{outlierStats.avgDeviation.toFixed(2)}σ</p>
-            </div>
+            {[
+              { label: 'RECORDS', value: outlierStats.totalRecords.toLocaleString() },
+              { label: 'OUTLIERS', value: outlierStats.outlierCount.toLocaleString() },
+              { label: 'OUTLIER RATE', value: outlierStats.outlierRate.toFixed(1) + '%', colorFn: () => scoreColor(100 - outlierStats.outlierRate, isDarkMode) },
+              { label: 'AVG DEVIATION', value: outlierStats.avgDeviation.toFixed(2) + 'σ' },
+            ].map(({ label, value, colorFn }) => (
+              <div key={label}>
+                <p className={`font-display text-[6px] tracking-[.1em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>{label}</p>
+                <p className={`font-display text-[14px] mt-1 ${colorFn ? colorFn() : isDarkMode ? 'text-cream' : 'text-ink'}`}>{value}</p>
+              </div>
+            ))}
           </div>
         ) : (
-          <p className={`text-sm ${textSecondary}`}>No outlier data available for this window.</p>
+          <p className={`font-body text-sm ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>No outlier data available for this window.</p>
         )}
-        <p className={`text-xs mt-3 ${textSecondary}`}>
+        <p className={`font-body text-xs mt-3 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
           ⓘ Outliers are markets where this book's line deviates significantly from the consensus across all bookmakers.
         </p>
       </div>
@@ -435,48 +364,53 @@ export default function BookmakerPerformance() {
     }
   };
 
-  const bgPage = isDarkMode ? 'bg-gray-900' : 'bg-gray-50';
-  const bgHeader = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
-  const textPrimary = isDarkMode ? 'text-white' : 'text-gray-900';
-  const textSecondary = isDarkMode ? 'text-gray-400' : 'text-gray-600';
-  const cardBg = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
-  const tabActive = 'bg-blue-600 text-white';
-  const tabInactive = isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900';
-
   const totalBooks = rankings.length;
   const avgScore = totalBooks > 0
     ? Math.round(rankings.reduce((sum, b) => sum + (b.recommendationScore ?? 0), 0) / totalBooks)
     : 0;
   const highLimitCount = rankings.filter(b => b.limitProfile === 'high').length;
 
+  const pageCls = isDarkMode ? 'min-h-screen bg-dusk' : 'min-h-screen ds-sand-bg';
+  const cardCls = isDarkMode ? 'ds-panel' : 'ds-card-ink';
+  const tabActiveCls = isDarkMode
+    ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+    : 'bg-terra text-terra-text border-2 border-ink shadow-[0_3px_0_#3a2413]';
+  const tabInactiveCls = isDarkMode
+    ? 'bg-dusk-panel2 text-cream-muted'
+    : 'bg-sand-panel text-ink-secondary border-2 border-ink';
+  const selectCls = `font-display text-[7px] tracking-[.06em] px-2 py-1.5 focus:outline-none ${isDarkMode ? 'bg-dusk-panel2 text-cream border-0' : 'bg-sand-panel2 text-ink border-2 border-ink'}`;
+
   return (
-    <div className={`min-h-screen ${bgPage}`}>
+    <div className={pageCls}>
       {/* Page header */}
-      <div className={`border-b ${bgHeader}`}>
+      <div className={isDarkMode ? 'bg-dusk-chrome' : 'bg-terra shadow-[0_4px_0_#3a2413]'}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-4xl">📊</span>
-            <div>
-              <h1 className={`text-3xl font-bold ${textPrimary}`}>
-                Bookmaker Performance
-              </h1>
-              <p className={textSecondary}>
-                Compare sportsbooks by value, sharpness, reliability, and market coverage
-              </p>
-            </div>
+          <div className="mb-4">
+            <p className={`font-display text-[8px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-ember' : 'text-terra-text opacity-80'}`}>
+              WHO RUNS THE SALOON
+            </p>
+            <h1
+              className={`font-display text-[19px] ${isDarkMode ? 'text-cream' : 'text-terra-text'}`}
+              style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '3px 3px 0 #3a2413' }}
+            >
+              BOOKMAKERS
+            </h1>
+            <p className={`font-body mt-2 text-sm ${isDarkMode ? 'text-cream-muted' : 'text-terra-muted'}`}>
+              Compare sportsbooks by value, sharpness, reliability, and market coverage
+            </p>
           </div>
 
           {/* Summary stats */}
           {totalBooks > 0 && (
             <div className="grid grid-cols-3 gap-3 mt-4">
               {[
-                { label: 'Bookmakers Ranked', value: totalBooks },
-                { label: 'Avg Score', value: `${avgScore}/100` },
-                { label: 'High-Limit Books', value: highLimitCount },
+                { label: 'BOOKS RANKED', value: totalBooks },
+                { label: 'AVG SCORE', value: `${avgScore}/100` },
+                { label: 'HIGH-LIMIT BOOKS', value: highLimitCount },
               ].map(stat => (
-                <div key={stat.label} className={`rounded-lg border p-3 ${cardBg}`}>
-                  <p className={`text-xs ${textSecondary}`}>{stat.label}</p>
-                  <p className={`text-xl font-bold ${textPrimary}`}>{stat.value}</p>
+                <div key={stat.label} className={`${cardCls} p-3`}>
+                  <p className={`font-display text-[6px] tracking-[.1em] mb-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>{stat.label}</p>
+                  <p className={`font-display text-[16px] ${isDarkMode ? 'text-gold' : 'text-ink'}`}>{stat.value}</p>
                 </div>
               ))}
             </div>
@@ -487,31 +421,19 @@ export default function BookmakerPerformance() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
-          <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 text-sm">
-            <button
-              onClick={() => setActiveTab('rankings')}
-              className={`px-4 py-2 font-medium transition-colors ${activeTab === 'rankings' ? tabActive : tabInactive}`}
-            >
-              📊 Rankings
+          <div className="flex gap-1.5">
+            <button onClick={() => setActiveTab('rankings')} className={`font-display text-[7px] tracking-[.06em] px-4 py-2.5 transition-all ${activeTab === 'rankings' ? tabActiveCls : tabInactiveCls}`}>
+              RANKINGS
             </button>
-            <button
-              onClick={() => setActiveTab('detail')}
-              className={`px-4 py-2 font-medium transition-colors border-l border-gray-300 dark:border-gray-600 ${activeTab === 'detail' ? tabActive : tabInactive}`}
-              disabled={!selectedBookmaker && rankings.length === 0}
-            >
-              🔍 Detail
+            <button onClick={() => setActiveTab('detail')} className={`font-display text-[7px] tracking-[.06em] px-4 py-2.5 transition-all ${activeTab === 'detail' ? tabActiveCls : tabInactiveCls}`} disabled={!selectedBookmaker && rankings.length === 0}>
+              DETAIL
             </button>
           </div>
 
-          {/* Criteria selector — only on rankings tab */}
           {activeTab === 'rankings' && (
             <div className="flex items-center gap-2 ml-auto">
-              <label className={`text-sm ${textSecondary}`}>Sort by:</label>
-              <select
-                value={criteria}
-                onChange={(e) => setCriteria(e.target.value as BookmakerRankingCriteria)}
-                className={`text-sm rounded border px-2 py-1.5 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-900'}`}
-              >
+              <label className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>SORT BY:</label>
+              <select value={criteria} onChange={(e) => setCriteria(e.target.value as BookmakerRankingCriteria)} className={selectCls}>
                 {CRITERIA_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -520,18 +442,19 @@ export default function BookmakerPerformance() {
           )}
         </div>
 
-        {/* Criteria description */}
         {activeTab === 'rankings' && (
-          <div className={`rounded-lg border p-3 mb-4 text-sm ${isDarkMode ? 'bg-blue-900/20 border-blue-800 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
-            <strong>{CRITERIA_OPTIONS.find(o => o.value === criteria)?.label}:</strong>{' '}
-            {CRITERIA_OPTIONS.find(o => o.value === criteria)?.desc}. Click any row to view full details.
+          <div className={`p-3 mb-4 ${isDarkMode ? 'bg-dusk-panel2 border border-dusk-ring' : 'bg-sand-panel2 border-2 border-ink'}`}>
+            <p className={`font-body text-sm ${isDarkMode ? 'text-cream-secondary' : 'text-ink-secondary'}`}>
+              <strong className={isDarkMode ? 'text-gold' : 'text-terra'}>{CRITERIA_OPTIONS.find(o => o.value === criteria)?.label}:</strong>{' '}
+              {CRITERIA_OPTIONS.find(o => o.value === criteria)?.desc}. Click any row to view full details.
+            </p>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className={`rounded-lg border p-4 mb-4 ${isDarkMode ? 'bg-red-900/30 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}>
-            {error}
+          <div className={`p-4 mb-4 ${isDarkMode ? 'bg-coral-chip border border-coral text-coral' : 'bg-[#fceaea] border-2 border-[#c0392b] text-[#c0392b]'}`}>
+            <p className="font-body text-sm">{error}</p>
           </div>
         )}
 
@@ -540,25 +463,18 @@ export default function BookmakerPerformance() {
           <>
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+                <div className="animate-spin h-10 w-10 border-4 border-gold border-t-transparent" />
               </div>
             ) : rankings.length === 0 ? (
-              <div className={`text-center py-16 ${textSecondary}`}>
+              <div className={`text-center py-16 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
                 <p className="text-4xl mb-3">📊</p>
-                <p className="text-lg font-medium">No bookmaker data yet</p>
-                <p className="text-sm mt-1">Rankings are calculated from odds data captured over the last 30 days.</p>
+                <p className={`font-display text-[11px] mb-2 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>NO BOOKMAKER DATA YET</p>
+                <p className="font-body text-sm">Rankings are calculated from odds data captured over the last 30 days.</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {rankings.map((bm, i) => (
-                  <RankingRow
-                    key={bm.bookmaker}
-                    rank={i + 1}
-                    bm={bm}
-                    isDarkMode={isDarkMode}
-                    isSelected={selectedBookmaker?.bookmaker === bm.bookmaker}
-                    onSelect={() => handleSelectBookmaker(bm)}
-                  />
+                  <RankingRow key={bm.bookmaker} rank={i + 1} bm={bm} isDarkMode={isDarkMode} isSelected={selectedBookmaker?.bookmaker === bm.bookmaker} onSelect={() => handleSelectBookmaker(bm)} />
                 ))}
               </div>
             )}
@@ -568,56 +484,35 @@ export default function BookmakerPerformance() {
         {/* Detail tab */}
         {activeTab === 'detail' && (
           <>
-            {/* Bookmaker selector (from rankings) */}
             {rankings.length > 0 && (
               <div className="flex items-center gap-2 mb-4">
-                <label className={`text-sm ${textSecondary}`}>Bookmaker:</label>
-                <select
-                  value={selectedBookmaker?.bookmaker || ''}
-                  onChange={(e) => {
-                    const bm = rankings.find(b => b.bookmaker === e.target.value);
-                    if (bm) handleSelectBookmaker(bm);
-                  }}
-                  className={`text-sm rounded border px-2 py-1.5 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-900'}`}
-                >
+                <label className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>BOOKMAKER:</label>
+                <select value={selectedBookmaker?.bookmaker || ''} onChange={(e) => { const bm = rankings.find(b => b.bookmaker === e.target.value); if (bm) handleSelectBookmaker(bm); }} className={selectCls}>
                   <option value="" disabled>Select a bookmaker…</option>
-                  {rankings.map(bm => (
-                    <option key={bm.bookmaker} value={bm.bookmaker}>
-                      {formatBookmakerName(bm.bookmaker)}
-                    </option>
-                  ))}
+                  {rankings.map(bm => (<option key={bm.bookmaker} value={bm.bookmaker}>{formatBookmakerName(bm.bookmaker)}</option>))}
                 </select>
               </div>
             )}
 
             {detailLoading ? (
               <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+                <div className="animate-spin h-10 w-10 border-4 border-gold border-t-transparent" />
               </div>
             ) : selectedBookmaker ? (
-              <DetailPanel
-                bm={selectedBookmaker}
-                isDarkMode={isDarkMode}
-                outlierStats={outlierStats}
-                outlierLoading={outlierLoading}
-                outlierDays={outlierDays}
-                onOutlierDaysChange={handleOutlierDaysChange}
-              />
+              <DetailPanel bm={selectedBookmaker} isDarkMode={isDarkMode} outlierStats={outlierStats} outlierLoading={outlierLoading} outlierDays={outlierDays} onOutlierDaysChange={handleOutlierDaysChange} />
             ) : (
-              <div className={`text-center py-16 ${textSecondary}`}>
+              <div className={`text-center py-16 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
                 <p className="text-4xl mb-3">🔍</p>
-                <p className="text-lg font-medium">Select a bookmaker</p>
-                <p className="text-sm mt-1">
-                  Pick one from the Rankings tab or the dropdown above to view full performance details.
-                </p>
+                <p className={`font-display text-[11px] mb-2 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>SELECT A BOOKMAKER</p>
+                <p className="font-body text-sm">Pick one from the Rankings tab or the dropdown above to view full performance details.</p>
               </div>
             )}
           </>
         )}
 
         {/* Legend */}
-        <div className={`mt-8 rounded-lg border p-4 text-sm ${cardBg}`}>
-          <p className={`font-semibold mb-2 ${textPrimary}`}>How Rankings Work</p>
+        <div className={`mt-8 ${cardCls} p-5`}>
+          <p className={`font-display text-[8px] tracking-[.08em] mb-3 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>HOW RANKINGS WORK</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
               { icon: '🎯', label: 'Recommendation Score', desc: 'Composite: 40% value + 35% reliability + 15% coverage + 10% sharpness.' },
@@ -630,8 +525,8 @@ export default function BookmakerPerformance() {
               <div key={item.label} className="flex items-start gap-2">
                 <span className="text-base">{item.icon}</span>
                 <div>
-                  <span className={`font-medium ${textPrimary}`}>{item.label}:</span>{' '}
-                  <span className={textSecondary}>{item.desc}</span>
+                  <span className={`font-body font-semibold text-sm ${isDarkMode ? 'text-cream' : 'text-ink'}`}>{item.label}:</span>{' '}
+                  <span className={`font-body text-sm ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>{item.desc}</span>
                 </div>
               </div>
             ))}

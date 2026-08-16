@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.5.3] - 2026-08-16
+
+---
+
+## [0.5.2] - 2026-08-15
+
+### Added
+
+- **Correlation Analysis UI** (Phase 3, issue #10): Real-time parlay correlation warnings in the bet slip, plus a reference dashboard.
+  - `src/components/analytics/ParlayValidator.tsx`: Wired into `BetSlip.tsx` for parlays — debounces on leg changes, calls `POST /analytics/correlation/parlay` with a draft slip, and shows a 🟢/🟡/🔴/⛔ warning badge with inline true odds and a suggested fix.
+  - `src/pages/CorrelationDashboard.tsx`: New `/analytics/correlation` page — heatmap, hedge calculator, analysis history and education tabs; new `CORR` nav item.
+  - `src/components/analytics/CorrelationHeatmap.tsx`, `HedgeCalculator.tsx`, `CorrelationEducation.tsx`.
+  - `src/store/correlationSlice.ts`, `src/services/correlation.service.ts`, `src/types/correlation.types.ts`: Redux state, API client and shared types.
+  - `src/store/index.ts`: `correlation` reducer registered; `src/test/test-utils.tsx` updated so existing component tests keep a complete store shape.
+  - Fix: `ParlayValidator` now derives a stable `sgpGroupId` per `gameId` for draft legs (via a new exported `buildDraftLegs` helper) before calling `analyzeDraftSlip`, since draft legs have no `sgpGroupId` until the bet is placed — a same-game spread + total built live in the slip is now priced as an expected SGP pair instead of flagged as high-risk correlation.
+  - Fix: `correlationSlice` tracks the `requestId` of the latest `analyzeDraftSlip` dispatch and ignores fulfillments/rejections for requests superseded by a newer slip edit, so a slow response for a stale leg set can't overwrite the current warning/true odds.
+  - Tests: `src/store/correlationSlice.test.ts` (4, staleness guard) and `src/components/analytics/ParlayValidator.test.ts` (5, SGP derivation).
+
+---
+
+## [0.5.1] - 2026-08-15
+
+### Added
+
+- **Arbitrage & Middles UI** (Phase 3, issue #9): New `/analytics/arbitrage` page with live opportunities, middles, calculator and alert settings, plus an `ARB` nav item.
+  - `src/pages/ArbitrageDashboard.tsx`: Tabbed dashboard polling the live endpoint every 30 seconds, with a standing freshness disclosure and a stats strip.
+  - `src/components/analytics/SnapshotAgeBadge.tsx`: Odds snapshot age on every card, amber past 2.5 minutes and red past 5.
+  - `src/components/analytics/ArbitrageCalculator.tsx`: 2 to 4 leg stake splitter showing per-leg stakes, returns and worst-case profit.
+  - `src/components/analytics/MiddleFinder.tsx`: Middle opportunities with the winning window, modelled hit chance and expected value.
+  - `src/components/analytics/ArbitrageAlerts.tsx`: Alert thresholds (min profit, max stake, max snapshot age, middles, books, sports) persisted locally.
+  - `src/store/arbitrageSlice.ts`, `src/services/arbitrage.service.ts`, `src/types/arbitrage.types.ts`: Redux state, API client and shared types.
+  - `src/pages/Notifications.tsx`: In-app arbitrage alerts are now live and polled; the "coming soon" notice now covers external delivery channels only.
+
+---
+
+## [0.5.0] - 2026-08-15
+
 ### Added
 
 - **Bookmaker Performance Analytics page** (Phase 2 Bookmaker Analytics): New page at `/analytics/bookmakers` for comparing and ranking sportsbooks by value, sharpness, reliability, and market coverage.
@@ -17,6 +56,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/store/index.ts`: `bookmaker` reducer registered.
   - `src/App.tsx`: Route `/analytics/bookmakers` added.
   - `src/components/Header.tsx`: "Bookmakers" nav item with bar-chart icon added after "Sharp Money".
+
+### Changed
+
+- **Desert Sunset visual redesign**: Full re-skin of the app shell and every primary screen from the red/gray 8-bit theme to a dusk-purple (dark) / sand-paper (light) desert-sunset system — gold/ember/terracotta/coral/plum accents, `Press Start 2P` display font, `Space Grotesk` body font, and three signature card treatments (notched panels, ink-bordered cards, paper ticket stubs). Pure visual re-skin — no data flow, API calls, routes, or Redux state changed.
+  - `tailwind.config.js`: Added the desert-sunset color tokens (`dusk-*`, `cream-*`, `sand-*`, `ink-*`, `gold-*`, `ember`, `terra-*`, `coral-*`, `plum`, `sunwin-*`, `sunloss-*`, `sunpending`); `font-display` now resolves to `Press Start 2P`, `font-body` to `Space Grotesk`.
+  - `src/index.css`: Added shared component recipes — `.ds-panel`/`.ds-panel-lg` (dark notched panel), `.ds-card-ink`/`.ds-card-ink-lg` (light ink-bordered card), `.ds-btn-press`/`.ds-btn-press-light` (press buttons), `.ds-odds-cell-dark`/`.ds-odds-cell-light`/`.ds-odds-cell-selected` (odds price cells), `.ds-barcode`, `.ds-sand-bg`, `.ds-crt-scanlines`/`.ds-crt-vignette`, and `animate-ds-blink`/`animate-ds-blink-slow`/`animate-ds-marquee`. `h1`/`h2`/`h3` no longer auto-apply `font-display` globally (now applied explicitly per-heading) so un-migrated pages don't inherit the pixel font at arbitrary sizes.
+  - `index.html`: Added the `Press Start 2P` / `Space Grotesk` Google Fonts links.
+  - `src/components/Header.tsx`, `src/components/Footer.tsx`: Restyled topbar (terracotta banner / dusk-chrome bar) with pixel-chip nav tabs, sunset-stripe divider, and reskinned dropdowns; footer restyled to the dusk-chrome palette.
+  - `src/pages/Home.tsx`: Rebuilt landing page — full-bleed pixel hero with sunset text-shadow headline, ticker marquee, and a 3-card "What We Are" section on notched panels.
+  - `src/pages/EnhancedDashboard.tsx`, `src/components/odds/EnhancedGameCard.tsx`, `src/components/filters/GameFilters.tsx`: Restyled dashboard shell, game cards (odds-cell price buttons, live/final status chips), and the sidebar filters (date/status/sport/odds-format/bookmaker).
+  - `src/components/bets/BetSlip.tsx`, `BetLegItem.tsx`, `TeaserControl.tsx`: Restyled bet slip as a notched panel with sunset-stripe cap, reskinned leg rows, stake/to-win boxes, and bet-type tabs.
+  - `src/pages/BetHistory.tsx`, `src/components/bets/BetCard.tsx`: Bet cards rebuilt as paper ticket stubs with a rotated WON/LOST/PENDING stamp; history page header restyled with record/net-P&L/win-rate stat chips.
+  - `src/pages/Stats.tsx`, `src/components/stats/StatsOverview.tsx`, `PnLChart.tsx`, `CLVSummaryCard.tsx`: Restyled overview cards (with a real win-rate block meter), P&L bar chart, and by-sport/by-bet-type tables on ink-bordered cards.
+  - `src/pages/Futures.tsx`: Restyled market panels (gradient banner) and outcome cards with best-odds and per-bookmaker rows.
 
 ---
 

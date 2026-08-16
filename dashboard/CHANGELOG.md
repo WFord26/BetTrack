@@ -8,6 +8,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP Analytics Surface** (`/api/mcp/analytics/*`): API key authenticated mirrors of the session gated `/api/analytics/*` routers, so Claude Desktop can now reach the analytics suite that was previously reachable only from a logged in browser session
+  - Backend: new `routes/mcp-analytics.routes.ts` covering arbitrage (live, history, stats, stake calculator, by id), CLV (summary, by sport, by bookmaker, full report), sharp money (live, per game, contrarian, stats), line movement (live, per game, stats), market disagreement (live, per game), and bookmaker analytics (rankings, sharp books, compare, best value by sport, per book metrics, outlier stats)
+  - Backend: mounted from `mcp.routes.ts` via `router.use('/analytics', requirePermission('stats'), mcpAnalyticsRoutes)`, so `apiKeyAuth` is inherited from the parent router and a `bets` only key cannot read analytics
+  - Backend: handlers call the same service singletons as the session routes (`arbitrageService`, `clvService`, `sharpIndicatorService`, `marketConsensusService`, `bookmakerAnalyticsService`, `LineMovementService`); no analytics logic is duplicated
+  - Security: read only by design. The session routers' mutating endpoints (`POST /arbitrage/:id/take`, `POST /clv/calculate/:betId`, `POST /clv/update-stats`) are deliberately not mirrored, so a `stats` key can never change state. The one `POST` on this surface is the stateless arbitrage stake calculator, which persists nothing
+  - Security: user scoped queries resolve the caller from `req.apiKey.userId` rather than a session user, matching the `getScopedUserId` contract (undefined means no user filter, consistent with `AUTH_MODE=none`)
+  - Route ordering: dynamic segments are declared after their static siblings (`/arbitrage/:id` after `/arbitrage/live|history|stats|calculator`, `/bookmakers/:bookmaker` after `/bookmakers/rankings|sharp|compare|best-value/:sport` and after `/bookmakers/:bookmaker/outliers`) so specific paths are never shadowed
+
+- **Bet Correlation Analysis** (Phase 3, issue #10): Detects correlation between the legs of a parlay, computes a correlation-adjusted true-odds figure, and surfaces pre-game hedging opportunities
+  - Backend: `BetLegCorrelation` + `ParlayAnalysis` models and migration `20260815120000_add_bet_correlation_analysis`, with `BetLeg`/`Bet`/`User` back-relations
+  - Backend: `correlationService` singleton — pairwise detection for same-game (spread+total), derivative (moneyline+small spread, same side), inverse (opposite moneylines, hard-blocked), and temporal (same team, games within 48h) correlation; `analyzeParlay`/`analyzeDraftSlip` flag pairs beyond ±30%, respect existing `sgpGroupId` groupings as priced/expected rather than a mistake, and produce a risk-scored approve/warning/reject recommendation
+  - Backend: `calculateTrueOdds` applies a correlation penalty on top of `calculateParlayOdds` (up to -30% for positive correlation, up to +20% for inverse)
+  - Backend: `/api/analytics/correlation/*` endpoints (analyze, parlay, history, hedge, education), documented in `docs/api/openapi-internal.yaml`
+  - Backend: `findHedgingOpportunities` — pre-game hedge stakes for a moneyline leg against every bookmaker's opposite-side price (live/in-play hedging deferred, no in-play odds feed today)
+  - Frontend: `ParlayValidator` wired into the existing bet slip — real-time correlation check on 2+ leg parlays with 🟢/🟡/🔴/⛔ warning levels and inline true odds
+  - Frontend: `/analytics/correlation` page — heatmap, hedge calculator, analysis history, and an education module; new `CORR` nav item
+  - Frontend: `correlationSlice.ts`, `services/correlation.service.ts`, `types/correlation.types.ts`
+  - Security: `analyze` and `hedge` endpoints scope lookups to `getScopedUserId(req)` in OAuth mode — both legs' (or the leg's) parent bet must belong to the caller, otherwise a "not found" is returned, so a signed-in user can't probe another user's bet legs for correlation type or infer their side via hedge options
+  - Fix: draft legs built live in the bet slip now get a derived `sgpGroupId` per game before analysis, so a same-game spread + total is priced as an expected SGP pair instead of flagged as unpriced high-risk correlation
+  - Fix: `correlationSlice` ignores `analyzeDraftSlip` responses for requests superseded by a newer edit, so a slow response for a stale leg set can no longer overwrite the current true-odds/warning
+  - Tests: 52 backend tests (38 service, 14 routes) and 9 frontend tests (staleness guard, SGP derivation)
+  - Scope: v1 covers game-line legs only (moneyline/spread/total); player-prop correlation is blocked on the (unbuilt) Player Props feature
+- **Arbitrage & Middle Detection** (Phase 3, issue #9): Full-stack feature detecting guaranteed-profit arbitrage across bookmakers and middle opportunities where both legs can win
+  - Backend: `ArbitrageOpportunity` model + migration `20260815000001_add_arbitrage_opportunities`, with `Game`/`User` back-relations, middle-window columns and risk factors
+  - Backend: `ArbitrageService` singleton — scanning, optimal stake split, middle detection, risk assessment, and dedup/refresh so a long-lived arb does not duplicate on every scan
+  - Backend: Line-aware detection — spreads require `homeSpread + awaySpread >= 0`, totals require `overLine <= underLine`. Books quoting different lines no longer yield false arbitrage; a strictly positive gap is reported as a middle scored with a per-sport normal model
+  - Backend: `odds-sync:completed` event (`src/events/odds-sync.events.ts`) emitted by `sync-odds.job`, consumed by `arbitrage-scan.job` so scans run on fresh odds; a 30-second cron pass handles expiry and missed syncs
+  - Backend: `/api/analytics/arbitrage/*` REST endpoints (live, history, stats, detail, take, calculator), documented in `docs/api/openapi-internal.yaml`
+  - Backend: Risk assessment covering snapshot staleness (>5 min), odds drift (>5%), suspicious profit (>10%), proximity to start (<15 min) and bookmaker account-limit exposure
+  - Frontend: `/analytics/arbitrage` page with live/middles/calculator/alerts tabs, 30-second polling, and an `ARB` nav item
+  - Frontend: `SnapshotAgeBadge` on every card (amber past 2.5 min, red past 5 min) plus a standing freshness disclosure banner
+  - Frontend: `ArbitrageCalculator` (2 to 4 legs), `MiddleFinder` (winning window, hit chance, EV), `ArbitrageAlerts` (thresholds persisted locally)
+  - Frontend: `arbitrageSlice.ts`, `services/arbitrage.service.ts`, `types/arbitrage.types.ts`; live in-app alerts on the Notifications page
+  - Tests: 62 new backend tests (46 detection/service, 16 routes)
+  - Decision: odds sync cadence stays at ~10 minutes; freshness is disclosed via `oddsSnapshotAge` rather than paid down with extra Odds API calls (ADR-019, summarised in `dashboard/backend/README.md`)
+  - Known gap: load testing for scan performance not yet done; `oddsDrift` is queried per candidate (N+1 in opportunities, not games)
+
+---
+
+## [2026-08-15]
+
+### Added
+
+- **Bookmaker Performance Analytics** (Phase 2): Value/sharpness/reliability ranking and comparison across bookmakers
+  - Backend: `BookmakerAnalytics` and `BookmakerMovementEvent` models; `BookmakerAnalyticsService` with `calculateBookmakerMetrics()` and `rankBookmakers()`; daily 02:00 UTC batch job with a startup staleness guard
+  - Backend: 7 `/api/analytics/bookmakers/*` REST endpoints — rankings, per-bookmaker detail, `/sharp`, `/compare`, `/best-value/:sport`, `/movement/:bookmaker`
+  - Backend: `averageCLVOffered` computed from `BetLeg.aggregate`; new `bookmaker` field on `BetLeg` so CLV grouping no longer depends on name-extraction heuristics
+  - Frontend: `/analytics/bookmakers` page — **Rankings** tab (6 sort criteria, limit-profile badges) and **Detail** tab (key stats, market/sport coverage, consensus outlier analysis)
+- **Market Consensus — Phase 2**: Richer consensus/dispersion metrics (`medianLine`, `meanLine`, `modeLine`, `range`, `interquartileRange`, `bestValueSide`, `bestValueBookmaker`, `bestValueLine`, `sharpBookWeight`) and `identifyOutliers(gameId)` for per-market outlier discovery
+- **Team & stats sync — MLB, NFL, NCAAF**:
+  - Backend: New `MLBStatsService`; `syncTeams()` added to every sport service (NFL, NBA, NHL, NCAAB, MLB — 153 teams total via api-sports.io); `POST /api/admin/sync-teams` runs a full sync in the background
+  - Backend: Hourly NFL/NCAAF window sync job (`football-hourly-sync.job.ts`) mirroring the existing MLB job; completed NCAAF team stats support (was a TODO stub)
+- **Desert Sunset visual redesign**: Full re-skin of the app shell and every primary screen from the red/gray 8-bit theme to a dusk-purple (dark) / sand-paper (light) system — gold/ember/terracotta/coral/plum accents, pixel display font, and three signature card treatments (notched panels, ink-bordered cards, paper ticket stubs). Pure visual re-skin; no data flow, API calls, routes, or Redux state changed.
+
+### Fixed
+
+- **Duplicate `Game` rows from API-Sports stats sync (MLB, NFL, NCAAF)**: `Game.externalId` holds The Odds API's event ID, but the stats sync was upserting on API-Sports' own numeric game ID — a different ID space — silently creating a second, orphaned `Game` row instead of matching the odds-sourced one. New shared `game-resolver.ts` matches by sport + team names + a 12h kickoff window before falling back to a standalone row.
+- **NCAAF league ID** was hardcoded to NFL's ID (`1`); corrected to `2` against the live API-Sports `/leagues` endpoint
+- **NFL/NCAAF season-year boundary**: games played after the new year (e.g. a January playoff game) were mislabeled with the raw calendar year; added a shared Jan/Feb rollback rule
+- **NCAAF live-poll game ID**: read `game.id` instead of the correctly-nested `game.game.id`, syncing every live NCAAF game under the literal string `"undefined"`
+- **NCAAF team/game matching**: compared API team IDs against the wrong field (`Team.externalId` instead of `Team.apiSportsTeamId`), and a string/number type mismatch meant player-stat team lookups could never match
+- **API-Sports rate limiter**: `API_SPORTS_TIER` was defined but never read, hardcoding the Pro-tier limit regardless of actual subscription; now tier-aware (free/pro/ultra/mega). 429 retries capped at 3 attempts instead of retrying indefinitely.
+
+### Component Versions
+
+- **Backend**: v0.4.0
+- **Frontend**: v0.5.0
+
 ---
 
 ## [0.2.5] - 2026-05-12

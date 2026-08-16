@@ -53,15 +53,22 @@ Natural language queries for sports data:
 - **Player props** (70+ markets)
 - **Line movement** tracking
 - **ESPN integration** (schedules, news, rosters)
+- **Dashboard integration** — create bets, view history, get CLV/sharp/arbitrage/bookmaker analytics (requires `DASHBOARD_API_KEY`)
+
+**Tool count:** 23 sports tools standalone; 49 total when dashboard is configured.
 
 ### 🌐 Web Dashboard (Optional)
 Full-featured bet tracking platform:
-- **Bet slip management** with Redux state
-- **Line movement charts** with Recharts
-- **Bet history** and performance tracking
+- **Bet slip management** with Redux state and real-time parlay correlation warnings
+- **Line movement charts** and analytics with Recharts
+- **Bet history** and performance tracking with CLV
 - **Automated outcomes** resolution
-- **Multi-sport support** (NFL, NBA, NHL, MLB, Soccer)
-- **Background jobs** for odds syncing
+- **Multi-sport support** (NFL, NBA, NHL, MLB, NCAAB, Soccer)
+- **Background jobs** for odds syncing, team sync, and football hourly window
+- **Sharp money indicators** — steam moves, reverse line movement, contrarian picks
+- **Bookmaker analytics** — value/sharpness/reliability ranking across sportsbooks
+- **Arbitrage & middles detection** — guaranteed-profit opportunities with stake calculator
+- **Parlay correlation analysis** — true-odds adjustment and hedging opportunities
 
 ## 🔌 Data Sources
 

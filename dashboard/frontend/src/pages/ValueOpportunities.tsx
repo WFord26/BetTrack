@@ -85,85 +85,69 @@ export default function ValueOpportunities() {
       return sportLabel(a.sportKey).localeCompare(sportLabel(b.sportKey));
     });
 
-  const container = isDarkMode ? 'min-h-screen bg-gray-900 text-white' : 'min-h-screen bg-gray-50 text-gray-900';
-  const cardBase = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
-  const inputBase = isDarkMode
-    ? 'bg-gray-700 border-gray-600 text-white'
-    : 'bg-white border-gray-300 text-gray-900';
+  const pageCls = isDarkMode ? 'min-h-screen bg-dusk' : 'min-h-screen ds-sand-bg';
+  const cardCls = isDarkMode ? 'ds-panel' : 'ds-card-ink';
+  const selectCls = `w-full font-display text-[7px] tracking-[.06em] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold ${
+    isDarkMode ? 'bg-dusk-panel2 text-cream border-0' : 'bg-sand-panel2 text-ink border-2 border-ink'
+  }`;
 
   return (
-    <div className={container}>
+    <div className={pageCls}>
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-1">Value Opportunities</h1>
-        <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        {/* Header */}
+        <p className={`font-display text-[8px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-ember' : 'text-terra'}`}>
+          SALOON FINDS
+        </p>
+        <h1
+          className={`font-display text-[19px] mb-2 ${isDarkMode ? 'text-cream' : 'text-ink'}`}
+          style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '4px 4px 0 #e0a512' }}
+        >
+          VALUE OPPORTUNITIES
+        </h1>
+        <p className={`font-body text-sm mb-6 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
           Games where bookmakers strongly disagree — potential market inefficiencies.
         </p>
 
         {/* Filters */}
-        <div className={`rounded-xl border p-4 mb-6 ${cardBase}`}>
+        <div className={`${cardCls} p-4 mb-6`}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {/* Min disagreement score */}
             <div>
-              <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                Min Score
+              <label className={`block font-display text-[6px] tracking-[.1em] mb-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+                MIN SCORE
               </label>
-              <select
-                value={minScore}
-                onChange={(e) => setMinScore(Number(e.target.value))}
-                className={`w-full rounded-lg border px-3 py-1.5 text-sm ${inputBase}`}
-              >
+              <select value={minScore} onChange={(e) => setMinScore(Number(e.target.value))} className={selectCls}>
                 <option value={30}>30+ (Medium)</option>
                 <option value={60}>60+ (High)</option>
                 <option value={81}>81+ (Extreme)</option>
               </select>
             </div>
-
-            {/* Sport */}
             <div>
-              <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                Sport
+              <label className={`block font-display text-[6px] tracking-[.1em] mb-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+                SPORT
               </label>
-              <select
-                value={sportFilter}
-                onChange={(e) => setSportFilter(e.target.value)}
-                className={`w-full rounded-lg border px-3 py-1.5 text-sm ${inputBase}`}
-              >
+              <select value={sportFilter} onChange={(e) => setSportFilter(e.target.value)} className={selectCls}>
                 <option value="all">All Sports</option>
                 {sports.map((s) => (
-                  <option key={s} value={s}>
-                    {sportLabel(s)}
-                  </option>
+                  <option key={s} value={s}>{sportLabel(s)}</option>
                 ))}
               </select>
             </div>
-
-            {/* Time until game */}
             <div>
-              <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                Time to Game
+              <label className={`block font-display text-[6px] tracking-[.1em] mb-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+                TIME TO GAME
               </label>
-              <select
-                value={maxHours}
-                onChange={(e) => setMaxHours(Number(e.target.value))}
-                className={`w-full rounded-lg border px-3 py-1.5 text-sm ${inputBase}`}
-              >
+              <select value={maxHours} onChange={(e) => setMaxHours(Number(e.target.value))} className={selectCls}>
                 <option value={3}>Next 3 hours</option>
                 <option value={12}>Next 12 hours</option>
                 <option value={24}>Next 24 hours</option>
                 <option value={48}>Next 48 hours</option>
               </select>
             </div>
-
-            {/* Sort */}
             <div>
-              <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                Sort By
+              <label className={`block font-display text-[6px] tracking-[.1em] mb-1.5 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+                SORT BY
               </label>
-              <select
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value as SortKey)}
-                className={`w-full rounded-lg border px-3 py-1.5 text-sm ${inputBase}`}
-              >
+              <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} className={selectCls}>
                 <option value="score">Disagreement Score</option>
                 <option value="time">Time to Game</option>
                 <option value="sport">Sport</option>
@@ -172,25 +156,25 @@ export default function ValueOpportunities() {
           </div>
 
           <div className="mt-3 flex items-center justify-between">
-            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className={`font-body text-xs ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
               {filtered.length} game{filtered.length !== 1 ? 's' : ''} matching filters
             </p>
             <button
               onClick={fetchGames}
-              className="text-xs text-blue-500 hover:underline"
+              className={`font-display text-[7px] tracking-[.06em] ${isDarkMode ? 'text-gold hover:text-ember' : 'text-terra hover:text-ember'} transition-colors`}
             >
-              ↻ Refresh
+              ↻ REFRESH
             </button>
           </div>
         </div>
 
         {/* Loading state */}
         {loading && (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-4">
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className={`h-20 rounded-xl animate-pulse border ${cardBase}`}
+                className={`h-20 animate-pulse ${isDarkMode ? 'bg-dusk-panel2' : 'bg-sand-panel border-2 border-ink'}`}
               />
             ))}
           </div>
@@ -198,17 +182,17 @@ export default function ValueOpportunities() {
 
         {/* Error state */}
         {!loading && error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <div className={`p-4 ${isDarkMode ? 'bg-coral-chip border border-coral text-coral' : 'bg-[#fceaea] border-2 border-[#c0392b] text-[#c0392b]'}`}>
+            <p className="font-body text-sm">{error}</p>
           </div>
         )}
 
         {/* Empty state */}
         {!loading && !error && filtered.length === 0 && (
-          <div className={`rounded-xl border p-8 text-center ${cardBase}`}>
+          <div className={`${cardCls} p-8 text-center`}>
             <p className="text-4xl mb-3">🤝</p>
-            <p className="font-medium">No disagreements found</p>
-            <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className={`font-display text-[11px] mb-2 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>NO DISAGREEMENTS FOUND</p>
+            <p className={`font-body text-sm ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
               Try lowering the minimum score or extending the time window.
             </p>
           </div>
@@ -216,7 +200,7 @@ export default function ValueOpportunities() {
 
         {/* Game list */}
         {!loading && !error && filtered.length > 0 && (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {filtered.map((game) => {
               const badge = getDisagreementBadgeColor(game.maxDisagreementScore);
               const category = getDisagreementCategory(game.maxDisagreementScore);
@@ -226,56 +210,40 @@ export default function ValueOpportunities() {
                 <button
                   key={game.gameId}
                   onClick={() => setSelectedGame(game)}
-                  className={`w-full text-left rounded-xl border px-5 py-4 transition-shadow hover:shadow-md ${cardBase}`}
+                  className={`w-full text-left ${cardCls} px-5 py-4 transition-all hover:brightness-105`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold truncate">
-                        {game.awayTeamName} <span className="font-normal">@</span>{' '}
+                      <p className={`font-body font-semibold truncate ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
+                        {game.awayTeamName} <span className={isDarkMode ? 'text-cream-faint' : 'text-ink-muted'}>@</span>{' '}
                         {game.homeTeamName}
                       </p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className={`text-xs rounded px-1.5 py-0.5 ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`font-display text-[6px] tracking-[.06em] px-1.5 py-0.5 ${isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-muted border border-ink'}`}>
                           {sportLabel(game.sportKey)}
                         </span>
-                        <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {new Date(game.commenceTime).toLocaleString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
+                        <span className={`font-body text-xs ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+                          {new Date(game.commenceTime).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         </span>
-                        <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {hours < 1
-                            ? `${Math.round(hours * 60)}m away`
-                            : `${hours.toFixed(1)}h away`}
+                        <span className={`font-body text-xs ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+                          {hours < 1 ? `${Math.round(hours * 60)}m away` : `${hours.toFixed(1)}h away`}
                         </span>
                       </div>
 
-                      {/* Market pills */}
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {game.consensus.map((c) => (
-                          <span
-                            key={c.marketType}
-                            className={`text-xs rounded-full px-2 py-0.5 ${getDisagreementBadgeColor(c.disagreementScore)}`}
-                          >
-                            {c.marketType === 'h2h'
-                              ? 'ML'
-                              : c.marketType === 'spreads'
-                              ? 'SPD'
-                              : 'O/U'}{' '}
-                            {c.disagreementScore}
+                          <span key={c.marketType} className={`font-display text-[6px] tracking-[.04em] px-2 py-0.5 ${getDisagreementBadgeColor(c.disagreementScore)}`}>
+                            {c.marketType === 'h2h' ? 'ML' : c.marketType === 'spreads' ? 'SPD' : 'O/U'}{' '}{c.disagreementScore}
                           </span>
                         ))}
                       </div>
                     </div>
 
                     <div className="shrink-0 flex flex-col items-end gap-1">
-                      <span className={`rounded-full px-3 py-1 text-sm font-bold ${badge}`}>
+                      <span className={`font-display text-[11px] px-3 py-1 ${badge}`}>
                         {game.maxDisagreementScore}
                       </span>
-                      <span className={`text-xs capitalize ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <span className={`font-body text-xs capitalize ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
                         {category}
                       </span>
                     </div>

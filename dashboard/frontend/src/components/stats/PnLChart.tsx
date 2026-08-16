@@ -1,15 +1,4 @@
 import React from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  AreaChart
-} from 'recharts';
 import { formatCurrency, formatDate } from '../../utils/format';
 
 interface PnLDataPoint {
@@ -25,73 +14,78 @@ interface PnLChartProps {
 export default function PnLChart({ data }: PnLChartProps) {
   if (data.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">P&L Over Time</h3>
-        <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
+      <div className="ds-card-ink px-5 py-[18px]">
+        <h3 className="font-display text-[9px] text-ink mb-4">P&L OVER TIME</h3>
+        <div className="h-[150px] flex items-center justify-center font-body text-sm text-ink-muted">
           No data available
         </div>
       </div>
     );
   }
 
-  // Determine if overall P&L is positive or negative
+  // Determine if overall (final cumulative) P&L is positive or negative
   const finalPnL = data[data.length - 1]?.cumulativePnl || 0;
   const isPositive = finalPnL >= 0;
-  const strokeColor = isPositive ? '#10b981' : '#ef4444';
-  const fillColor = isPositive ? '#10b98120' : '#ef444420';
+
+  // Scale bars against the largest magnitude in the real series
+  const maxAbs = Math.max(...data.map((d) => Math.abs(d.cumulativePnl)), 1);
+  const MAX_BAR_HEIGHT = 110;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">P&L Over Time</h3>
-      
-      <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={data}>
-          <defs>
-            <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={strokeColor} stopOpacity={0.3} />
-              <stop offset="95%" stopColor={strokeColor} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis
-            dataKey="date"
-            tickFormatter={(value) => {
-              const date = new Date(value);
-              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            }}
-            stroke="#6b7280"
-            style={{ fontSize: '12px' }}
-          />
-          <YAxis
-            tickFormatter={(value) => `$${value}`}
-            stroke="#6b7280"
-            style={{ fontSize: '12px' }}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: '#fff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              padding: '12px'
-            }}
-            formatter={(value: number) => [formatCurrency(value), 'Cumulative P&L']}
-            labelFormatter={(label) => formatDate(label)}
-          />
-          <Area
-            type="monotone"
-            dataKey="cumulativePnl"
-            stroke={strokeColor}
-            strokeWidth={2}
-            fill="url(#colorPnl)"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-
-      <div className="mt-4 flex items-center justify-between text-sm">
-        <div className="text-gray-600">
-          {data.length} bets tracked
+    <div className="ds-card-ink px-5 py-[18px]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-4">
+        <div>
+          <h3 className="font-display text-[9px] text-ink">P&L OVER TIME</h3>
+          <p className="font-body text-[12px] text-ink-muted mt-1">
+            Cumulative net P&L across {data.length} tracked day{data.length === 1 ? '' : 's'}
+          </p>
         </div>
-        <div className={`font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[10px] h-[10px] bg-sunwin-light" />
+            <span className="font-body text-[12px] text-ink-muted">up day</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-[10px] h-[10px] bg-sunloss-light" />
+            <span className="font-body text-[12px] text-ink-muted">down day</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-end gap-3.5 h-[150px] border-b-[3px] border-ink px-2">
+        {data.map((point, i) => {
+          const value = point.cumulativePnl;
+          const barHeight = Math.max(Math.round((Math.abs(value) / maxAbs) * MAX_BAR_HEIGHT), 4);
+          const positive = value >= 0;
+          return (
+            <div key={`${point.date}-${i}`} className="flex flex-col items-center justify-end h-full">
+              <span className="font-body text-[10.5px] font-semibold text-ink mb-1">
+                {formatCurrency(value)}
+              </span>
+              <div
+                className={`w-[26px] shadow-[3px_0_0_#d8c19a_inset] ${positive ? 'bg-sunwin-light' : 'bg-sunloss-light'}`}
+                style={{ height: `${barHeight}px` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex gap-3.5 px-2 mt-2">
+        {data.map((point, i) => (
+          <div key={`${point.date}-label-${i}`} className="w-[26px] flex justify-center">
+            <span className="font-display text-[6px] text-ink-muted text-center">
+              {formatDate(point.date)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between font-body text-sm">
+        <div className="text-ink-muted">
+          {data.length} data point{data.length === 1 ? '' : 's'} tracked
+        </div>
+        <div className={`font-semibold ${isPositive ? 'text-sunwin-light' : 'text-sunloss-light'}`}>
           Total: {formatCurrency(finalPnL)}
         </div>
       </div>

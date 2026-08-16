@@ -2,8 +2,16 @@ import { ApiSportsClient } from './client';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../../config/logger';
 import { env } from '../../config/env';
+import { resolveApiSportsTeam, upsertApiSportsGame } from './game-resolver';
 
 const prisma = new PrismaClient();
+
+export interface NFLDateSyncResult {
+  processed: number;
+  updated: number;
+  skipped: number;
+  requestsRemaining?: number;
+}
 
 interface NFLGame {
   game: {
@@ -115,6 +123,7 @@ export class NFLStatsService {
     this.client = new ApiSportsClient({
       apiKey: env.API_SPORTS_KEY,
       sport: 'american-football',
+      tier: env.API_SPORTS_TIER,
     });
   }
 
@@ -135,12 +144,9 @@ export class NFLStatsService {
 
       const gameData = statsResponse.response[0];
       
-      // Find internal game by mapping API-Sports ID
-      // Note: You'll need to store the API-Sports game ID in your Game model
       const game = await prisma.game.findFirst({
         where: {
-          // Assuming you add a field like apiSportsId to Game model
-          externalId: apiSportsGameId,
+          apiSportsGameId,
           sport: {
             key: 'americanfootball_nfl',
           },
@@ -204,21 +210,124 @@ export class NFLStatsService {
     try {
       const response = await this.client.get<{ response: NFLGame[] }>(
         '/games',
-        { 
+        {
           live: 'all',
           league: 1, // NFL league ID
-          season: new Date().getFullYear().toString(),
+          season: this.resolveSeasonForDate(new Date()).toString(),
         }
       );
-      
+
       const liveGames = response.response.map(g => g.game.id.toString());
       logger.info(`Found ${liveGames.length} live NFL games`);
-      
+
       return liveGames;
     } catch (error) {
       logger.error(`Failed to fetch live NFL games: ${error}`);
       return [];
     }
+  }
+
+  /**
+   * NFL seasons are labeled by their start year but play into the following
+   * Jan/Feb (playoffs). A raw `new Date().getFullYear()` mislabels any game
+   * played after the calendar flips — map Jan/Feb dates back to the prior
+   * season year.
+   */
+  private resolveSeasonForDate(date: Date): number {
+    return date.getMonth() <= 1 ? date.getFullYear() - 1 : date.getFullYear();
+  }
+
+  getRequestsRemaining(): number | undefined {
+    return this.client.getLastRemainingRequests();
+  }
+
+  hasSufficientQuota(minimumRemaining: number): boolean {
+    return this.client.hasSufficientRemaining(minimumRemaining);
+  }
+
+  async getGamesByDate(date: string, season?: number): Promise<NFLGame[]> {
+    const resolvedSeason = season ?? this.resolveSeasonForDate(new Date(date));
+
+    const response = await this.client.get<{ response: NFLGame[] }>(
+      '/games',
+      { league: 1, season: resolvedSeason, date }
+    );
+
+    return response.response || [];
+  }
+
+  async syncGamesForDate(date: string, minimumRemaining: number): Promise<NFLDateSyncResult> {
+    const result: NFLDateSyncResult = { processed: 0, updated: 0, skipped: 0 };
+
+    if (!this.hasSufficientQuota(minimumRemaining)) {
+      result.requestsRemaining = this.getRequestsRemaining();
+      return result;
+    }
+
+    const games = await this.getGamesByDate(date);
+    result.processed = games.length;
+
+    for (const game of games) {
+      await this.upsertGameFromApi(game);
+
+      const status = this.mapApiStatusToLocal(game.game.status);
+      if (status === 'live' || status === 'completed') {
+        await this.syncGameStats(game.game.id.toString());
+        result.updated++;
+      } else {
+        result.skipped++;
+      }
+    }
+
+    result.requestsRemaining = this.getRequestsRemaining();
+    return result;
+  }
+
+  private mapApiStatusToLocal(status: NFLGame['game']['status']): string {
+    const short = (status?.short || '').toUpperCase();
+    const long = (status?.long || '').toLowerCase();
+
+    if (short === 'FT' || short === 'AOT' || long.includes('finished') || long.includes('final')) {
+      return 'completed';
+    }
+
+    if (short === 'NS' || short === 'TBD' || long.includes('scheduled') || long.includes('postponed')) {
+      return 'scheduled';
+    }
+
+    if (/^Q[1-4]$/.test(short) || short === 'HT' || short === 'OT' || long.includes('in play')) {
+      return 'live';
+    }
+
+    return 'scheduled';
+  }
+
+  private async upsertGameFromApi(gameData: NFLGame): Promise<string | null> {
+    const homeTeam = await resolveApiSportsTeam(gameData.teams.home, 'americanfootball_nfl');
+    const awayTeam = await resolveApiSportsTeam(gameData.teams.away, 'americanfootball_nfl');
+
+    const commenceTime = new Date(gameData.game.date.timestamp * 1000);
+    if (Number.isNaN(commenceTime.getTime())) {
+      logger.warn(`Skipping NFL game ${gameData.game.id} due to invalid date value`);
+      return null;
+    }
+
+    const seasonValue = gameData.league?.season?.toString() || this.resolveSeasonForDate(commenceTime).toString();
+
+    return upsertApiSportsGame({
+      sportKey: 'americanfootball_nfl',
+      apiSportsGameId: gameData.game.id.toString(),
+      apiSportsLeagueId: 1,
+      homeTeamName: gameData.teams.home.name,
+      awayTeamName: gameData.teams.away.name,
+      homeTeamId: homeTeam?.id,
+      awayTeamId: awayTeam?.id,
+      commenceTime,
+      season: seasonValue,
+      status: this.mapApiStatusToLocal(gameData.game.status),
+      homeScore: gameData.scores.home.total,
+      awayScore: gameData.scores.away.total,
+    });
   }
 
   async syncTeamStats(teamId: number, season: number): Promise<void> {

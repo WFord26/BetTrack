@@ -70,8 +70,8 @@ export default function TeaserControl({
 
   if (sport === 'unknown') {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-        <p className="text-sm text-yellow-800">
+      <div className="bg-dusk-panel2 shadow-[0_0_0_2px_#8a5a10_inset] p-3">
+        <p className="font-body text-sm text-gold">
           ⚠️ Unable to determine sport. Add game legs first.
         </p>
       </div>
@@ -81,11 +81,11 @@ export default function TeaserControl({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-700">
-          Teaser Points ({sport.toUpperCase()})
+        <label className="font-display text-[7px] text-cream-faint tracking-[.06em]">
+          TEASER POINTS ({sport.toUpperCase()})
         </label>
-        <span className="text-xs text-gray-500">
-          Odds: <span className="font-semibold">{odds}</span>
+        <span className="font-body text-xs text-cream-muted">
+          Odds: <span className="font-display text-[8px] text-gold">{odds}</span>
         </span>
       </div>
 
@@ -95,21 +95,21 @@ export default function TeaserControl({
             key={points}
             onClick={() => onChange(points)}
             className={`
-              flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all
+              flex-1 py-2.5 font-display text-[8px] transition-all
               ${
                 selectedPoints === points
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                  : 'bg-dusk-panel2 text-cream-muted'
               }
             `}
           >
-            {points} pts
+            {points} PTS
           </button>
         ))}
       </div>
 
-      <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
-        <strong>Note:</strong> Teaser adjusts spread/total by {selectedPoints} points in your favor.
+      <div className="font-body text-xs text-cream-faint bg-dusk p-2">
+        <strong className="text-cream-muted">Note:</strong> Teaser adjusts spread/total by {selectedPoints} points in your favor.
         All legs must be spread or total bets.
       </div>
     </div>

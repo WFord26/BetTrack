@@ -541,6 +541,7 @@ function Build-MCPBPackage {
     # Files to include in MCPB package
     $filesToCopy = @(
         "sports_mcp_server.py",
+        "dashboard_mcp_server.py",
         "manifest.json",
         "requirements.txt",
         "mcpb_bootstrap.py",
@@ -562,14 +563,28 @@ function Build-MCPBPackage {
     # NOTE: We do NOT copy .env file to the package to prevent overwriting user's API key on updates
     # Users should manually create .env from .env.example on first install only
     
-    # Copy sports_api directory
-    $sportsApiSource = Join-Path $MCPRoot "sports_api"
-    $sportsApiDest = Join-Path $packageDir "sports_api"
-    if (Test-Path $sportsApiSource) {
-        Copy-Item -Path $sportsApiSource -Destination $sportsApiDest -Recurse -Force
-        # Remove __pycache__ from copied files
-        Get-ChildItem -Path $sportsApiDest -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
-        Get-ChildItem -Path $sportsApiDest -Recurse -Filter "*.pyc" | Remove-Item -Force
+    # Copy Python package directories
+    # dashboard_api ships unconditionally: sports_mcp_server.py imports it and
+    # registers the dashboard tools at runtime only when DASHBOARD_API_KEY is
+    # set, so omitting it here would break the optional dashboard integration.
+    $packagesToCopy = @(
+        "sports_api",
+        "dashboard_api"
+    )
+
+    foreach ($package in $packagesToCopy) {
+        $packageSource = Join-Path $MCPRoot $package
+        $packageDest = Join-Path $packageDir $package
+        if (Test-Path $packageSource) {
+            Copy-Item -Path $packageSource -Destination $packageDest -Recurse -Force
+            # Remove __pycache__ from copied files
+            Get-ChildItem -Path $packageDest -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+            Get-ChildItem -Path $packageDest -Recurse -Filter "*.pyc" -ErrorAction SilentlyContinue | Remove-Item -Force
+            Write-ColorOutput "Copied: $package/" -Type Info
+        }
+        else {
+            Write-ColorOutput "MISSING package: $package/ (package will be incomplete)" -Type Warning
+        }
     }
     
     # Create .mcpb package (ZIP file with .mcpb extension)

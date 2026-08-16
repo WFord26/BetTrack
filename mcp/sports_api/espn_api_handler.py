@@ -2,6 +2,10 @@
 ESPN API Handler
 ================
 Handles requests to ESPN's public API endpoints.
+
+ESPN needs no API key, so caching here is about latency and politeness rather
+than quota: several tools fan out to the same scoreboard, and without a cache
+each one issues its own request for identical data.
 """
 
 import aiohttp
@@ -10,20 +14,78 @@ import logging
 from typing import Optional, Dict, List
 from urllib.parse import urlencode
 
+from .cache import ResponseCache, make_key
+
 logger = logging.getLogger(__name__)
+
+# Cache lifetimes by endpoint kind, in seconds. Live scores need to stay
+# fresh; rosters and team lists change on the order of days.
+DEFAULT_TTLS = {
+    "scoreboard": 30,
+    "summary": 30,
+    "standings": 300,
+    "news": 300,
+    "schedule": 600,
+    "search": 600,
+    "teams": 86400,
+    "team_details": 3600,
+}
+
+# Matched against the endpoint path, first hit wins.
+_ENDPOINT_KINDS = (
+    ("/scoreboard", "scoreboard"),
+    ("/summary", "summary"),
+    ("/standings", "standings"),
+    ("/news", "news"),
+    ("/schedule", "schedule"),
+    ("/search", "search"),
+)
 
 
 class ESPNAPIHandler:
     """Handler for ESPN API."""
-    
+
     SITE_API = "https://site.api.espn.com"
     CORE_API = "https://sports.core.api.espn.com"
     WEB_API = "https://site.web.api.espn.com"
     CDN_API = "https://cdn.espn.com"
-    
-    def __init__(self):
-        """Initialize ESPN API handler."""
+
+    def __init__(
+        self,
+        cache: Optional[ResponseCache] = None,
+        ttls: Optional[Dict[str, int]] = None,
+    ):
+        """Initialize ESPN API handler.
+
+        Args:
+            cache: Optional shared ResponseCache. One is created if omitted.
+            ttls: Optional per-endpoint TTL overrides, merged over DEFAULT_TTLS
+        """
         self.session: Optional[aiohttp.ClientSession] = None
+        self.cache = cache if cache is not None else ResponseCache()
+        self.ttls = {**DEFAULT_TTLS, **(ttls or {})}
+
+    def _ttl_for(self, endpoint: str) -> int:
+        """Pick a TTL from the endpoint path.
+
+        `/teams/{id}` is a team detail lookup while a bare `/teams` is the
+        league list, and the two change at very different rates.
+        """
+        for needle, kind in _ENDPOINT_KINDS:
+            if needle in endpoint:
+                return self.ttls.get(kind, 60)
+
+        if "/teams/" in endpoint:
+            return self.ttls.get("team_details", 3600)
+        if endpoint.endswith("/teams"):
+            return self.ttls.get("teams", 86400)
+
+        return 60
+
+    @staticmethod
+    def _is_cacheable(result: Dict) -> bool:
+        """Never cache a failure; a blip would become a full TTL of failure."""
+        return bool(result.get("success"))
     
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -33,26 +95,44 @@ class ESPNAPIHandler:
     
     async def _make_request(self, base_url: str, endpoint: str, params: Dict = None) -> Dict:
         """
-        Make HTTP request to ESPN API.
-        
+        Make HTTP request to ESPN API, serving from cache when possible.
+
         Args:
             base_url: Base URL for the API
             endpoint: API endpoint path
             params: Query parameters
-        
+
         Returns:
-            Response data as dictionary
+            Response data as dictionary. Cache hits carry `"cached": True`.
         """
+        params = dict(params or {})
+        key = make_key("espn", base_url, endpoint, params)
+
+        result, was_hit = await self.cache.get_or_fetch(
+            key,
+            self._ttl_for(endpoint),
+            lambda: self._fetch(base_url, endpoint, params),
+            should_cache=self._is_cacheable,
+        )
+
+        if was_hit:
+            result = {**result, "cached": True}
+
+        return result
+
+    async def _fetch(self, base_url: str, endpoint: str, params: Dict = None) -> Dict:
+        """Perform one live request against ESPN."""
         url = f"{base_url}{endpoint}"
         session = await self._get_session()
-        
+
         try:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
                     return {
                         "success": True,
-                        "data": data
+                        "data": data,
+                        "cached": False
                     }
                 else:
                     error_text = await response.text()

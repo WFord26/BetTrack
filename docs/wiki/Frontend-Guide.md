@@ -6,7 +6,9 @@ Complete guide to the BetTrack dashboard frontend - React, Redux, components, an
 
 - [Architecture Overview](#architecture-overview)
 - [Technology Stack](#technology-stack)
+- [Visual Design System](#visual-design-system)
 - [Project Structure](#project-structure)
+- [Pages & Routes](#pages--routes)
 - [State Management](#state-management)
 - [Components](#components)
 - [Charts & Visualization](#charts--visualization)
@@ -26,8 +28,8 @@ The BetTrack frontend is a modern React SPA (Single Page Application) built with
 - ⚛️ **React 18** with hooks and functional components
 - 🔄 **Redux Toolkit** for state management
 - 📊 **Recharts** for odds movement visualization
-- 🎨 **Tailwind CSS** for utility-first styling
-- 🚀 **Vite** for lightning-fast HMR
+- 🎨 **Tailwind CSS** with Desert Sunset design tokens
+- 🚀 **Vite 6+** for lightning-fast HMR
 - 🧪 **Vitest** for unit testing
 - 📱 **Responsive design** (mobile-first approach)
 
@@ -48,7 +50,7 @@ The BetTrack frontend is a modern React SPA (Single Page Application) built with
     "axios": "^1.6.5"
   },
   "devDependencies": {
-    "vite": "^5.0.10",
+    "vite": "^6.0.0",
     "vitest": "^1.1.0",
     "@vitejs/plugin-react": "^4.2.1",
     "tailwindcss": "^3.4.0",
@@ -60,40 +62,136 @@ The BetTrack frontend is a modern React SPA (Single Page Application) built with
 
 ---
 
+## Visual Design System
+
+BetTrack uses a **Desert Sunset** theme — a full re-skin shipping in v0.5.0.
+
+### Color Palettes
+
+| Token group | Dark mode | Light mode |
+|-------------|-----------|------------|
+| `dusk-*` | Main backgrounds and surfaces | — |
+| `cream-*` / `sand-*` | — | Main backgrounds |
+| `ink-*` | — | Borders and text |
+| `gold-*` | Accent (wins, highlights) | Accent |
+| `ember` | Primary CTA | Primary CTA |
+| `terra-*` / `coral-*` | Warm secondary accents | Warm secondary accents |
+| `plum` | Analytics, arbitrage accents | Analytics accents |
+| `sunwin-*` / `sunloss-*` / `sunpending` | Bet status | Bet status |
+
+### Typography
+
+- **Display headings** — `Press Start 2P` (pixel font, applied explicitly per-heading)
+- **Body / UI** — `Space Grotesk`
+
+### Card Treatments
+
+| Class | Usage |
+|-------|-------|
+| `.ds-panel` / `.ds-panel-lg` | Dark notched panels (main cards in dark mode) |
+| `.ds-card-ink` / `.ds-card-ink-lg` | Light ink-bordered cards |
+| Paper ticket stub | Bet history rows — rotated WON/LOST/PENDING stamp |
+
+### Utility Classes (`src/index.css`)
+
+`.ds-btn-press`, `.ds-btn-press-light`, `.ds-odds-cell-dark`, `.ds-odds-cell-light`, `.ds-odds-cell-selected`, `.ds-barcode`, `.ds-sand-bg`, `.ds-crt-scanlines`, `.ds-crt-vignette`, `animate-ds-blink`, `animate-ds-blink-slow`, `animate-ds-marquee`
+
+---
+
 ## Project Structure
 
 ```
 dashboard/frontend/
 ├── src/
-│   ├── components/          # React components
-│   │   ├── BetSlip.jsx      # Floating bet slip widget
-│   │   ├── GameCard.jsx     # Individual game display
-│   │   ├── OddsTable.jsx    # Odds comparison table
-│   │   └── LineChart.jsx    # Line movement chart
+│   ├── components/          # Reusable UI components
+│   │   ├── analytics/       # Analytics-specific widgets
+│   │   │   ├── ParlayValidator.tsx       # Real-time correlation badge in BetSlip
+│   │   │   ├── SnapshotAgeBadge.tsx      # Odds snapshot freshness indicator
+│   │   │   ├── ArbitrageCalculator.tsx
+│   │   │   ├── MiddleFinder.tsx
+│   │   │   ├── ArbitrageAlerts.tsx
+│   │   │   ├── CorrelationHeatmap.tsx
+│   │   │   ├── HedgeCalculator.tsx
+│   │   │   ├── CorrelationEducation.tsx
+│   │   │   └── SteamMoveAlert.tsx        # 60s auto-polling steam move widget
+│   │   ├── bets/            # Bet slip, bet card, leg item, teaser control
+│   │   ├── filters/         # Game date/status/sport/odds-format/bookmaker filters
+│   │   ├── odds/            # Game cards, odds grid, disagreement breakdown
+│   │   └── stats/           # StatsOverview, PnLChart, CLVSummaryCard
+│   ├── pages/               # Route pages (all TypeScript .tsx)
+│   │   ├── Home.tsx                    # /
+│   │   ├── EnhancedDashboard.tsx       # /dashboard
+│   │   ├── BetHistory.tsx              # /bets
+│   │   ├── Stats.tsx                   # /stats
+│   │   ├── Futures.tsx                 # /futures
+│   │   ├── GameDetail.tsx              # /games/:id
+│   │   ├── TeamDetail.tsx              # /teams/:id
+│   │   ├── LineMovementAnalytics.tsx   # /analytics/movements
+│   │   ├── CLVAnalytics.tsx            # /analytics/clv
+│   │   ├── SharpMoneyAnalytics.tsx     # /analytics/sharp
+│   │   ├── BookmakerPerformance.tsx    # /analytics/bookmakers
+│   │   ├── ArbitrageDashboard.tsx      # /analytics/arbitrage
+│   │   ├── CorrelationDashboard.tsx    # /analytics/correlation
+│   │   ├── ValueOpportunities.tsx      # /analytics/value
+│   │   ├── Notifications.tsx           # /notifications
+│   │   ├── Login.tsx
+│   │   ├── Preferences.tsx
+│   │   ├── ApiKeysSettings.tsx
+│   │   └── AdminSettings.tsx
 │   ├── store/               # Redux store and slices
-│   │   ├── store.js         # Store configuration
-│   │   └── betSlipSlice.js  # Bet slip state management
+│   │   ├── index.ts         # Store configuration
+│   │   ├── betSlipSlice.ts
+│   │   ├── sharpSlice.ts
+│   │   ├── movementSlice.ts
+│   │   ├── bookmakerSlice.ts
+│   │   ├── arbitrageSlice.ts
+│   │   └── correlationSlice.ts
+│   ├── services/            # API client modules
+│   │   ├── api.ts           # Axios instance + interceptors
+│   │   ├── sharp.service.ts
+│   │   ├── bookmaker.service.ts
+│   │   ├── arbitrage.service.ts
+│   │   └── correlation.service.ts
+│   ├── types/               # TypeScript interfaces
+│   │   ├── game.types.ts
+│   │   ├── bet.types.ts
+│   │   ├── sharp.types.ts
+│   │   ├── bookmaker.types.ts
+│   │   ├── arbitrage.types.ts
+│   │   └── correlation.types.ts
 │   ├── hooks/               # Custom React hooks
-│   │   ├── useGames.js      # Fetch games from API
-│   │   ├── useOdds.js       # Fetch odds data
-│   │   └── useTimezone.js   # Timezone utilities
-│   ├── utils/               # Utility functions
-│   │   ├── api.js           # Axios instance
-│   │   ├── formatters.js    # Display formatters
-│   │   └── calculations.js  # Odds calculations
-│   ├── pages/               # Page components
-│   │   ├── HomePage.jsx     # Main dashboard
-│   │   ├── BetsPage.jsx     # Bet history
-│   │   └── GamesPage.jsx    # Game browser
-│   ├── App.jsx              # Root component
-│   ├── main.jsx             # Entry point
-│   └── index.css            # Global styles
+│   ├── utils/               # Odds calculators, formatters
+│   ├── App.tsx              # Root component with React Router
+│   ├── main.tsx             # Entry point
+│   └── index.css            # Global styles + Desert Sunset recipes
 ├── public/                  # Static assets
-├── tests/                   # Test files
-├── vite.config.js          # Vite configuration
-├── tailwind.config.js      # Tailwind configuration
+├── index.html               # Google Fonts (Press Start 2P, Space Grotesk)
+├── tailwind.config.js       # Desert Sunset token extension
+├── vite.config.ts
 └── package.json
 ```
+
+---
+
+## Pages & Routes
+
+| Path | Component | Description |
+|------|-----------|-------------|
+| `/` | `Home.tsx` | Full-bleed pixel hero landing page |
+| `/dashboard` | `EnhancedDashboard.tsx` | Main odds/game browser with bet slip |
+| `/bets` | `BetHistory.tsx` | Bet history with ticket-stub cards |
+| `/stats` | `Stats.tsx` | P&L charts, win-rate block meter |
+| `/futures` | `Futures.tsx` | Futures market panels |
+| `/games/:id` | `GameDetail.tsx` | Per-game odds detail |
+| `/teams/:id` | `TeamDetail.tsx` | Team stats and schedule |
+| `/analytics/movements` | `LineMovementAnalytics.tsx` | Steam, reverse, gradual, injury moves |
+| `/analytics/clv` | `CLVAnalytics.tsx` | Closing line value tracking |
+| `/analytics/sharp` | `SharpMoneyAnalytics.tsx` | Sharp vs public money indicators |
+| `/analytics/bookmakers` | `BookmakerPerformance.tsx` | Bookmaker value/sharpness rankings |
+| `/analytics/arbitrage` | `ArbitrageDashboard.tsx` | Live arbitrage and middles |
+| `/analytics/correlation` | `CorrelationDashboard.tsx` | Parlay correlation heatmap + hedge |
+| `/analytics/value` | `ValueOpportunities.tsx` | Best-value plays |
+| `/notifications` | `Notifications.tsx` | In-app arbitrage alerts + notification settings |
 
 ---
 
@@ -101,29 +199,20 @@ dashboard/frontend/
 
 ### Redux Toolkit Setup
 
-**Store Configuration** (`src/store/store.js`):
-```javascript
-import { configureStore } from '@reduxjs/toolkit';
-import betSlipReducer from './betSlipSlice';
+**Store slices registered in `src/store/index.ts`**:
 
-export const store = configureStore({
-  reducer: {
-    betSlip: betSlipReducer,
-  },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: {
-        // Ignore date objects in actions/state
-        ignoredActions: ['betSlip/addBet'],
-        ignoredPaths: ['betSlip.bets'],
-      },
-    }),
-});
-```
+| Slice key | File | Purpose |
+|-----------|------|---------|
+| `betSlip` | `betSlipSlice.ts` | Bet legs, bet type, stake, teaser points |
+| `sharp` | `sharpSlice.ts` | Sharp indicators, contrarian opportunities, stats |
+| `movement` | `movementSlice.ts` | Live movements, game movements, steam alerts (separate field from live list) |
+| `bookmaker` | `bookmakerSlice.ts` | Rankings, bookmaker detail, outlier stats |
+| `arbitrage` | `arbitrageSlice.ts` | Live opportunities, history, calculator state |
+| `correlation` | `correlationSlice.ts` | Analysis results, parlay warnings, stale-request guard (`requestId` tracking) |
 
 ### Bet Slip Slice
 
-**State Structure** (`src/store/betSlipSlice.js`):
+**State Structure** (`src/store/betSlipSlice.ts`):
 ```javascript
 import { createSlice } from '@reduxjs/toolkit';
 
@@ -598,29 +687,30 @@ export function useOdds(gameId) {
 
 ## Styling
 
+### Desert Sunset Design System
+
+The entire UI uses the **Desert Sunset** theme (shipped in v0.5.0). See [Visual Design System](#visual-design-system) for full documentation.
+
 ### Tailwind CSS Configuration
 
-**tailwind.config.js**:
+**tailwind.config.js** extends Tailwind with Desert Sunset tokens:
 ```javascript
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-        },
+        // Desert Sunset palette
+        'dusk': { 900: '#1a0e2e', 800: '#241540', ... },
+        'cream': { 50: '#fdf8f0', 100: '#f9f0dd', ... },
+        'gold': { 400: '#f5c842', 500: '#e8b520', ... },
+        'ember': '#e8620a',
+        // ... full token set in tailwind.config.js
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['"Press Start 2P"', 'monospace'],
+        body: ['"Space Grotesk"', 'sans-serif'],
       },
     },
   },
@@ -628,31 +718,26 @@ export default {
 }
 ```
 
-### Global Styles
+### Global Component Recipes (`src/index.css`)
 
-**src/index.css**:
 ```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Notched panel — main card in dark mode */
+.ds-panel { /* dusk bg, gold notch accent, subtle inner glow */ }
 
-@layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 font-sans;
-  }
-}
+/* Ink-bordered card — main card in light mode */
+.ds-card-ink { /* cream bg, ink border, paper texture */ }
 
-@layer components {
-  .btn-primary {
-    @apply px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 
-           transition-colors duration-200;
-  }
-  
-  .card {
-    @apply bg-white rounded-lg shadow-md p-4;
-  }
-}
+/* Press buttons */
+.ds-btn-press { /* ember background, press effect */ }
+
+/* Odds price cells */
+.ds-odds-cell-dark, .ds-odds-cell-light, .ds-odds-cell-selected { ... }
+
+/* Animations */
+.animate-ds-blink, .animate-ds-blink-slow, .animate-ds-marquee { ... }
 ```
+
+**Note:** `h1`/`h2`/`h3` do **not** auto-apply `font-display` globally — each heading applies it explicitly to prevent unstyled pages from inheriting the pixel font at arbitrary sizes.
 
 ---
 

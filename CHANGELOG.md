@@ -18,6 +18,40 @@ Changes that affect the entire project structure:
 
 ## [Unreleased]
 
+- **Arbitrage & Middle Detection** (Phase 3, issue #9): Merged to `beta`, pending version bump/release. Full-stack detection of guaranteed-profit arbitrage and middle opportunities across bookmakers — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
+
+---
+
+## [2026-08-15]
+
+### Packages
+- **Frontend:** v0.5.0
+- **Backend:** v0.4.0
+- **MCP:** v0.4.0
+
+### Release Summary
+
+Phase 2 complete: Bookmaker Performance Analytics shipped alongside a full Desert Sunset visual redesign of the dashboard, new MLB/NFL/NCAAF sync jobs, and a fix for duplicate `Game` rows created by the API-Sports stats sync.
+
+### Added
+- **Bookmaker Performance Analytics** (Phase 2): Value/sharpness/reliability ranking and comparison across bookmakers — backend models + service + daily batch job + 7 REST endpoints, frontend `/analytics/bookmakers` page with Rankings and Detail tabs
+- **Market Consensus Phase 2**: Richer consensus/dispersion metrics (median/mean/mode line, IQR, best-value side) and per-market outlier identification
+- **Team & stats sync — MLB, NFL, NCAAF**: New `MLBStatsService`, `syncTeams()` across all sport services (153 teams total), hourly NFL/NCAAF window sync job, and completed NCAAF team stats support (previously a TODO stub)
+- **Desert Sunset visual redesign**: Full re-skin of the app shell and every primary screen (dusk-purple dark / sand-paper light, pixel display font, three signature card treatments) — pure UI change, no data flow affected
+
+### Fixed
+- Duplicate `Game` rows created by MLB/NFL/NCAAF stats sync writing to a different ID space than the odds-sourced rows; added a shared game-resolver matching by sport + team names + kickoff window
+- NCAAF league ID (was hardcoded to NFL's ID), season-year boundary handling for NFL/NCAAF, NCAAF live-poll game ID lookup, and NCAAF team/game stat matching
+- API-Sports rate limiter now tier-aware (free/pro/ultra/mega) instead of hardcoded to Pro; 429 retries capped at 3 attempts
+
+### Component Versions
+- Dashboard Backend: v0.4.0
+- Dashboard Frontend: v0.5.0
+- MCP Server: v0.4.0
+- Dashboard Root: v0.2.5
+
+See [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) and [mcp/CHANGELOG.md](mcp/CHANGELOG.md) for full details.
+
 ---
 
 ## [2026.05.14]

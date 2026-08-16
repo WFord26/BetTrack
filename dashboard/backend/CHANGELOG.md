@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.3] - 2026-08-16
+
+---
+
+## [0.4.2] - 2026-08-15
+
+### Added
+
+- **Bet Correlation Analysis** (Phase 3, issue #10): Detects correlation between the legs of a parlay, computes a correlation-adjusted true-odds figure, and finds pre-game hedging opportunities.
+  - `prisma/schema.prisma`: New `BetLegCorrelation` (`bet_leg_correlations`) and `ParlayAnalysis` (`parlay_analyses`) models with `BetLeg`/`Bet`/`User` back-relations. Migration `20260815120000_add_bet_correlation_analysis`.
+  - `src/services/correlation.service.ts`: `correlationService` singleton with `analyzeCorrelation`, `analyzeParlay`, `analyzeDraftSlip`, `calculateTrueOdds`, `findHedgingOpportunities`, plus exported pure detectors `detectSameGameCorrelation`, `detectDerivativeCorrelation`, `detectInverseCorrelation`, `detectTemporalCorrelation`.
+  - Detection covers `moneyline`/`spread`/`total` legs: same-game (spread+total, score 0.85), derivative (moneyline+spread same side with `|line| <= 3`, score 0.90), inverse (opposite moneylines, score -1.0, hard-blocked), and temporal (same team within 48h across two games, score 0.40). Pairs sharing an existing `sgpGroupId` are reported as priced/expected correlation rather than a mistake flag.
+  - `calculateTrueOdds` layers a correlation penalty on top of `calculateParlayOdds` from `src/utils/odds-calculator.ts` — up to -30% decimal odds for positive correlation, up to +20% for inverse.
+  - `src/routes/analytics-correlation.routes.ts`: `POST /api/analytics/correlation/analyze|parlay|hedge`, `GET /api/analytics/correlation/history|education`.
+  - `findHedgingOpportunities` sources opposite-side prices from `CurrentOdds` (pre-game only — no in-play odds feed today, so live hedging is out of scope for v1).
+  - Player-prop correlation is out of scope for v1 — blocked on the (unbuilt) Player Props feature; the `SelectionType` enum has no player-prop legs yet.
+  - Security: `analyzeLegPair` and `findHedgingOpportunities` accept an optional `userId` and, when provided (OAuth mode), require the requested bet leg(s)' parent bet to belong to that user via a new `assertLegsOwnedBy` check — otherwise a "not found" error is thrown, identical to the missing-leg case, so existence isn't leaked. `analytics-correlation.routes.ts` now passes `getScopedUserId(req)` through on `/analyze` and `/hedge`.
+  - Tests: `tests/correlation.service.test.ts` (38, incl. ownership enforcement) and `tests/analytics-correlation.routes.test.ts` (14).
+
+---
+
+## [0.4.1] - 2026-08-15
+
+### Added
+
+- **Arbitrage & Middle Detection** (Phase 3, issue #9): Detects guaranteed-profit arbitrage across bookmakers and middle opportunities where both legs can win.
+  - `prisma/schema.prisma`: New `ArbitrageOpportunity` model (`arbitrage_opportunities`) with `Game` and `User` back-relations, plus middle window and risk-factor columns. Migration `20260815000001_add_arbitrage_opportunities`.
+  - `src/services/arbitrage.service.ts`: `ArbitrageService` singleton with `scanForArbitrage`, `expireStaleOpportunities`, `markTaken`, `getLiveOpportunities`, `getHistory`, `getStats`, plus pure helpers `calculateOptimalStakes`, `buildStakePlan`, `detectTwoWayArbitrage`, `detectMiddle`, `estimateMiddleProbability` and `assessRisk`.
+  - Detection is line-aware: spreads require `homeSpread + awaySpread >= 0` and totals require `overLine <= underLine`, so books quoting different lines no longer produce false arbitrage. A strictly positive gap is reported as a middle with a modelled hit probability.
+  - `src/events/odds-sync.events.ts`: New `odds-sync:completed` event emitted by `sync-odds.job`, so downstream analytics react to fresh odds instead of polling blind.
+  - `src/jobs/arbitrage-scan.job.ts`: Scans immediately after each odds sync; a 30-second cron pass expires stale opportunities and re-scans only when a sync notification was missed.
+  - `src/routes/analytics-arbitrage.routes.ts`: `GET /api/analytics/arbitrage/live|history|stats|:id`, `POST /api/analytics/arbitrage/calculator` and `POST /api/analytics/arbitrage/:id/take`.
+  - Risk assessment covers snapshot staleness (>5 min), odds drift (>5%), suspiciously high profit (>10%), proximity to start (<15 min) and bookmaker account-limit exposure.
+  - New env vars: `ARBITRAGE_SCAN_ENABLED`, `ARBITRAGE_SCAN_CRON`, `ARBITRAGE_MIN_PROFIT_PCT`, `ARBITRAGE_DEFAULT_STAKE`, `ARBITRAGE_TTL_SECONDS`, `ARBITRAGE_MIN_MIDDLE_PROBABILITY`.
+  - Tests: `tests/arbitrage.service.test.ts` (46) and `tests/analytics-arbitrage.routes.test.ts` (16).
+  - Sync-cadence decision: odds sync stays at ~10 minutes; freshness is disclosed via `oddsSnapshotAge` rather than paid down with extra API calls. See ADR-019.
+
+---
+
+## [0.4.0] - 2026-08-15
+
 ### Added
 
 - **Team Sync — All Sports** (`POST /api/admin/sync-teams`): Added `syncTeams()` to every sport service (NFL, NBA, NHL, NCAAB) and created `MLBStatsService` with `syncTeams()`. Added `syncAllTeams()` to `StatsSyncService` and a new admin endpoint `POST /api/admin/sync-teams` that runs team sync in the background. Syncs 153 teams total (NFL 34, NBA 34, NHL 32, NCAAB 23, MLB 30) via api-sports.io.
@@ -44,6 +87,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/bookmaker-analytics.service.test.ts`: Updated mocks for DB-scoped consensus query; added `betLeg.aggregate` mock.
   - `tests/analytics-bookmaker.routes.test.ts`: New — 15 integration tests for all 7 endpoints including 404 path.
   - `tests/jobs/bookmaker-analytics.job.test.ts`: New — 3 smoke tests for batch processing and error isolation.
+- **Football (NFL/NCAAF) Hourly Sync — Pre-Season Readiness**: Added an NFL/NCAAF backfill/window sync job mirroring the existing MLB hourly job, plus completed NCAAF team stats support that was previously a TODO stub.
+  - `src/jobs/football-hourly-sync.job.ts`: New hourly cron (`FOOTBALL_SYNC_CRON`) syncing both NFL and NCAAF over a rolling window (`FOOTBALL_SYNC_HOURS_BACK`/`_FORWARD`, default 96h back / 72h forward — wider than MLB's to survive a missed Thu–Mon slate), with the same re-entrancy guard, quota-pause, and status-reporting pattern as `mlb-hourly-sync.job.ts`.
+  - `src/services/api-sports/nfl.service.ts` / `ncaaf.service.ts`: Added `getGamesByDate()` and `syncGamesForDate()` for date-range backfill (previously only live-game polling existed).
+  - `src/services/api-sports/ncaaf.service.ts`: Added `syncTeams()` (no NCAAF teams were ever being synced, so team stats had nothing to attach to) and implemented `syncTeamStats()`.
+  - `src/services/stats-sync.service.ts`: Added `syncFootballHourlyWindow()`/`syncFootballDateRange()`; wired `ncaafService.syncTeamStats()` into the `syncTeamSeasonStats()` switch (was `logger.warn('NCAAF team stats sync not yet implemented')`); added NCAAF to `syncAllTeams()`.
+  - `src/routes/admin.routes.ts`: New `POST /sync-football-hourly-window` and `GET /football-sync-status` endpoints, mirroring the MLB admin routes.
+  - `src/config/env.ts`, `.env.example`: Added `FOOTBALL_SYNC_CRON`, `FOOTBALL_SYNC_HOURS_BACK`, `FOOTBALL_SYNC_HOURS_FORWARD`.
+  - `src/server.ts`: Registers `startFootballHourlySyncJob()` at startup.
+  - `tests/jobs/football-hourly-sync.job.test.ts`, `tests/jobs/mlb-hourly-sync.job.test.ts`: New — re-entrancy guard, success/error/quota-pause status reporting (MLB's hourly job previously had zero test coverage).
+  - `tests/admin.routes.test.ts`: Added coverage for the MLB and football sync/status admin endpoints (previously untested) and the corrected `init-sports` sport count.
+
+### Fixed
+
+- **Duplicate `Game` rows from API-Sports stats sync (MLB, NFL, NCAAF)**: `Game.externalId` holds The Odds API's event ID, but the MLB stats sync was upserting games keyed on API-Sports' own numeric game ID — a different ID space — so its upsert never matched the odds-sourced row and silently created a second, orphaned `Game` row instead. Bet settlement was unaffected (it resolves scores from ESPN independently), but the enriched live-stats sync was largely writing to rows no bet or odds was ever attached to, and `GET /games` had no dedup against the duplicates.
+  - `src/services/api-sports/game-resolver.ts`: New shared helper — matches an incoming API-Sports game to the existing odds-sourced `Game` row by sport + team names + a 12h kickoff-time window (mirroring `OutcomeResolverService`'s ESPN team-name matching), updating it in place; falls back to a standalone row only when no odds-sourced match exists.
+  - `src/services/api-sports/mlb.service.ts`, `nfl.service.ts`, `ncaaf.service.ts`: `upsertGameFromApi()` now goes through `game-resolver.ts`; `syncGameStats()`/`syncGameStatsFromGame()` game lookups switched from `externalId` to the `apiSportsGameId` column so they find the row the resolver just updated.
+- **NCAAF league ID**: was hardcoded to `1` (NFL's ID); confirmed against the live API-Sports `/leagues` endpoint that NCAA is league `2`. NCAAF was very likely syncing NFL data (or nothing) previously.
+- **NFL/NCAAF season-year boundary**: `getLiveGames()`/date lookups used the raw calendar year, mislabeling any game played after the new year (e.g. a Jan 2027 playoff game belongs to the "2026" season). Added a shared Jan/Feb rollback rule in both services.
+- **NCAAF live-poll game ID**: `stats-sync.service.ts`'s live-game loop read `game.id` on API-Sports game objects, but the ID is nested at `game.game.id` — every live NCAAF game was being synced under the literal string `"undefined"`.
+- **NCAAF team/game matching**: `syncGameStats()` compared API team IDs against `Team.externalId` (a generic, largely-unused field) instead of `Team.apiSportsTeamId`, and `syncPlayerStats()`'s team lookup had a type mismatch (`externalId` is a string column, compared against a raw number) that meant it could never match — both could silently misattribute or drop stats.
+- **`admin.routes.ts` `/init-sports`**: its own duplicate sports list was missing `americanfootball_ncaaf` entirely (the canonical list in `src/scripts/init-sports.ts` had it) — running sport init via this endpoint instead of the script would silently block all NCAAF syncing.
+- **`api-sports/client.ts` rate limiter**: `API_SPORTS_TIER` was defined in env config but never actually read — the limiter was hardcoded to Pro-tier (5 req/s) regardless of subscription. Now tier-aware (free/pro/ultra/mega).
+- **`api-sports/client.ts` 429 retry**: retried on rate-limit responses with no maximum attempt count, so sustained rate-limiting could retry indefinitely. Capped at 3 attempts.
+- Added `americanfootball_ncaaf` to the outdoor-weather sport lists in `espn-weather.service.ts` and `odds-sync.service.ts` (college football weather affects totals the same way NFL's does).
 
 ---
 

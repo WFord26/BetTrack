@@ -189,29 +189,80 @@ export default {
           950: '#172554',
         },
 
+        // ── Desert Sunset system ─────────────────────────────────────────────
+        // The redesigned visual language (see design handoff README). Dusk =
+        // dark mode, Sand = light mode. Flat keys (not ramps) — this is a
+        // small, deliberate palette, not a generated scale. Used by: Home,
+        // Header, Footer, EnhancedDashboard + game cards + filters, BetSlip,
+        // BetHistory + BetCard, Stats + stats components, Futures.
+        dusk:          '#1d1130', // dark page background
+        'dusk-chrome': '#160d26', // dark topbar / footer strip
+        'dusk-panel':  '#2a1a45', // dark notched panel
+        'dusk-panel2': '#362251', // dark elevated/inset panel
+        'dusk-ring':   '#43306a', // dark inset-ring hairline
+        'dusk-shadow': '#120a22', // dark hard pixel-shadow offset
+
+        cream:          '#f7ead6', // primary text on dusk
+        'cream-secondary': '#c7b2e0',
+        'cream-muted':     '#a78fc9',
+        'cream-faint':     '#7c66a3',
+
+        sand:          '#f3e6cc', // light page background (halftone base)
+        'sand-panel':  '#fdf8ec', // light panel
+        'sand-panel2': '#f3e6cc', // light panel alt
+        'sand-shadow': '#d8c19a', // light hard shadow offset
+        'sand-divider':'#ecdcc0', // light row divider
+
+        ink:             '#3a2413', // ink border / primary text on sand
+        'ink-secondary': '#6b4f33',
+        'ink-muted':     '#8a6f52',
+
+        gold:          '#fcc63a', // primary action / away score (dark)
+        'gold-edge':   '#8a5a10', // press-button pressed edge
+        'gold-away':   '#d99a16', // away score (light mode)
+        'gold-headline':'#e0a512', // headline shadow (light mode)
+        'gold-odds':   '#fcd98a', // odds cell text (dark)
+
+        ember: '#f97b2c', // home score / section accents
+        terra: {
+          DEFAULT: '#c14d21', // primary action (light) / headline shadows (dark)
+          dark:    '#a63c15', // banner-dark
+          text:    '#fdf3df', // text on terracotta
+          muted:   '#f6cfb5', // muted text on terracotta
+        },
+        coral:        '#ef5350', // live / loss (dark)
+        'coral-chip': '#3a1424', // live chip background (dark)
+        plum:         '#6d4a9e', // purple accent
+
+        // Sunset win/loss/pending — distinct from the existing win/loss/push
+        // ramps above (those stay untouched for un-migrated pages).
+        sunwin:     { dark: '#6cbf67', light: '#4f8f3f' },
+        sunloss:    { dark: '#ef5350', light: '#c0392b' },
+        sunpending: '#b8860b',
+
       },
 
       // ── Typography ──────────────────────────────────────────────────────────
       fontFamily: {
-        // Brand display font — monospace. Use on all headings, page titles,
-        // section headers, hero copy, and CTAs that express the brand voice.
-        // Replaces the 67 inline `fontFamily: 'ui-monospace, SFMono-Regular...'`
-        // style attributes throughout the codebase.
+        // Desert Sunset display font — Press Start 2P. Use on headings, nav
+        // tabs, labels, scores, and odds prices within the redesigned screens.
+        // NOTE: no longer auto-applied to bare h1/h2/h3 (see index.css) since
+        // its extreme pixel letterforms only work at the small, deliberately
+        // sized/letter-spaced usages in the redesign — apply explicitly.
         // Usage: className="font-display"
         display: [
+          '"Press Start 2P"',
           'ui-monospace',
           'SFMono-Regular',
           'Menlo',
-          'Monaco',
-          'Consolas',
-          '"Liberation Mono"',
-          '"Courier New"',
           'monospace',
         ],
-        // Body font — Inter. Use for body text, data tables, form labels,
-        // supporting copy. Defined explicitly so it's a named token.
+        // Body font — Space Grotesk. Team names, table data, descriptions,
+        // and (via the h1/h2/h3 base rule) the default heading font for
+        // screens not yet migrated to the explicit font-display pixel look.
         // Usage: className="font-body" (or omit — it's the default)
         body: [
+          '"Space Grotesk"',
           'Inter',
           'system-ui',
           'Avenir',

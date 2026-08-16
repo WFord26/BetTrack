@@ -7,6 +7,18 @@ import { oddsSyncService } from '../src/services/odds-sync.service';
 import { futuresSyncService } from '../src/services/futures-sync.service';
 import { outcomeResolverService } from '../src/services/outcome-resolver.service';
 import { getOddsSyncStatus } from '../src/jobs/sync-odds.job';
+import { getMlbHourlySyncStatus } from '../src/jobs/mlb-hourly-sync.job';
+import { getFootballHourlySyncStatus } from '../src/jobs/football-hourly-sync.job';
+import { StatsSyncService } from '../src/services/stats-sync.service';
+
+// The mock StatsSyncService constructor always returns the same closed-over
+// instance (see jest.mock below), so instantiating it here gives us the
+// exact object admin.routes.ts holds onto internally.
+const mockStatsSyncService = new (StatsSyncService as unknown as new () => {
+  seedMlbSeasonToDate: jest.Mock;
+  syncMlbHourlyWindow: jest.Mock;
+  syncFootballHourlyWindow: jest.Mock;
+})();
 
 // Mock dependencies
 jest.mock('../src/config/database', () => ({
@@ -76,6 +88,39 @@ jest.mock('../src/jobs/sync-odds.job', () => ({
   getOddsSyncStatus: jest.fn()
 }));
 
+jest.mock('../src/jobs/mlb-hourly-sync.job', () => ({
+  getMlbHourlySyncStatus: jest.fn()
+}));
+
+jest.mock('../src/jobs/football-hourly-sync.job', () => ({
+  getFootballHourlySyncStatus: jest.fn()
+}));
+
+// admin.routes.ts instantiates `new StatsSyncService()` at module load time,
+// so the mock object must be self-contained inside the factory (referencing
+// an outer `const` here would hit the TDZ, since imports — and therefore
+// this factory — run before any outer `const` initializer does).
+jest.mock('../src/services/stats-sync.service', () => {
+  const mockInstance = {
+    seedMlbSeasonToDate: jest.fn(),
+    syncMlbHourlyWindow: jest.fn(),
+    syncFootballHourlyWindow: jest.fn(),
+  };
+  return {
+    StatsSyncService: jest.fn().mockImplementation(() => mockInstance),
+  };
+});
+
+jest.mock('../src/config/env', () => ({
+  env: {
+    API_SPORTS_MIN_REMAINING: '500',
+    MLB_SYNC_HOURS_BACK: '48',
+    MLB_SYNC_HOURS_FORWARD: '24',
+    FOOTBALL_SYNC_HOURS_BACK: '96',
+    FOOTBALL_SYNC_HOURS_FORWARD: '72',
+  }
+}));
+
 jest.mock('../src/middleware/session.auth', () => ({
   requireAdminAccess: jest.fn((req: any, res: any, next: any) => {
     // Mock authenticated admin user for tests
@@ -130,14 +175,19 @@ describe('Admin Routes', () => {
       expect(response.body.error).toBe('Database connection failed');
     });
 
-    it('should upsert all 7 predefined sports', async () => {
+    it('should upsert all 8 predefined sports, including NCAAF', async () => {
       jest.mocked(prisma.sport.upsert).mockResolvedValue({} as any);
 
       await request(app)
         .post('/api/admin/init-sports')
         .expect(200);
 
-      expect(prisma.sport.upsert).toHaveBeenCalledTimes(7);
+      expect(prisma.sport.upsert).toHaveBeenCalledTimes(8);
+      expect(prisma.sport.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { key: 'americanfootball_ncaaf' },
+        })
+      );
     });
   });
 
@@ -676,6 +726,219 @@ describe('Admin Routes', () => {
         .expect(200);
 
       expect(response.body.status).toBe('success');
+    });
+  });
+
+  describe('POST /api/admin/seed-mlb-stats', () => {
+    it('should start the MLB season seed in the background', async () => {
+      const mockPromise = Promise.resolve({
+        gamesProcessed: 50,
+        gamesUpdated: 20,
+        datesProcessed: 30,
+        datesSkipped: 0,
+        pausedDueToQuota: false,
+        errors: [],
+      });
+      mockStatsSyncService.seedMlbSeasonToDate.mockReturnValue(mockPromise as any);
+
+      const response = await request(app)
+        .post('/api/admin/seed-mlb-stats')
+        .expect(200);
+
+      expect(response.body.status).toBe('success');
+      expect(response.body.message).toContain('MLB season seed started');
+      expect(mockStatsSyncService.seedMlbSeasonToDate).toHaveBeenCalledWith({
+        minimumRemainingRequests: 500,
+      });
+    });
+
+    it('should handle synchronous initiation errors', async () => {
+      mockStatsSyncService.seedMlbSeasonToDate.mockImplementation(() => {
+        throw new Error('Service unavailable');
+      });
+
+      const response = await request(app)
+        .post('/api/admin/seed-mlb-stats')
+        .expect(500);
+
+      expect(response.body.status).toBe('error');
+      expect(response.body.message).toBe('Failed to start MLB season seed');
+    });
+
+    it('should not await sync completion (background execution)', async () => {
+      const mockPromise = new Promise((resolve) => setTimeout(resolve, 100));
+      mockStatsSyncService.seedMlbSeasonToDate.mockReturnValue(mockPromise as any);
+
+      const startTime = Date.now();
+      await request(app).post('/api/admin/seed-mlb-stats').expect(200);
+      expect(Date.now() - startTime).toBeLessThan(50);
+    });
+  });
+
+  describe('POST /api/admin/sync-mlb-hourly-window', () => {
+    it('should start the MLB hourly window sync with configured defaults', async () => {
+      const mockPromise = Promise.resolve({
+        gamesProcessed: 12,
+        gamesUpdated: 6,
+        datesProcessed: 3,
+        datesSkipped: 0,
+        pausedDueToQuota: false,
+        errors: [],
+      });
+      mockStatsSyncService.syncMlbHourlyWindow.mockReturnValue(mockPromise as any);
+
+      const response = await request(app)
+        .post('/api/admin/sync-mlb-hourly-window')
+        .expect(200);
+
+      expect(response.body.status).toBe('success');
+      expect(response.body.data).toEqual({
+        minimumRemainingRequests: 500,
+        hoursBack: 48,
+        hoursForward: 24,
+      });
+      expect(mockStatsSyncService.syncMlbHourlyWindow).toHaveBeenCalledWith({
+        minimumRemainingRequests: 500,
+        hoursBack: 48,
+        hoursForward: 24,
+      });
+    });
+
+    it('should handle synchronous initiation errors', async () => {
+      mockStatsSyncService.syncMlbHourlyWindow.mockImplementation(() => {
+        throw new Error('boom');
+      });
+
+      const response = await request(app)
+        .post('/api/admin/sync-mlb-hourly-window')
+        .expect(500);
+
+      expect(response.body.status).toBe('error');
+    });
+  });
+
+  describe('GET /api/admin/mlb-sync-status', () => {
+    it('should return the hourly job status alongside manual-trigger UI state', async () => {
+      jest.mocked(getMlbHourlySyncStatus).mockReturnValue({
+        isRunning: false,
+        lastRunTime: new Date('2026-08-14T12:00:00Z'),
+        lastResult: {
+          datesProcessed: 3,
+          datesSkipped: 0,
+          gamesProcessed: 10,
+          gamesUpdated: 4,
+          pausedDueToQuota: false,
+          errors: [],
+        },
+        cronExpression: '0 * * * *',
+      } as any);
+
+      const response = await request(app)
+        .get('/api/admin/mlb-sync-status')
+        .expect(200);
+
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.hourlyJob.cronExpression).toBe('0 * * * *');
+      expect(response.body.data.hourlyJob.summary.gamesUpdated).toBe(4);
+      // seed/manualWindow UI state is shared module-level state on the
+      // router (not reset between tests), so only assert its shape here —
+      // other tests in this file exercise its running/completed/failed values.
+      expect(['idle', 'running', 'completed', 'failed']).toContain(response.body.data.seed.status);
+    });
+
+    it('should handle errors from the status lookup', async () => {
+      jest.mocked(getMlbHourlySyncStatus).mockImplementation(() => {
+        throw new Error('status unavailable');
+      });
+
+      const response = await request(app)
+        .get('/api/admin/mlb-sync-status')
+        .expect(500);
+
+      expect(response.body.status).toBe('error');
+    });
+  });
+
+  describe('POST /api/admin/sync-football-hourly-window', () => {
+    it('should start the football hourly window sync with configured defaults', async () => {
+      const mockPromise = Promise.resolve({
+        gamesProcessed: 24,
+        gamesUpdated: 9,
+        datesProcessed: 7,
+        datesSkipped: 0,
+        pausedDueToQuota: false,
+        errors: [],
+      });
+      mockStatsSyncService.syncFootballHourlyWindow.mockReturnValue(mockPromise as any);
+
+      const response = await request(app)
+        .post('/api/admin/sync-football-hourly-window')
+        .expect(200);
+
+      expect(response.body.status).toBe('success');
+      expect(response.body.data).toEqual({
+        minimumRemainingRequests: 500,
+        hoursBack: 96,
+        hoursForward: 72,
+      });
+      expect(mockStatsSyncService.syncFootballHourlyWindow).toHaveBeenCalledWith({
+        minimumRemainingRequests: 500,
+        hoursBack: 96,
+        hoursForward: 72,
+      });
+    });
+
+    it('should handle synchronous initiation errors', async () => {
+      mockStatsSyncService.syncFootballHourlyWindow.mockImplementation(() => {
+        throw new Error('boom');
+      });
+
+      const response = await request(app)
+        .post('/api/admin/sync-football-hourly-window')
+        .expect(500);
+
+      expect(response.body.status).toBe('error');
+    });
+  });
+
+  describe('GET /api/admin/football-sync-status', () => {
+    it('should return the hourly job status alongside manual-trigger UI state', async () => {
+      jest.mocked(getFootballHourlySyncStatus).mockReturnValue({
+        isRunning: false,
+        lastRunTime: new Date('2026-09-07T18:00:00Z'),
+        lastResult: {
+          datesProcessed: 7,
+          datesSkipped: 0,
+          gamesProcessed: 24,
+          gamesUpdated: 9,
+          pausedDueToQuota: false,
+          errors: [],
+        },
+        cronExpression: '0 * * * *',
+      } as any);
+
+      const response = await request(app)
+        .get('/api/admin/football-sync-status')
+        .expect(200);
+
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.hourlyJob.cronExpression).toBe('0 * * * *');
+      expect(response.body.data.hourlyJob.summary.gamesUpdated).toBe(9);
+      // manualWindow UI state is shared module-level state on the router
+      // (not reset between tests) — only assert its shape here.
+      expect(['idle', 'running', 'completed', 'failed']).toContain(response.body.data.manualWindow.status);
+    });
+
+    it('should handle errors from the status lookup', async () => {
+      jest.mocked(getFootballHourlySyncStatus).mockImplementation(() => {
+        throw new Error('status unavailable');
+      });
+
+      const response = await request(app)
+        .get('/api/admin/football-sync-status')
+        .expect(500);
+
+      expect(response.body.status).toBe('error');
     });
   });
 });

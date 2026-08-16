@@ -2,7 +2,7 @@
 # ======================================
 
 # Core MCP framework
-mcp>=1.0.0
+mcp>=1.0.0,<2.0.0
 
 # HTTP client for API requests
 aiohttp>=3.9.0

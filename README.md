@@ -23,17 +23,33 @@ Whether you're using Claude Desktop to research bets with natural language or th
 
 ## Screenshots
 
-### Dashboard Home Page
-![BetTrack Home Page](docs/assets/home-page.png)
-*Landing page with feature overview and quick start guide*
+### Landing Page
+![BetTrack Landing Page](docs/assets/landing-dark.png)
+*Dark-mode landing page with feature overview*
 
-### Dashboard V2 - Dark Mode
-![Dashboard V2 Dark Mode](docs/assets/dashboard-dark.png)
-*Retro 8-bit styled dashboard with pixel-perfect game cards, inspired by classic 80s/90s sports games like Retro Bowl*
+### Dashboard - Dark Mode
+![Dashboard Dark Mode](docs/assets/dashboard-dark.png)
+*Retro 8-bit styled dashboard with live game scoreboard, ticket-style game cards, and today's P&L tally*
 
-### Dashboard V2 - Light Mode
-![Dashboard V2 Light Mode](docs/assets/dashboard-light.png)
-*Nostalgic arcade aesthetic with chunky borders, monospace fonts, and vintage scoreboard layouts*
+### Dashboard - Light Mode
+![Dashboard Light Mode](docs/assets/dashboard-light.png)
+*Light mode with vintage newspaper aesthetic, live score display, and side-by-side odds comparison*
+
+### Bet History
+![Bet History](docs/assets/bet-history.png)
+*The Ledger — ticket-style bet history with parlay/straight/teaser breakdowns, WON/LOST/PENDING stamps, and running P&L*
+
+### Futures
+![Futures](docs/assets/futures.png)
+*Futures board with best-odds comparison across bookmakers (DraftKings, FanDuel, BetMGM) and one-click add to slip*
+
+### Bet Slip
+![Bet Slip](docs/assets/bet-slip.png)
+*Bet slip supporting straight, parlay, and teaser bets with combined odds and payout calculator*
+
+### Statistics
+![Statistics](docs/assets/statistics.png)
+*Stats page with weekly P&L bar chart, win rate, ROI, and performance breakdowns by sport and bet type*
 
 ## Key Features
 

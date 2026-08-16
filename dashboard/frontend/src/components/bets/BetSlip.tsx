@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useBetSlip } from '../../hooks/useBetSlip';
 import BetLegItem from './BetLegItem';
 import TeaserControl from './TeaserControl';
+import ParlayValidator from '../analytics/ParlayValidator';
 import { formatOdds, formatCurrency, americanToDecimal, decimalToAmerican } from '../../utils/format';
 
 interface BetSlipProps {
@@ -102,6 +103,9 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
   // Quick stake buttons
   const quickStakes = [10, 25, 50, 100, 250, 500];
 
+  // Leg accent dots cycle through the sunset palette by store index.
+  const legDotColors = ['bg-gold', 'bg-ember', 'bg-plum'];
+
   // Calculate boosted payout and odds
   // Boost applies to PROFIT, not odds multiplier
   const { boostedCombinedOdds, boostedPotentialPayout, boostedPotentialProfit } = React.useMemo(() => {
@@ -115,17 +119,17 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
 
     // Calculate original profit
     const originalProfit = potentialPayout - stake;
-    
+
     // Boost the profit by percentage
     const boostedProfit = originalProfit * (1 + oddsBoostPercentage / 100);
     const boostedPayout = stake + boostedProfit;
-    
+
     // Back-calculate odds needed for boosted payout
     const boostedDecimal = boostedPayout / stake;
     const boostedAmerican = boostedDecimal >= 2.0
       ? Math.round((boostedDecimal - 1) * 100)
       : Math.round(-100 / (boostedDecimal - 1));
-    
+
     return {
       boostedCombinedOdds: boostedAmerican,
       boostedPotentialPayout: boostedPayout,
@@ -168,17 +172,17 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
     }
 
     // Submit with boosted combined odds (bypasses Redux state entirely)
-    const success = await submitBet({ 
+    const success = await submitBet({
       name: betName.trim(),
       boostedCombinedOdds: oddsToSubmit
     });
-    
+
     if (success) {
       setBetName('');
       setOddsBoostPercentage(0); // Reset boost slider
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-      
+
       // Clear selections in parent component
       if (onClear) {
         onClear();
@@ -196,13 +200,13 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
         title={`Bet Slip (${totalLegs} ${totalLegs === 1 ? 'selection' : 'selections'})`}
       >
         <div className="relative">
-          <img 
-            src="/betslip.png" 
+          <img
+            src="/betslip.png"
             alt="Bet Slip"
             className="w-20 h-20 block"
           />
           {totalLegs > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold border-2 border-white dark:border-gray-800 shadow-lg">
+            <span className="absolute -top-2 -right-2 bg-gold text-dusk rounded-full w-7 h-7 flex items-center justify-center font-display text-[10px] border-2 border-dusk-shadow shadow-lg">
               {totalLegs}
             </span>
           )}
@@ -213,23 +217,21 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
 
   // Empty state - show empty message
   if ((legs.length === 0 && (!futureLegs || futureLegs.length === 0))) {
-    
+
     return (
-      <div className="fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 text-center z-50 border-2 border-blue-600 dark:border-blue-500">
+      <div className="fixed bottom-4 right-4 w-96 ds-panel-lg p-6 text-center z-50 relative">
         <button
           onClick={() => setIsMinimized(true)}
-          className="absolute top-3 right-3 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          className="absolute top-3 right-3 font-display text-[9px] text-cream-faint hover:text-cream transition-colors"
           title="Minimize"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-          </svg>
+          ×
         </button>
         <div className="text-4xl mb-3">🎟️</div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <h3 className="font-display text-[11px] text-cream mb-3">
           Bet Slip Empty
         </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="font-body text-sm text-cream-muted">
           Click on any odds to add them to your bet slip
         </p>
       </div>
@@ -237,31 +239,36 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
   }
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-50 border-2 border-brand-600">
+    <div className="fixed bottom-4 right-4 w-96 ds-panel-lg overflow-hidden flex flex-col max-h-[80vh] z-50">
+      {/* Sunset stripe cap */}
+      <div className="flex h-1.5 shrink-0">
+        <div className="flex-1 bg-gold" />
+        <div className="flex-1 bg-ember" />
+        <div className="flex-1 bg-coral" />
+        <div className="flex-1 bg-plum" />
+      </div>
+
       {/* Header */}
-      <div className="bg-brand-600 px-4 py-3 flex items-center justify-between text-white">
+      <div className="px-[18px] pt-4 pb-3.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <h3 className="font-display font-bold text-lg tracking-wide">BET SLIP</h3>
-          <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-semibold">
+          <h3 className="font-display text-[11px] text-cream">BET SLIP</h3>
+          <span className="font-display text-[8px] text-dusk bg-gold px-2 py-1.5">
             {legs.length}
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Minimize button */}
-          <button
-            onClick={() => setIsMinimized(true)}
-            className="text-white/80 hover:text-white transition-colors p-1"
-            title="Minimize"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-          </button>
           <button
             onClick={handleClearSlip}
-            className="text-white/80 hover:text-white transition-colors text-sm font-medium"
+            className="font-display text-[7px] text-cream-faint hover:text-cream transition-colors"
           >
-            Clear All
+            CLEAR ALL
+          </button>
+          <button
+            onClick={() => setIsMinimized(true)}
+            className="font-display text-[9px] text-cream-faint hover:text-cream transition-colors"
+            title="Minimize"
+          >
+            ×
           </button>
         </div>
       </div>
@@ -269,8 +276,8 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
       <div className="flex-1 overflow-y-auto">
         {/* Success Message */}
         {showSuccess && (
-          <div className="m-4 bg-green-50 border border-green-200 rounded-lg p-3">
-            <p className="text-sm text-green-800 font-medium">
+          <div className="mx-[18px] mt-3 bg-dusk-panel2 shadow-[0_0_0_2px_#6cbf67_inset] px-3 py-2.5">
+            <p className="font-body text-sm text-cream font-medium">
               ✅ Bet placed successfully!
             </p>
           </div>
@@ -278,61 +285,61 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
 
         {/* Error Message */}
         {submitError && (
-          <div className="m-4 bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-sm text-red-800">{submitError}</p>
+          <div className="mx-[18px] mt-3 bg-dusk-panel2 shadow-[0_0_0_2px_#ef5350_inset] px-3 py-2.5">
+            <p className="font-body text-sm text-coral">{submitError}</p>
           </div>
         )}
 
-        <div className="p-4 space-y-4">
-          {/* Bet Type Tabs */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setBetType('single')}
-              disabled={legs.length > 1}
-              className={`
-                flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all
-                ${
-                  betType === 'single'
-                    ? 'bg-brand-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }
-                ${legs.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              Single
-            </button>
-            <button
-              onClick={() => setBetType('parlay')}
-              disabled={legs.length < 2}
-              className={`
-                flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all
-                ${
-                  betType === 'parlay'
-                    ? 'bg-brand-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }
-                ${legs.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              Parlay
-            </button>
-            <button
-              onClick={() => setBetType('teaser')}
-              disabled={legs.length < 2}
-              className={`
-                flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all
-                ${
-                  betType === 'teaser'
-                    ? 'bg-brand-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }
-                ${legs.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              Teaser
-            </button>
-          </div>
+        {/* Bet Type Tabs */}
+        <div className="flex gap-1 px-[18px] pt-3.5">
+          <button
+            onClick={() => setBetType('single')}
+            disabled={legs.length > 1}
+            className={`
+              flex-1 text-center font-display text-[7px] py-2.5 transition-all
+              ${
+                betType === 'single'
+                  ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                  : 'bg-dusk-panel2 text-cream-muted'
+              }
+              ${legs.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            SINGLE
+          </button>
+          <button
+            onClick={() => setBetType('parlay')}
+            disabled={legs.length < 2}
+            className={`
+              flex-1 text-center font-display text-[7px] py-2.5 transition-all
+              ${
+                betType === 'parlay'
+                  ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                  : 'bg-dusk-panel2 text-cream-muted'
+              }
+              ${legs.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            PARLAY
+          </button>
+          <button
+            onClick={() => setBetType('teaser')}
+            disabled={legs.length < 2}
+            className={`
+              flex-1 text-center font-display text-[7px] py-2.5 transition-all
+              ${
+                betType === 'teaser'
+                  ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                  : 'bg-dusk-panel2 text-cream-muted'
+              }
+              ${legs.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            TEASER
+          </button>
+        </div>
 
+        <div className="px-[18px] py-4 space-y-4">
           {/* Teaser Control */}
           {betType === 'teaser' && (
             <TeaserControl
@@ -343,21 +350,21 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
           )}
 
           {/* Legs */}
-          <div className="space-y-3">
+          <div className="flex flex-col gap-2">
             {/* SGP Groups */}
             {sgpInfo?.sgpGames && Array.from(sgpInfo.sgpGames.entries()).map(([gameId, legsWithIndex]) => {
               const firstLeg = legsWithIndex[0].leg;
-              const gameName = firstLeg.game 
+              const gameName = firstLeg.game
                 ? `${firstLeg.game.awayTeamName} vs ${firstLeg.game.homeTeamName}`
                 : 'Same Game';
-              
+
               // Calculate combined SGP odds with smart logic
               // Check if any leg has userAdjustedOdds - if so, use those for display
               const hasUserAdjustedOdds = legsWithIndex.some(({ leg }) => leg.userAdjustedOdds !== undefined);
-              
+
               let combinedSgpOdds: number;
               let americanSgpOdds: number;
-              
+
               if (hasUserAdjustedOdds) {
                 // At least one leg has adjusted odds - recalculate from userAdjustedOdds or original odds
                 combinedSgpOdds = legsWithIndex.reduce((total, { leg }) => {
@@ -365,7 +372,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                   const decimalOdds = oddsToUse > 0 ? 1 + oddsToUse / 100 : 1 + 100 / Math.abs(oddsToUse);
                   return total * decimalOdds;
                 }, 1);
-                americanSgpOdds = combinedSgpOdds >= 2 
+                americanSgpOdds = combinedSgpOdds >= 2
                   ? Math.round((combinedSgpOdds - 1) * 100)
                   : Math.round(-100 / (combinedSgpOdds - 1));
               } else {
@@ -373,62 +380,62 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                 const mlLeg = legsWithIndex.find(({ leg }) => leg.selectionType === 'moneyline');
                 const spreadLeg = legsWithIndex.find(({ leg }) => leg.selectionType === 'spread');
                 const totalLegs = legsWithIndex.filter(({ leg }) => leg.selectionType === 'total');
-                
+
                 // Determine which legs to multiply
                 const legsToMultiply: typeof legsWithIndex = [];
-                
+
                 // If both ML and Spread exist for same team, use only the higher odds
                 if (mlLeg && spreadLeg && mlLeg.leg.selection === spreadLeg.leg.selection) {
                   const mlDecimal = mlLeg.leg.odds > 0 ? 1 + mlLeg.leg.odds / 100 : 1 + 100 / Math.abs(mlLeg.leg.odds);
                   const spreadDecimal = spreadLeg.leg.odds > 0 ? 1 + spreadLeg.leg.odds / 100 : 1 + 100 / Math.abs(spreadLeg.leg.odds);
-                  
+
                   // Use higher odds leg
                   if (mlDecimal >= spreadDecimal) {
                     legsToMultiply.push(mlLeg);
                   } else {
                     legsToMultiply.push(spreadLeg);
                   }
-                  
+
                   // Add totals separately
                   legsToMultiply.push(...totalLegs);
                 } else {
                   // Standard: multiply all legs
                   legsToMultiply.push(...legsWithIndex);
                 }
-                
+
                 // Calculate combined odds from selected legs
                 combinedSgpOdds = legsToMultiply.reduce((total, { leg }) => {
                   const decimalOdds = leg.odds > 0 ? 1 + leg.odds / 100 : 1 + 100 / Math.abs(leg.odds);
                   return total * decimalOdds;
                 }, 1);
-                americanSgpOdds = combinedSgpOdds >= 2 
+                americanSgpOdds = combinedSgpOdds >= 2
                   ? Math.round((combinedSgpOdds - 1) * 100)
                   : Math.round(-100 / (combinedSgpOdds - 1));
               }
 
               const isEditingThisSGP = editingSGPGame === gameId;
-              const defaultEditValue = useDecimalOdds 
+              const defaultEditValue = useDecimalOdds
                 ? ((combinedSgpOdds).toFixed(2))
                 : americanSgpOdds.toString();
               const editValue = sgpOddsEdits.get(gameId) || defaultEditValue;
 
               return (
-                <div key={`sgp-${gameId}`} className="border-2 border-purple-500 dark:border-purple-600 rounded-lg bg-gradient-to-br from-purple-100 via-purple-50 to-pink-50 dark:from-purple-900/40 dark:via-purple-900/30 dark:to-pink-900/30 p-4 shadow-md">
+                <div key={`sgp-${gameId}`} className="bg-dusk-panel2 shadow-[0_0_0_2px_#6d4a9e_inset] p-3.5">
                   {/* SGP Header with Combined Odds */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-purple-700 dark:text-purple-300 font-bold text-base">⚡</span>
-                        <span className="text-sm font-bold text-purple-900 dark:text-purple-100 uppercase tracking-wide">
-                          Same Game Parlay
+                        <span className="text-plum font-display text-[10px]">⚡</span>
+                        <span className="font-display text-[7px] text-cream tracking-wide">
+                          SAME GAME PARLAY
                         </span>
-                        <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-200/50 dark:bg-purple-800/50 px-2 py-0.5 rounded-full">
+                        <span className="font-display text-[6px] text-cream-secondary bg-dusk px-1.5 py-0.5">
                           {legsWithIndex.length} legs
                         </span>
                       </div>
-                      <div className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{gameName}</div>
+                      <div className="font-body text-xs text-cream-muted truncate">{gameName}</div>
                     </div>
-                    
+
                     {/* Editable Combined Odds */}
                     <div className="flex items-center gap-2 ml-3">
                       {isEditingThisSGP ? (
@@ -442,7 +449,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                               newMap.set(gameId, e.target.value);
                               setSgpOddsEdits(newMap);
                             }}
-                            className="w-20 px-2 py-1.5 text-sm font-bold border-2 border-purple-500 dark:border-purple-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-20 px-2 py-1.5 font-display text-[10px] bg-dusk shadow-[0_0_0_2px_#6d4a9e_inset] focus:outline-none focus:shadow-[0_0_0_2px_#fcc63a_inset] text-cream text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             placeholder={useDecimalOdds ? "2.00" : "-110"}
                           />
                           <button
@@ -469,7 +476,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                               });
                               setEditingSGPGame(null);
                             }}
-                            className="text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 p-1 bg-green-100 dark:bg-green-900/30 rounded transition-colors"
+                            className="text-cream hover:text-cream p-1 bg-dusk transition-colors"
                             title="Apply"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -478,7 +485,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                           </button>
                           <button
                             onClick={() => setEditingSGPGame(null)}
-                            className="text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 bg-red-100 dark:bg-red-900/30 rounded transition-colors"
+                            className="text-coral hover:text-cream p-1 bg-dusk transition-colors"
                             title="Cancel"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,20 +495,20 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                         </>
                       ) : (
                         <>
-                          <span className="text-base font-bold text-purple-900 dark:text-purple-100 bg-purple-200/60 dark:bg-purple-800/60 px-3 py-1 rounded-lg">
+                          <span className="font-display text-[10px] text-gold bg-dusk px-2.5 py-1">
                             {formatOdds(americanSgpOdds, useDecimalOdds)}
                           </span>
                           <button
                             onClick={() => {
                               setEditingSGPGame(gameId);
                               const newMap = new Map(sgpOddsEdits);
-                              const initialValue = useDecimalOdds 
+                              const initialValue = useDecimalOdds
                                 ? (combinedSgpOdds).toFixed(2)
                                 : americanSgpOdds.toString();
                               newMap.set(gameId, initialValue);
                               setSgpOddsEdits(newMap);
                             }}
-                            className="text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-100 p-1.5 bg-purple-200/60 dark:bg-purple-800/60 rounded-lg hover:bg-purple-300/60 dark:hover:bg-purple-700/60 transition-colors"
+                            className="text-cream-faint hover:text-gold p-1.5 bg-dusk transition-colors"
                             title="Edit combined odds"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -525,6 +532,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                         showTeaser={false}
                         teaserPoints={0}
                         useDecimalOdds={useDecimalOdds}
+                        dotColorClass={legDotColors[index % legDotColors.length]}
                       />
                     ))}
                   </div>
@@ -543,6 +551,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                 showTeaser={betType === 'teaser'}
                 teaserPoints={teaserPoints}
                 useDecimalOdds={useDecimalOdds}
+                dotColorClass={legDotColors[index % legDotColors.length]}
               />
             )) : legs.map((leg, index) => (
               <BetLegItem
@@ -554,22 +563,23 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                 showTeaser={betType === 'teaser'}
                 teaserPoints={teaserPoints}
                 useDecimalOdds={useDecimalOdds}
+                dotColorClass={legDotColors[index % legDotColors.length]}
               />
             ))}
 
             {/* Futures Legs */}
             {futureLegs && futureLegs.length > 0 && (
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="border-t-2 border-dusk-panel2 pt-4 mt-2">
+                <h3 className="font-display text-[7px] text-cream tracking-wide mb-3 flex items-center">
+                  <svg className="w-4 h-4 mr-2 text-cream-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Futures Bets
+                  FUTURES BETS
                 </h3>
                 {futureLegs.map((futureLeg) => {
                   const isEditing = editingFutureId === futureLeg.futureId;
                   const currentOdds = futureLeg.userAdjustedOdds ?? futureLeg.odds;
-                  
+
                   const startEditingFuture = () => {
                     setEditingFutureId(futureLeg.futureId);
                     setEditFutureOdds(currentOdds.toString());
@@ -577,13 +587,13 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                       setEditFutureOddsDecimal(americanToDecimal(currentOdds).toFixed(2));
                     }
                   };
-                  
+
                   const cancelEditingFuture = () => {
                     setEditingFutureId(null);
                     setEditFutureOdds('');
                     setEditFutureOddsDecimal('');
                   };
-                  
+
                   const applyFutureOdds = () => {
                     let newOdds: number;
                     if (useDecimalOdds) {
@@ -600,7 +610,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                     setEditFutureOdds('');
                     setEditFutureOddsDecimal('');
                   };
-                  
+
                   const adjustFutureOdds = (delta: number) => {
                     if (useDecimalOdds) {
                       const current = parseFloat(editFutureOddsDecimal) || 2.00;
@@ -610,7 +620,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                     } else {
                       const currentEditOdds = parseInt(editFutureOdds) || 0;
                       let newOdds = currentEditOdds + (delta * 5);
-                      
+
                       if (currentEditOdds < -100 && newOdds > -100) {
                         newOdds = 100;
                       } else if (currentEditOdds > 100 && newOdds < 100) {
@@ -618,32 +628,32 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                       } else if (newOdds > -100 && newOdds < 100) {
                         newOdds = delta > 0 ? 100 : -100;
                       }
-                      
+
                       setEditFutureOdds(newOdds.toString());
                     }
                   };
-                  
+
                   return (
                     <div
                       key={futureLeg.futureId}
-                      className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-2 border border-purple-200 dark:border-purple-700"
+                      className="bg-dusk-panel2 shadow-[0_0_0_2px_#43306a_inset] p-3 mb-2"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
-                          <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                          <div className="font-display text-[6px] text-cream-faint tracking-wide mb-1">
                             {futureLeg.sportKey?.replace(/_/g, ' ')}
                           </div>
-                          <div className="font-semibold text-gray-900 dark:text-white mb-1">
+                          <div className="font-body font-semibold text-cream mb-1">
                             {futureLeg.futureTitle}
                           </div>
-                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                          <div className="font-body text-sm text-cream-muted">
                             {futureLeg.outcome}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-2">
                           <button
                             onClick={isEditing ? cancelEditingFuture : startEditingFuture}
-                            className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"
+                            className="text-cream-faint hover:text-gold transition-colors p-1"
                             title={isEditing ? "Cancel" : "Edit"}
                           >
                             {isEditing ? (
@@ -658,7 +668,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                           </button>
                           <button
                             onClick={() => removeFutureLeg(futureLeg.futureId)}
-                            className="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors p-1"
+                            className="text-cream-faint hover:text-coral transition-colors p-1"
                             title="Remove future"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -667,19 +677,19 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                           </button>
                         </div>
                       </div>
-                      
+
                       {!isEditing ? (
                         <div className="flex items-center justify-between">
-                          <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                          <div className="font-display text-[13px] text-gold">
                             {formatOdds(currentOdds, useDecimalOdds)}
                             {futureLeg.userAdjustedOdds && futureLeg.userAdjustedOdds !== futureLeg.odds && (
-                              <span className="text-xs text-blue-600 dark:text-blue-400 ml-2 font-normal">(adjusted)</span>
+                              <span className="font-body text-xs text-cream-secondary ml-2 font-normal">(adjusted)</span>
                             )}
                           </div>
                           {futureLeg.userAdjustedOdds && futureLeg.userAdjustedOdds !== futureLeg.odds && (
                             <button
                               onClick={() => updateFutureLeg(futureLeg.futureId, { userAdjustedOdds: undefined })}
-                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                              className="font-body text-xs text-cream-secondary hover:text-cream hover:underline"
                             >
                               Reset Odds
                             </button>
@@ -688,13 +698,13 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                       ) : (
                         <div className="space-y-2 mt-2">
                           <div>
-                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label className="block font-display text-[6px] text-cream-faint tracking-wide mb-1">
                               Odds ({useDecimalOdds ? 'Decimal' : 'American'})
                             </label>
                             <div className="flex gap-1">
                               <button
                                 onClick={() => adjustFutureOdds(-1)}
-                                className="px-3 py-1.5 bg-purple-200 dark:bg-purple-700 hover:bg-purple-300 dark:hover:bg-purple-600 text-purple-700 dark:text-white font-bold rounded transition-colors"
+                                className="px-3 py-1.5 bg-dusk hover:bg-dusk-ring text-cream font-bold transition-colors"
                                 title={useDecimalOdds ? "Decrease by 0.05" : "Decrease by 5"}
                               >
                                 -
@@ -717,11 +727,11 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                                     setEditFutureOdds(value);
                                   }
                                 }}
-                                className="flex-1 px-3 py-1.5 text-sm border border-purple-300 dark:border-purple-600 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                className="flex-1 px-3 py-1.5 text-sm bg-dusk shadow-[0_0_0_2px_#43306a_inset] focus:outline-none focus:shadow-[0_0_0_2px_#fcc63a_inset] text-cream"
                               />
                               <button
                                 onClick={() => adjustFutureOdds(1)}
-                                className="px-3 py-1.5 bg-purple-200 dark:bg-purple-700 hover:bg-purple-300 dark:hover:bg-purple-600 text-purple-700 dark:text-white font-bold rounded transition-colors"
+                                className="px-3 py-1.5 bg-dusk hover:bg-dusk-ring text-cream font-bold transition-colors"
                                 title={useDecimalOdds ? "Increase by 0.05" : "Increase by 5"}
                               >
                                 +
@@ -730,7 +740,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                           </div>
                           <button
                             onClick={applyFutureOdds}
-                            className="w-full px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded hover:bg-purple-700 transition-colors"
+                            className="w-full px-3 py-1.5 bg-plum text-cream text-sm font-medium hover:brightness-110 transition-all"
                           >
                             Apply Changes
                           </button>
@@ -743,10 +753,13 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
             )}
           </div>
 
+          {/* Correlation check (parlays with 2+ game legs) */}
+          {betType === 'parlay' && <ParlayValidator legs={legs} useDecimalOdds={useDecimalOdds} />}
+
           {/* Bet Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Bet Name *
+            <label className="block font-display text-[7px] text-cream-faint tracking-[.08em] mb-1.5">
+              BET NAME *
             </label>
             <input
               type="text"
@@ -754,17 +767,82 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               onChange={(e) => setBetName(e.target.value)}
               placeholder="e.g., Sunday Parlay"
               maxLength={100}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 bg-dusk shadow-[0_0_0_2px_#43306a_inset] font-body text-sm text-cream placeholder:text-cream-faint focus:outline-none focus:shadow-[0_0_0_2px_#fcc63a_inset] transition-shadow"
             />
           </div>
 
-          {/* Stake */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Stake Amount
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400">$</span>
+          {/* Odds Boost Slider */}
+          <div className="bg-dusk-panel2 shadow-[0_0_0_2px_#8a5a10_inset] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚡</span>
+                <label className="font-display text-[7px] text-gold tracking-[.06em]">
+                  ODDS BOOST
+                </label>
+              </div>
+              <span className="font-display text-[11px] text-gold">
+                +{oddsBoostPercentage}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={oddsBoostPercentage}
+              onChange={(e) => setOddsBoostPercentage(parseInt(e.target.value))}
+              className="w-full h-2 bg-dusk rounded-lg appearance-none cursor-pointer accent-gold"
+              aria-label="Odds boost percentage"
+              style={{
+                background: `linear-gradient(to right, #fcc63a 0%, #fcc63a ${oddsBoostPercentage}%, #1d1130 ${oddsBoostPercentage}%, #1d1130 100%)`
+              }}
+            />
+            <div className="flex justify-between font-body text-[10px] text-cream-faint mt-1">
+              <span>0%</span>
+              <span>50%</span>
+              <span>100%</span>
+            </div>
+            {oddsBoostPercentage > 0 && (
+              <div className="mt-3 p-2 bg-dusk font-body text-xs text-cream-muted">
+                <div className="flex justify-between mb-1">
+                  <span>Original odds:</span>
+                  <span className="font-display text-[9px] text-cream">{formatOdds(combinedOdds, useDecimalOdds)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Boosted odds:</span>
+                  <span className="font-display text-[9px] text-gold">{formatOdds(boostedCombinedOdds, useDecimalOdds)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer - Odds & Submit */}
+      <div className="px-[18px] pb-4.5 shrink-0">
+        {/* Combined Odds */}
+        <div className="flex justify-between items-center font-body text-[13px] text-cream-muted py-2.5 border-t-2 border-dusk-panel2">
+          <span>Combined odds</span>
+          <div className="flex items-center gap-2">
+            {oddsBoostPercentage > 0 && (
+              <span className="font-body text-xs text-cream-faint line-through">
+                {formatOdds(combinedOdds, useDecimalOdds)}
+              </span>
+            )}
+            <span className="font-display text-[10px] text-cream">
+              {combinedOdds ? formatOdds(oddsBoostPercentage > 0 ? boostedCombinedOdds : combinedOdds, useDecimalOdds) : '—'}
+            </span>
+            {oddsBoostPercentage > 0 && (
+              <span className="font-display text-[7px] bg-gold text-dusk px-1.5 py-0.5">+{oddsBoostPercentage}%</span>
+            )}
+          </div>
+        </div>
+
+        {/* Stake / To Win */}
+        <div className="flex gap-2.5 mt-1.5">
+          <div className="flex-1 bg-dusk px-3 py-2.5 shadow-[0_0_0_2px_#43306a_inset]">
+            <label className="block font-display text-[6px] text-cream-faint tracking-[.1em]">STAKE</label>
+            <div className="relative mt-1 flex items-baseline">
+              <span className="font-body text-[18px] font-bold text-cream-faint">$</span>
               <input
                 type="text"
                 inputMode="decimal"
@@ -784,105 +862,33 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                     setStakeInput(stake.toString());
                   }
                 }}
-                className="w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full bg-transparent border-0 outline-none font-body text-[18px] font-bold text-cream [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 placeholder="0.00"
               />
             </div>
-
-            {/* Quick Stakes */}
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              {quickStakes.map((amount) => (
-                <button
-                  key={amount}
-                  onClick={() => setStake(amount)}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded transition-colors"
-                >
-                  ${amount}
-                </button>
-              ))}
-            </div>
           </div>
-
-          {/* Odds Boost Slider */}
-          <div className="border-2 border-amber-400 dark:border-amber-500 rounded-lg p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⚡</span>
-                <label className="text-sm font-bold text-amber-900 dark:text-amber-100">
-                  Odds Boost
-                </label>
-              </div>
-              <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
-                +{oddsBoostPercentage}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={oddsBoostPercentage}
-              onChange={(e) => setOddsBoostPercentage(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-              aria-label="Odds boost percentage"
-              style={{
-                background: `linear-gradient(to right, rgb(245 158 11) 0%, rgb(245 158 11) ${oddsBoostPercentage}%, rgb(209 213 219) ${oddsBoostPercentage}%, rgb(209 213 219) 100%)`
-              }}
-            />
-            <div className="flex justify-between text-xs text-amber-800 dark:text-amber-300 mt-1">
-              <span>0%</span>
-              <span>50%</span>
-              <span>100%</span>
-            </div>
-            {oddsBoostPercentage > 0 && (
-              <div className="mt-3 p-2 bg-amber-100 dark:bg-amber-900/40 rounded text-xs text-amber-900 dark:text-amber-200">
-                <div className="flex justify-between mb-1">
-                  <span>Original odds:</span>
-                  <span className="font-bold">{formatOdds(combinedOdds, useDecimalOdds)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Boosted odds:</span>
-                  <span className="font-bold text-green-700 dark:text-green-400">{formatOdds(boostedCombinedOdds, useDecimalOdds)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Footer - Odds & Submit */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-3 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
-        {/* Combined Odds */}
-        <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Combined Odds:</span>
-          <div className="flex items-center gap-2">
-            {oddsBoostPercentage > 0 && (
-              <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                {formatOdds(combinedOdds, useDecimalOdds)}
-              </span>
-            )}
-            <span className={`text-lg font-bold ${oddsBoostPercentage > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
-              {combinedOdds ? formatOdds(oddsBoostPercentage > 0 ? boostedCombinedOdds : combinedOdds, useDecimalOdds) : '—'}
-            </span>
-            {oddsBoostPercentage > 0 && (
-              <span className="text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">+{oddsBoostPercentage}%</span>
-            )}
-          </div>
-        </div>
-
-        {/* Potential Payout */}
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg p-4 border-2 border-green-200 dark:border-green-700 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-green-800 dark:text-green-300">Potential Payout:</span>
-            <span className="text-2xl font-bold text-green-700 dark:text-green-400">
+          <div className="flex-1 bg-dusk px-3 py-2.5 shadow-[0_0_0_2px_#8a5a10_inset]">
+            <label className="block font-display text-[6px] text-gold tracking-[.1em]">TO WIN</label>
+            <div className="font-display text-[15px] text-gold mt-1.5">
               {stake > 0 ? formatCurrency(oddsBoostPercentage > 0 ? boostedPotentialPayout : potentialPayout) : '$0.00'}
-            </span>
+            </div>
+            <div className="font-body text-[10px] text-cream-faint mt-1">
+              Profit: {stake > 0 ? formatCurrency(oddsBoostPercentage > 0 ? boostedPotentialProfit : potentialProfit) : '$0.00'}
+            </div>
           </div>
-          <div className="flex items-center justify-between text-sm pt-2 border-t border-green-200 dark:border-green-700/50">
-            <span className="text-green-700 dark:text-green-400 font-medium">Profit:</span>
-            <span className="font-bold text-green-800 dark:text-green-300">
-              {stake > 0 ? formatCurrency(oddsBoostPercentage > 0 ? boostedPotentialProfit : potentialProfit) : '$0.00'}
-            </span>
-          </div>
+        </div>
+
+        {/* Quick Stakes */}
+        <div className="grid grid-cols-3 gap-1.5 mt-2.5">
+          {quickStakes.map((amount) => (
+            <button
+              key={amount}
+              onClick={() => setStake(amount)}
+              className="px-2 py-1.5 bg-dusk-panel2 hover:bg-dusk-ring text-cream-muted font-display text-[7px] transition-colors"
+            >
+              ${amount}
+            </button>
+          ))}
         </div>
 
         {/* Submit Button */}
@@ -890,17 +896,17 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
           onClick={handleSubmit}
           disabled={!isValid || !betName.trim() || isSubmitting}
           className={`
-            w-full py-3.5 rounded-lg font-bold text-white text-base transition-all shadow-md
+            w-full mt-3.5 font-display text-[10px] py-4 text-center transition-all
             ${
               isValid && betName.trim() && !isSubmitting
-                ? 'bg-brand-600 hover:bg-brand-700 hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]'
-                : 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-60'
+                ? 'ds-btn-press'
+                : 'bg-dusk-panel2 text-cream-faint cursor-not-allowed'
             }
           `}
         >
           {isSubmitting ? (
             <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
@@ -911,14 +917,20 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
           )}
         </button>
 
+        {/* Disclaimer */}
+        <div className="flex items-center justify-center gap-2 mt-3 font-body text-[11px] text-cream-faint">
+          <img src="/animations/coin.gif" alt="" className="w-3.5 h-3.5" />
+          <span>Tracking only — logged to your ledger, no money moves.</span>
+        </div>
+
         {/* Validation Messages */}
         {!betName.trim() && legs.length > 0 && (
-          <p className="text-xs text-red-600 text-center">
+          <p className="font-body text-xs text-coral text-center mt-2">
             Bet name is required
           </p>
         )}
         {stake <= 0 && legs.length > 0 && (
-          <p className="text-xs text-red-600 text-center">
+          <p className="font-body text-xs text-coral text-center mt-1">
             Enter stake amount
           </p>
         )}

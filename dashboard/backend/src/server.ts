@@ -12,7 +12,9 @@ import { startConsensusCalcJob } from './jobs/consensus-calc.job';
 import { initLineMovementJob } from './jobs/line-movement.job';
 import { startSharpIndicatorJob } from './jobs/sharp-indicator.job';
 import { startBookmakerAnalyticsJob } from './jobs/bookmaker-analytics.job';
+import { startArbitrageScanJob } from './jobs/arbitrage-scan.job';
 import { startMlbHourlySyncJob } from './jobs/mlb-hourly-sync.job';
+import { startFootballHourlySyncJob } from './jobs/football-hourly-sync.job';
 
 const PORT = parseInt(env.PORT, 10);
 
@@ -43,7 +45,9 @@ async function startServer() {
       initLineMovementJob(prisma);
       startSharpIndicatorJob();
       startBookmakerAnalyticsJob();
+      startArbitrageScanJob();
       startMlbHourlySyncJob();
+      startFootballHourlySyncJob();
       logger.info('✅ Scheduled jobs started');
     } catch (error) {
       logger.error('Failed to start scheduled jobs:', error);

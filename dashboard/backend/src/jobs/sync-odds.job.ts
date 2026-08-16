@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { oddsSyncService } from '../services/odds-sync.service';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
+import { emitOddsSyncCompleted } from '../events/odds-sync.events';
 
 /**
  * Scheduled job to sync odds from The Odds API
@@ -59,8 +60,23 @@ async function executeSync() {
 
     logger.info('='.repeat(60));
 
+    // Let downstream analytics (arbitrage detection) react to fresh odds
+    // instead of polling on a cadence they cannot align with.
+    emitOddsSyncCompleted({
+      success: result.success,
+      gamesProcessed: result.gamesProcessed,
+      oddsProcessed: result.oddsProcessed,
+      completedAt: new Date(),
+    });
+
   } catch (error) {
     logger.error('Fatal error during scheduled odds sync:', error);
+    emitOddsSyncCompleted({
+      success: false,
+      gamesProcessed: 0,
+      oddsProcessed: 0,
+      completedAt: new Date(),
+    });
   } finally {
     isRunning = false;
   }

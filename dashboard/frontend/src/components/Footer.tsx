@@ -35,25 +35,24 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 bg-gray-800 text-white py-2 px-4 text-xs z-40"
-            style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
+    <footer className="fixed bottom-0 left-0 right-0 bg-dusk-chrome text-cream-muted py-2 px-4 text-xs z-40 font-body">
       <div className="max-w-7xl mx-auto">
         {/* Main Footer Row */}
         <div className="flex items-center justify-between gap-4">
           {/* Left: Copyright & Versions */}
           <div className="flex items-center gap-3">
-            <span>© {currentYear} BetTrack</span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-400" title="Frontend Version">FE v{FRONTEND_VERSION}</span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-400" title="Backend Version">BE v{backendVersion ?? '...'}</span>
+            <span className="text-cream">© {currentYear} BETTRACK</span>
+            <span className="text-cream-faint">·</span>
+            <span className="text-cream-faint" title="Frontend Version">FE v{FRONTEND_VERSION}</span>
+            <span className="text-cream-faint">·</span>
+            <span className="text-cream-faint" title="Backend Version">BE v{backendVersion ?? '...'}</span>
           </div>
 
           {/* Center: API Requests (Dev Only) */}
           {isDevelopment && apiRequestsRemaining !== null && (
             <div className="flex items-center gap-2">
-              <span className="text-gray-400">API Requests:</span>
-              <span className={`font-bold ${apiRequestsRemaining < 50 ? 'text-red-400' : apiRequestsRemaining < 100 ? 'text-yellow-400' : 'text-green-400'}`}>
+              <span className="text-cream-faint">API Requests:</span>
+              <span className={`font-bold ${apiRequestsRemaining < 50 ? 'text-coral' : apiRequestsRemaining < 100 ? 'text-gold' : 'text-sunwin-dark'}`}>
                 {apiRequestsRemaining}
               </span>
             </div>
@@ -61,20 +60,20 @@ export default function Footer() {
 
           {/* Right: Links & Info */}
           <div className="flex items-center gap-3">
-            <a 
-              href="https://www.ncpgambling.org/" 
-              target="_blank" 
+            <a
+              href="https://www.ncpgambling.org/"
+              target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-400 hover:text-white transition-colors underline"
+              className="text-cream-faint hover:text-gold transition-colors underline"
             >
               Responsible Gaming
             </a>
-            <span className="text-gray-400">•</span>
-            <a 
-              href="https://github.com/wford26/BetTrack" 
-              target="_blank" 
+            <span className="text-cream-faint">·</span>
+            <a
+              href="https://github.com/wford26/BetTrack"
+              target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-cream-faint hover:text-gold transition-colors"
             >
               GitHub
             </a>
@@ -82,9 +81,9 @@ export default function Footer() {
         </div>
 
         {/* Bottom Row: Disclaimer (subtle) */}
-        <div className="mt-1 pt-1 border-t border-gray-700">
-          <p className="text-center text-gray-500 text-[10px]">
-            BetTrack is a tracking tool only. We do not facilitate betting. Please gamble responsibly. 
+        <div className="mt-1 pt-1 border-t border-dusk-panel2">
+          <p className="text-center text-cream-faint text-[10px]">
+            BetTrack is a tracking tool only. We do not facilitate betting. Please gamble responsibly.
             If you or someone you know has a gambling problem, call 1-800-GAMBLER.
           </p>
         </div>

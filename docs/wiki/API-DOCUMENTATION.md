@@ -12,6 +12,7 @@ Comprehensive API reference for MCP tools, Backend HTTP endpoints, and Frontend 
    - [Combined Tools](#combined-tools)
    - [Utility Tools](#utility-tools)
    - [Dashboard Integration Tools](#dashboard-integration-tools)
+   - [MCP Analytics Tools](#mcp-analytics-tools-apimcpanalytics)
 2. [Backend REST API (Dashboard)](#backend-rest-api-dashboard)
    - [Authentication API](#authentication-api-apiauth)
    - [API Keys API](#api-keys-api-apikeys)
@@ -23,6 +24,11 @@ Comprehensive API reference for MCP tools, Backend HTTP endpoints, and Frontend 
    - [Stats API](#stats-api-apistats)
    - [Analytics CLV API](#analytics-clv-api-apianalyticsclv)
    - [Analytics Sharp Money API](#analytics-sharp-money-api-apianalyticssharp)
+   - [Analytics Line Movement API](#analytics-line-movement-api-apianalyticsmovements)
+   - [Analytics Market Disagreement API](#analytics-market-disagreement-api-apianalyticsdisagreement)
+   - [Analytics Bookmaker Performance API](#analytics-bookmaker-performance-api-apianalyticsbookmakers)
+   - [Analytics Arbitrage API](#analytics-arbitrage-api-apianalyticsarbitrage)
+   - [Analytics Correlation API](#analytics-correlation-api-apianalyticscorrelation)
    - [Admin API](#admin-api-apiadmin)
 3. [Frontend Architecture](#frontend-architecture)
 
@@ -350,6 +356,59 @@ Get today's games annotated with the user's existing betting exposure. Game wind
 - `only_with_bets` (bool): If True, returns only games where the user has bets
 
 **Returns:** `{status, data: {games: [{id, matchup, sport, commence_time, status, my_bets: [...], total_exposure}], total_games, total_exposure}}`
+
+### MCP Analytics Tools (`/api/mcp/analytics`)
+
+Read-only mirrors of the session-gated analytics routes, authenticated via API key (`stats` permission required). All tools return `{"success": true, "data": {...}}` on success.
+
+**Total tool count:** 23 sports-only tools; 49 tools when `DASHBOARD_API_KEY` is configured (adds 26 dashboard tools including the 17 analytics tools below).
+
+#### Arbitrage Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_arbitrage_opportunities(min_profit=None, arb_type=None, market_type=None, max_snapshot_age=None)` | Live guaranteed-profit opportunities across bookmakers. `arb_type`: `two-way`, `three-way`, `middle`. |
+| `get_arbitrage_history(days_back=7, status=None)` | Previously detected arbitrage opportunities. |
+| `get_arbitrage_stats()` | Summary statistics (total found, avg profit, by type). |
+| `calculate_arbitrage_stakes(opportunities, total_stake)` | Calculate optimal per-leg stakes for a guaranteed-profit outcome. |
+
+#### Closing Line Value (CLV) Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_clv_summary()` | Overall CLV statistics for the current user. |
+| `get_clv_by_sport()` | CLV breakdown by sport. |
+| `get_clv_by_bookmaker()` | CLV breakdown by bookmaker (uses `BetLeg.bookmaker` field). |
+| `get_clv_report(sport=None, bet_type=None, start_date=None, end_date=None)` | Full CLV report with top/worst bets and breakdowns. |
+
+#### Sharp Money Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_sharp_action(limit=20)` | Current sharp-money indicators for upcoming games. |
+| `get_contrarian_plays(min_confidence=6, limit=20)` | Games where sharp money opposes the public side. |
+| `get_game_sharp_indicators(game_id)` | All sharp indicators for a specific game by market type. |
+
+#### Line Movement Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_line_movements(movement_type="steam", hours_back=4, limit=20)` | Recent line movements. `movement_type`: `steam`, `reverse`, `gradual`, `injury`, `all`. |
+| `get_game_line_movements(game_id, limit=50)` | All detected movements for a specific game. |
+
+#### Market Disagreement Tool
+
+| Tool | Description |
+|------|-------------|
+| `get_market_disagreement(threshold=60, limit=20)` | Games where bookmakers disagree significantly on the line. |
+
+#### Bookmaker Analytics Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_bookmaker_rankings(criteria="recommendation")` | Ranked bookmakers. `criteria`: `value`, `sharpness`, `reliability`, `coverage`, `limits`, `recommendation`. |
+| `compare_bookmakers(bookmakers)` | Side-by-side metrics for a comma-separated list of bookmaker keys. |
+| `get_bookmaker_metrics(bookmaker)` | Full analytics record for a single bookmaker. |
 
 ---
 
@@ -1632,6 +1691,444 @@ Summary statistics for sharp indicators over a time window.
 
 ---
 
+### Analytics Line Movement API (`/api/analytics/movements`)
+
+Tracks odds changes over time and classifies them as steam moves, gradual drift, reverse line movement, or injury-driven shifts. All endpoints require session authentication.
+
+#### `GET /api/analytics/movements/live`
+Recent line movements in real time.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | number | 20 | Max results (1-100) |
+| `hoursBack` | number | 4 | Look-back window |
+| `movementType` | string | `steam` | `steam`, `reverse`, `gradual`, `injury`, or `all` |
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "movements": [
+      {
+        "id": "uuid",
+        "gameId": "uuid",
+        "bookmaker": "draftkings",
+        "marketType": "h2h",
+        "movementType": "steam",
+        "openingPrice": -110,
+        "currentPrice": -130,
+        "priceDelta": -20,
+        "detectedAt": "2026-05-13T18:30:00Z",
+        "game": {
+          "id": "uuid",
+          "homeTeamName": "Los Angeles Lakers",
+          "awayTeamName": "Boston Celtics",
+          "commenceTime": "2026-05-13T20:00:00Z"
+        }
+      }
+    ],
+    "total": 14,
+    "hoursBack": 4,
+    "movementType": "steam"
+  }
+}
+```
+
+#### `GET /api/analytics/movements/game/:gameId`
+All line movements for a specific game.
+
+**Path Parameters:**
+- `gameId` (UUID): Game ID
+
+**Query Parameters:**
+- `limit` (number): Max results (default 50)
+
+**Response:** `{status, data: {movements: [...], count, game: {...}}}`
+
+#### `GET /api/analytics/movements/stats`
+Summary statistics for detected movements over a time window.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `hoursBack` | number | 24 | Look-back window (1-168) |
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "byType": { "steam": 42, "reverse": 18, "gradual": 31, "injury": 5 },
+    "byMarket": { "h2h": 55, "spreads": 29, "totals": 12 },
+    "avgPriceDelta": 11.3,
+    "totalMovements": 96,
+    "period": "Last 24 hours"
+  }
+}
+```
+
+**Movement Types:**
+| Value | Description |
+|-------|-------------|
+| `steam` | 3+ books moved quickly — classic sharp action |
+| `reverse` | Line moved against the public betting side |
+| `gradual` | Slow drift over several hours |
+| `injury` | Movement detected near a reported injury |
+
+---
+
+### Analytics Market Disagreement API (`/api/analytics/disagreement`)
+
+Identifies games where bookmakers post significantly different lines — surfacing potential value from consensus divergence. All endpoints require session authentication.
+
+#### `GET /api/analytics/disagreement/live`
+Current high-disagreement games.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `threshold` | number | 60 | Min disagreement score 1-100 |
+| `limit` | number | 20 | Max games (1-100) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "games": [
+      {
+        "gameId": "uuid",
+        "marketType": "spreads",
+        "disagreementScore": 78,
+        "consensus": {
+          "medianLine": -3.5,
+          "meanLine": -3.1,
+          "interquartileRange": 1.5,
+          "bestValueSide": "away",
+          "bestValueBookmaker": "betmgm",
+          "bestValueLine": -2.0
+        },
+        "game": { "homeTeamName": "...", "awayTeamName": "...", "commenceTime": "..." }
+      }
+    ],
+    "threshold": 60,
+    "count": 7
+  }
+}
+```
+
+#### `GET /api/analytics/disagreement/game/:gameId`
+Consensus breakdown for all markets of a specific game.
+
+**Response:** Latest `MarketConsensus` rows per market type, without any score-threshold filter.
+
+#### `GET /api/analytics/disagreement/trends`
+Historical disagreement scores over time for a game.
+
+**Query Parameters:**
+- `gameId` (string, required): Game UUID
+- `marketType` (string, optional): Filter by market (`h2h`, `spreads`, `totals`)
+
+#### `GET /api/analytics/disagreement/bookmaker/:bookmaker`
+How often a specific bookmaker posts an outlier line.
+
+**Query Parameters:**
+- `days` (number): Look-back window (default 30, max 365)
+
+**Response:** `{success, data: {bookmaker, outlierFrequency, totalMarkets, outlierCount, period}}`
+
+---
+
+### Analytics Bookmaker Performance API (`/api/analytics/bookmakers`)
+
+Persistent analytics ranking sportsbooks by value, sharpness, reliability, and market coverage. Data is computed daily by a background job (02:00 UTC) and cached in the `bookmaker_analytics` table. All endpoints require session authentication.
+
+#### `GET /api/analytics/bookmakers/rankings`
+Ranked list of all bookmakers.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `criteria` | string | `recommendation` | `value`, `sharpness`, `reliability`, `coverage`, `limits`, `recommendation` |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "rankings": [
+      {
+        "bookmaker": "pinnacle",
+        "recommendationScore": 92,
+        "sharpBookRating": 10,
+        "bestOddsFrequency": 0.68,
+        "averageCLVOffered": 1.8,
+        "limitProfile": "high",
+        "updatedAt": "2026-08-15T02:05:00Z"
+      }
+    ],
+    "criteria": "recommendation",
+    "count": 12
+  }
+}
+```
+
+#### `GET /api/analytics/bookmakers/sharp`
+Bookmakers with `sharpBookRating >= 8`, ordered by rating descending.
+
+**Response:** `{success, data: [BookmakerAnalytics, ...]}`
+
+#### `GET /api/analytics/bookmakers/compare`
+Side-by-side comparison of specified bookmakers.
+
+**Query Parameters:**
+- `books` (string, required): Comma-separated bookmaker keys (e.g., `draftkings,fanduel,betmgm`)
+
+**Response:** `{success, data: [BookmakerAnalytics, ...]}`
+
+#### `GET /api/analytics/bookmakers/best-value/:sport`
+Bookmaker with best value (highest average CLV) for a specific sport.
+
+**Path Parameters:**
+- `sport` (string): Sport key (e.g., `basketball_nba`)
+
+#### `GET /api/analytics/bookmakers/:bookmaker`
+Full analytics record for a single bookmaker.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "bookmaker": "draftkings",
+    "recommendationScore": 85,
+    "sharpBookRating": 7,
+    "bestOddsFrequency": 0.52,
+    "averageCLVOffered": 1.2,
+    "uptimePercentage": null,
+    "limitProfile": "medium",
+    "marketCoverage": ["h2h", "spreads", "totals"],
+    "sportCoverage": ["americanfootball_nfl", "basketball_nba", "baseball_mlb"],
+    "updatedAt": "2026-08-15T02:05:00Z"
+  }
+}
+```
+
+**404** if no analytics have been computed yet (run the batch job first: `POST /api/admin/sync-bookmaker-analytics`).
+
+#### `GET /api/analytics/bookmakers/:bookmaker/movement`
+Bookmaker movement events for a specific bookmaker.
+
+**Response:** `{success, data: [BookmakerMovementEvent, ...]}`
+
+**Notes:**
+- Metrics are recomputed every 24 hours. Stale after 48+ hours.
+- `averageCLVOffered` is calculated from `BetLeg` records; null if no bets exist.
+- `uptimePercentage` is not yet tracked and will be null.
+- `recommendationScore` is null if required inputs are missing.
+
+---
+
+### Analytics Arbitrage API (`/api/analytics/arbitrage`)
+
+Detects guaranteed-profit arbitrage opportunities and middle opportunities across bookmakers. Scans automatically after each odds sync (~10 min cadence) and expires stale results. All endpoints require session authentication.
+
+#### `GET /api/analytics/arbitrage/live`
+Active opportunities, best profit first.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | number | 25 | Max results (1-100) |
+| `minProfit` | number | — | Minimum profit percentage |
+| `arbType` | string | — | `two-way`, `three-way`, or `middle` |
+| `marketType` | string | — | `h2h`, `spreads`, or `totals` |
+| `maxSnapshotAge` | number | — | Max age of underlying odds snapshot (seconds) — use this to reject stale lines before acting |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "opportunities": [
+      {
+        "id": "uuid",
+        "gameId": "uuid",
+        "arbType": "two-way",
+        "marketType": "h2h",
+        "profitPercentage": 2.3,
+        "legs": [
+          { "bookmaker": "pinnacle", "selection": "home", "price": -108, "impliedProb": 0.519 },
+          { "bookmaker": "betmgm", "selection": "away", "price": 115, "impliedProb": 0.465 }
+        ],
+        "totalImpliedProb": 0.984,
+        "riskFactors": [],
+        "oddsSnapshotAge": 180,
+        "detectedAt": "2026-08-15T14:22:00Z",
+        "game": { "homeTeamName": "...", "awayTeamName": "...", "commenceTime": "..." }
+      }
+    ],
+    "count": 3,
+    "retrievedAt": "2026-08-15T14:22:05Z"
+  }
+}
+```
+
+**Risk Factors:**
+| Value | Description |
+|-------|-------------|
+| `stale_snapshot` | Underlying odds snapshot > 5 minutes old |
+| `high_odds_drift` | One leg's price drifted > 5% since snapshot |
+| `suspicious_profit` | Profit > 10% — likely a data error |
+| `near_start` | Game starts in < 15 minutes |
+| `account_exposure` | Bookmaker known for limiting winners |
+
+#### `GET /api/analytics/arbitrage/history`
+Previously detected opportunities.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | number | 50 | Max results (1-200) |
+| `daysBack` | number | 7 | Look-back window (1-90) |
+| `status` | string | — | `active`, `expired`, or `taken` |
+| `mine` | boolean | — | Restrict to caller's taken opportunities |
+
+#### `GET /api/analytics/arbitrage/stats`
+Summary statistics.
+
+**Response:** `{success, data: {totalFound, totalTaken, avgProfitPct, byType: {...}, byMarket: {...}}}`
+
+#### `GET /api/analytics/arbitrage/:id`
+Single opportunity by UUID.
+
+#### `POST /api/analytics/arbitrage/calculator`
+Calculate optimal per-leg stakes for a given total stake.
+
+**Request Body:**
+```json
+{
+  "opportunityId": "uuid",
+  "totalStake": 1000
+}
+```
+
+**Response:** `{success, data: {legs: [{bookmaker, selection, stake, potentialPayout}], guaranteedProfit, profitPct}}`
+
+#### `POST /api/analytics/arbitrage/:id/take`
+Mark an opportunity as taken (records action for history).
+
+**Response:** `{success, data: {id, status: "taken", takenAt}}`
+
+**Configuration (env vars):**
+- `ARBITRAGE_SCAN_ENABLED` — enable/disable scanning (default `true`)
+- `ARBITRAGE_SCAN_CRON` — cron schedule (default: triggered by odds-sync event)
+- `ARBITRAGE_MIN_PROFIT_PCT` — minimum profit % to record (default `0.5`)
+- `ARBITRAGE_DEFAULT_STAKE` — default stake for calculator (default `1000`)
+- `ARBITRAGE_TTL_SECONDS` — how long to keep active (default `600`)
+- `ARBITRAGE_MIN_MIDDLE_PROBABILITY` — minimum middle hit probability to record (default `0.05`)
+
+---
+
+### Analytics Correlation API (`/api/analytics/correlation`)
+
+Detects correlation between parlay legs, computes a correlation-adjusted true-odds figure, and finds pre-game hedging opportunities. Fully supports same-game parlays (SGP). All endpoints require session authentication.
+
+#### `POST /api/analytics/correlation/analyze`
+Correlation between two existing placed bet legs.
+
+**Request Body:**
+```json
+{
+  "betLeg1Id": "uuid",
+  "betLeg2Id": "uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "correlated": true,
+    "correlation": {
+      "type": "same_game",
+      "score": 0.85,
+      "description": "Spread and total from the same game tend to move together",
+      "riskLevel": "medium",
+      "suggestedFix": "Consider removing the spread leg or replacing with a different game total"
+    }
+  }
+}
+```
+
+**404** if a leg is not found or does not belong to the current user.
+
+**Correlation Types:**
+
+| Type | Description | Score |
+|------|-------------|-------|
+| `same_game` | Spread + total from the same game | 0.85 |
+| `derivative` | Moneyline + spread (same side, `\|line\| ≤ 3`) | 0.90 |
+| `inverse` | Opposite moneylines — hard-blocked in parlays | -1.0 |
+| `temporal` | Same team in two games within 48 hours | 0.40 |
+| `sgp_priced` | Legs sharing an `sgpGroupId` — expected correlation | — |
+
+#### `POST /api/analytics/correlation/parlay`
+Analyze a parlay for correlation issues and get a true-odds adjustment.
+
+**Request Body (one of):**
+```json
+{ "betId": "uuid" }
+```
+```json
+{ "legs": [{ "gameId": "uuid", "selectionType": "spread", "selection": "home", "odds": -110, "line": -3.5 }, ...] }
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "riskLevel": "medium",
+    "correlatedPairs": [
+      { "leg1Index": 0, "leg2Index": 1, "type": "same_game", "score": 0.85 }
+    ],
+    "trueOdds": 185,
+    "displayedOdds": 220,
+    "trueOddsAdjustment": -35,
+    "suggestedFix": "Separate the spread and total legs into different slips"
+  }
+}
+```
+
+#### `POST /api/analytics/correlation/hedge`
+Find pre-game hedging opportunities for an existing bet leg.
+
+**Request Body:**
+```json
+{ "betLegId": "uuid" }
+```
+
+**Response:** `{success, data: {hedges: [{bookmaker, selection, price, impliedStake, guaranteedProfit}]}}`
+
+**Note:** Pre-game only — no in-play odds feed in v1.
+
+#### `GET /api/analytics/correlation/history`
+Correlation analyses for the current user's bets.
+
+**Query Parameters:**
+- `limit` (number): Max results (default 50, max 200)
+- `riskLevel` (string): Filter by `low`, `medium`, or `high`
+- `mine` (boolean): Restrict to the current user's records
+
+#### `GET /api/analytics/correlation/education`
+Reference material explaining correlation types, scoring, and recommended actions.
+
+---
+
 ### Admin API (`/api/admin`)
 
 Administrative endpoints for system management and data initialization.
@@ -1711,7 +2208,7 @@ Get database statistics and overview.
   "data": {
     "database": {
       "sports": 7,
-      "teams": 124,
+      "teams": 153,
       "games": 458,
       "currentOdds": 6847,
       "oddsSnapshots": 45283,
@@ -1776,6 +2273,27 @@ Update one or more deployment-wide MCP risk thresholds. All fields are optional;
 **Field constraints:** All values must be positive numbers. `winRateLow` and `winRateHigh` must be between 0 and 100.
 
 **Response:** Same shape as `GET /api/admin/settings`.
+
+#### `POST /api/admin/sync-teams`
+Sync teams for all sports from API-Sports. Runs in the background and syncs 153 teams across NFL (34), NBA (34), NHL (32), NCAAB (23), and MLB (30).
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Team sync started in background"
+}
+```
+
+#### `POST /api/admin/sync-football-hourly-window`
+Trigger an immediate NFL/NCAAF window sync (default 96h back / 72h forward).
+
+**Response:** `{"status": "success", "message": "Football hourly sync started in background"}`
+
+#### `GET /api/admin/football-sync-status`
+Get the current status of the football hourly sync job.
+
+**Response:** `{"status": "success", "data": {"running": false, "lastRun": "...", "lastResult": {...}}}`
 
 
 Get current odds for a specific game.
@@ -2083,16 +2601,39 @@ Health check endpoint.
 
 React + TypeScript + Vite + Redux Toolkit + Tailwind CSS
 
+**Visual Theme:** Desert Sunset — dusk-purple dark / sand-paper light, `Press Start 2P` display font, `Space Grotesk` body text, gold/ember/terracotta accent palette. Three card treatments: notched panels, ink-bordered cards, and paper ticket stubs.
+
 ### Directory Structure
 
 ```
 src/
 ├── components/          # Reusable UI components
+│   ├── analytics/      # Analytics widgets (arbitrage, correlation, line movement)
 │   ├── bets/           # Bet-related components
+│   ├── filters/        # Sidebar filter components
 │   ├── odds/           # Odds display components
 │   ├── stats/          # Statistics components
 │   └── common/         # Shared components
 ├── pages/              # Route pages
+│   ├── Home.tsx
+│   ├── EnhancedDashboard.tsx
+│   ├── BetHistory.tsx
+│   ├── Stats.tsx
+│   ├── Futures.tsx
+│   ├── GameDetail.tsx
+│   ├── TeamDetail.tsx
+│   ├── LineMovementAnalytics.tsx   ← /analytics/movements
+│   ├── CLVAnalytics.tsx            ← /analytics/clv
+│   ├── SharpMoneyAnalytics.tsx     ← /analytics/sharp
+│   ├── BookmakerPerformance.tsx    ← /analytics/bookmakers
+│   ├── ArbitrageDashboard.tsx      ← /analytics/arbitrage
+│   ├── CorrelationDashboard.tsx    ← /analytics/correlation
+│   ├── ValueOpportunities.tsx
+│   ├── Notifications.tsx
+│   ├── Login.tsx
+│   ├── Preferences.tsx
+│   ├── ApiKeysSettings.tsx
+│   └── AdminSettings.tsx
 ├── store/              # Redux store
 ├── services/           # API clients
 ├── hooks/              # Custom React hooks
@@ -2103,19 +2644,17 @@ src/
 ### State Management (Redux Toolkit)
 
 #### Store Configuration (`store/index.ts`)
-```typescript
-import { configureStore } from '@reduxjs/toolkit';
-import betSlipReducer from './betSlipSlice';
 
-export const store = configureStore({
-  reducer: {
-    betSlip: betSlipReducer,
-  },
-});
+All active slices:
 
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
-```
+| Slice | State Shape |
+|-------|-------------|
+| `betSlip` | Bet legs, bet type, stake, teaser points |
+| `sharp` | Sharp indicators, contrarian opportunities, stats |
+| `movement` | Live movements, game movements, steam alerts |
+| `bookmaker` | Rankings, bookmaker detail, outlier stats |
+| `arbitrage` | Live opportunities, history, calculator state |
+| `correlation` | Analysis results, parlay warnings, staleness guard |
 
 #### Bet Slip Slice (`store/betSlipSlice.ts`)
 
@@ -2307,6 +2846,57 @@ Performance analytics and insights.
 - Charts: P&L over time, win rate by sport, bet distribution
 - Best/worst performing sports/bet types
 - Recent activity feed
+
+#### `pages/LineMovementAnalytics.tsx`
+Line movement analysis at `/analytics/movements`.
+
+**Features:**
+- Filter by movement type (steam, reverse, gradual, injury)
+- Steam move alert widget (polls every 60 s)
+- Per-game movement breakdown modal
+- Movement performance timeframe selector (24h, 7d, 30d)
+
+#### `pages/CLVAnalytics.tsx`
+Closing Line Value tracking at `/analytics/clv`.
+
+**Features:**
+- Summary stats (average CLV, positive/negative breakdown)
+- CLV by sport and bookmaker
+- Individual bet CLV history
+
+#### `pages/SharpMoneyAnalytics.tsx`
+Sharp vs public money indicators at `/analytics/sharp`.
+
+**Features:**
+- Live indicators grid with confidence badge (1-10 scale)
+- Contrarian picks tab with min-confidence filter
+- Stats summary bar and legend
+
+#### `pages/BookmakerPerformance.tsx`
+Bookmaker analytics at `/analytics/bookmakers`.
+
+**Features:**
+- **Rankings tab**: Sortable list by value/sharpness/reliability/coverage/limits/recommendation
+- **Detail tab**: Full metrics, market/sport coverage pills, consensus outlier analysis
+
+#### `pages/ArbitrageDashboard.tsx`
+Arbitrage and middles at `/analytics/arbitrage`.
+
+**Features:**
+- Live opportunities polling every 30 s with snapshot-age badges
+- Middle finder with modelled hit probability and EV
+- 2-to-4 leg stake calculator
+- Alert settings (min profit, max stake, max snapshot age) persisted locally
+- In-app notifications for new opportunities
+
+#### `pages/CorrelationDashboard.tsx`
+Parlay correlation analysis at `/analytics/correlation`.
+
+**Features:**
+- Correlation heatmap
+- Hedge calculator
+- Analysis history and education tabs
+- Real-time `ParlayValidator` wired into `BetSlip` (🟢/🟡/🔴/⛔ warning badge with inline true odds)
 
 ### TypeScript Types
 

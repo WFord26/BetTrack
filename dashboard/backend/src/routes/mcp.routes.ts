@@ -14,6 +14,7 @@ import {
   getMcpGameOdds,
   searchTeams
 } from '../controllers/mcp.controller';
+import mcpAnalyticsRoutes from './mcp-analytics.routes';
 
 const router = Router();
 
@@ -134,5 +135,22 @@ router.get('/bets/:id', requirePermission('bets'), getMcpBetById);
  * Search teams by name
  */
 router.get('/teams/search', validateQuery(teamSearchQuerySchema), searchTeams);
+
+// ============================================================================
+// ANALYTICS ROUTES
+// ============================================================================
+
+/**
+ * /api/mcp/analytics/*
+ *
+ * API key authenticated mirrors of the session gated `/api/analytics/*`
+ * routers (arbitrage, CLV, sharp money, line movement, market disagreement,
+ * bookmaker metrics). Read only — every endpoint here is a GET apart from
+ * the stateless arbitrage stake calculator.
+ *
+ * `apiKeyAuth` is already applied above; `stats` permission is enforced
+ * here so a bets only key cannot read analytics.
+ */
+router.use('/analytics', requirePermission('stats'), mcpAnalyticsRoutes);
 
 export default router;

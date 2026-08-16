@@ -57,82 +57,63 @@ export default function LineMovementAnalytics() {
     ? movements
     : movements.filter(m => m.marketType === marketType);
 
+  const pageCls = isDarkMode ? 'min-h-screen bg-dusk' : 'min-h-screen ds-sand-bg';
+  const selectCls = `w-full font-display text-[7px] tracking-[.06em] px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gold ${
+    isDarkMode ? 'bg-dusk-panel2 text-cream border-0' : 'bg-sand-panel2 text-ink border-2 border-ink'
+  }`;
+
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className={pageCls}>
       {/* Header */}
-      <div className={`border-b ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+      <div className={isDarkMode ? 'bg-dusk-chrome' : 'bg-terra shadow-[0_4px_0_#3a2413]'}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-4xl">📈</span>
-            <div>
-              <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Line Movement Analytics
-              </h1>
-              <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Track and analyze sharp action across bookmakers
-              </p>
-            </div>
+          <div className="mb-4">
+            <p className={`font-display text-[8px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-ember' : 'text-terra-text opacity-80'}`}>
+              THE WIRE
+            </p>
+            <h1
+              className={`font-display text-[19px] ${isDarkMode ? 'text-cream' : 'text-terra-text'}`}
+              style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '3px 3px 0 #3a2413' }}
+            >
+              LINE MOVEMENT
+            </h1>
+            <p className={`font-body mt-2 text-sm ${isDarkMode ? 'text-cream-muted' : 'text-terra-muted'}`}>
+              Track and analyze sharp action across bookmakers
+            </p>
           </div>
 
           {/* Filters */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-6">
-            {/* Movement Type Filter */}
             <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Movement Type
+              <label className={`block font-display text-[6px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-cream-muted' : 'text-terra-muted'}`}>
+                MOVEMENT TYPE
               </label>
-              <select
-                value={movementType}
-                onChange={(e) => setMovementType(e.target.value)}
-                className={`w-full px-3 py-2 rounded border ${
-                  isDarkMode
-                    ? 'bg-gray-750 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              >
+              <select value={movementType} onChange={(e) => setMovementType(e.target.value)} className={selectCls}>
                 <option value="all">All Types</option>
-                <option value="steam">🔥 Steam Moves</option>
-                <option value="reverse">⬅️ Reverse Moves</option>
-                <option value="gradual">📊 Gradual Moves</option>
-                <option value="injury">🏥 Injury News</option>
+                <option value="steam">Steam Moves</option>
+                <option value="reverse">Reverse Moves</option>
+                <option value="gradual">Gradual Moves</option>
+                <option value="injury">Injury News</option>
               </select>
             </div>
 
-            {/* Market Type Filter */}
             <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Market Type
+              <label className={`block font-display text-[6px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-cream-muted' : 'text-terra-muted'}`}>
+                MARKET TYPE
               </label>
-              <select
-                value={marketType}
-                onChange={(e) => setMarketType(e.target.value)}
-                className={`w-full px-3 py-2 rounded border ${
-                  isDarkMode
-                    ? 'bg-gray-750 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              >
+              <select value={marketType} onChange={(e) => setMarketType(e.target.value)} className={selectCls}>
                 <option value="all">All Markets</option>
-                <option value="h2h">Moneyline (H2H)</option>
+                <option value="h2h">Moneyline</option>
                 <option value="spreads">Point Spreads</option>
                 <option value="totals">Over/Unders</option>
               </select>
             </div>
 
-            {/* Time Range Filter */}
             <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Time Range
+              <label className={`block font-display text-[6px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-cream-muted' : 'text-terra-muted'}`}>
+                TIME RANGE
               </label>
-              <select
-                value={hoursBack}
-                onChange={(e) => setHoursBack(parseInt(e.target.value, 10))}
-                className={`w-full px-3 py-2 rounded border ${
-                  isDarkMode
-                    ? 'bg-gray-750 border-gray-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              >
+              <select value={hoursBack} onChange={(e) => setHoursBack(parseInt(e.target.value, 10))} className={selectCls}>
                 <option value={4}>Last 4 hours</option>
                 <option value={24}>Last 24 hours</option>
                 <option value={168}>Last 7 days</option>
@@ -140,17 +121,12 @@ export default function LineMovementAnalytics() {
               </select>
             </div>
 
-            {/* Results Count */}
             <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Results
+              <label className={`block font-display text-[6px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-cream-muted' : 'text-terra-muted'}`}>
+                RESULTS
               </label>
-              <div className={`px-3 py-2 rounded border ${
-                isDarkMode
-                  ? 'bg-gray-750 border-gray-600'
-                  : 'bg-gray-50 border-gray-300'
-              }`}>
-                <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <div className={`px-3 py-2.5 ${isDarkMode ? 'bg-dusk-panel2' : 'bg-sand-panel2 border-2 border-ink'}`}>
+                <span className={`font-display text-[7px] ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
                   {filteredMovements.length} movements
                 </span>
               </div>
@@ -162,19 +138,15 @@ export default function LineMovementAnalytics() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className={`mb-6 p-4 rounded border-l-4 ${isDarkMode ? 'bg-red-900/20 border-red-600 text-red-200' : 'bg-red-100 border-red-400 text-red-800'}`}>
-            <p className="font-medium">Error loading movements</p>
-            <p className="text-sm mt-1">{error}</p>
+          <div className={`mb-6 p-4 border-l-4 ${isDarkMode ? 'bg-coral-chip border-coral text-coral' : 'bg-[#fceaea] border-[#c0392b] text-[#c0392b]'}`}>
+            <p className="font-display text-[8px] tracking-[.06em] mb-1">ERROR LOADING MOVEMENTS</p>
+            <p className="font-body text-sm">{error}</p>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Main Content - Left (2 columns) */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Steam Move Alert Widget */}
             <SteamMoveAlert limit={20} refreshInterval={60000} />
-
-            {/* Movement Timeline */}
             <LineMovementChart
               movements={filteredMovements}
               marketType={marketType === 'all' ? undefined : (marketType as any)}
@@ -182,21 +154,14 @@ export default function LineMovementAnalytics() {
             />
           </div>
 
-          {/* Sidebar - Right (1 column) */}
           <div className="space-y-6">
-            {/* Performance Stats */}
-            <LineMovementPerformance
-              hoursBack={hoursBack}
-              showChart={true}
-              compact={false}
-            />
+            <LineMovementPerformance hoursBack={hoursBack} showChart={true} compact={false} />
 
-            {/* Quick Stats */}
-            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg border p-4`}>
-              <h3 className={`text-sm font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Quick Tips
+            <div className={isDarkMode ? 'ds-panel p-4' : 'ds-card-ink p-4'}>
+              <h3 className={`font-display text-[8px] tracking-[.08em] mb-3 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
+                QUICK TIPS
               </h3>
-              <ul className={`text-sm space-y-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <ul className={`font-body text-sm space-y-2 ${isDarkMode ? 'text-cream-secondary' : 'text-ink-secondary'}`}>
                 <li>🔥 <strong>Steam</strong> = Sharp/coordinated action</li>
                 <li>⬅️ <strong>Reverse</strong> = Line vs public sentiment</li>
                 <li>📊 <strong>Gradual</strong> = Slow information drift</li>
@@ -204,30 +169,23 @@ export default function LineMovementAnalytics() {
               </ul>
             </div>
 
-            {/* Legend */}
-            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg border p-4`}>
-              <h3 className={`text-sm font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Severity Levels
+            <div className={isDarkMode ? 'ds-panel p-4' : 'ds-card-ink p-4'}>
+              <h3 className={`font-display text-[8px] tracking-[.08em] mb-3 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
+                SEVERITY LEVELS
               </h3>
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-600"></div>
-                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <strong>Critical:</strong> 5+ books, 2.5+ pts
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-orange-600"></div>
-                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <strong>High:</strong> 4+ books, 2+ pts
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-600"></div>
-                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <strong>Medium:</strong> 3+ books, 1.5+ pts
-                  </span>
-                </div>
+                {[
+                  { color: '#ef5350', label: 'Critical', desc: '5+ books, 2.5+ pts' },
+                  { color: '#f97b2c', label: 'High', desc: '4+ books, 2+ pts' },
+                  { color: '#fcc63a', label: 'Medium', desc: '3+ books, 1.5+ pts' },
+                ].map(({ color, label, desc }) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <div className="w-3 h-3 flex-shrink-0" style={{ background: color }} />
+                    <span className={`font-body text-sm ${isDarkMode ? 'text-cream-secondary' : 'text-ink-secondary'}`}>
+                      <strong className={isDarkMode ? 'text-cream' : 'text-ink'}>{label}:</strong> {desc}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

@@ -162,6 +162,7 @@ model Game {
   lineMovements        LineMovement[]
   bookmakerMovementEvents BookmakerMovementEvent[]
   sharpMoneyIndicators SharpMoneyIndicator[]
+  arbitrageOpportunities ArbitrageOpportunity[]
 
   @@index([commenceTime])
   @@index([status])
@@ -432,6 +433,8 @@ model User {
   bets        Bet[]
   apiKeys     ApiKey[]
   clvStats    UserCLVStats[]
+  arbitrageOpportunities ArbitrageOpportunity[]
+  parlayAnalyses ParlayAnalysis[]
 
   @@unique([provider, providerId])
   @@index([email])
@@ -458,6 +461,7 @@ model Bet {
   user            User?          @relation(fields: [userId], references: [id])
   legs            BetLeg[]
   futureLegs      BetLegFuture[]
+  parlayAnalyses  ParlayAnalysis[]
 
   @@index([status])
   @@index([placedAt])
@@ -488,6 +492,8 @@ model BetLeg {
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   bet                Bet      @relation(fields: [betId], references: [id], onDelete: Cascade)
   game               Game     @relation(fields: [gameId], references: [id])
+  correlationsAsLeg1 BetLegCorrelation[] @relation("betLeg1_correlations")
+  correlationsAsLeg2 BetLegCorrelation[] @relation("betLeg2_correlations")
 
   @@index([gameId])
   @@index([bookmaker])
@@ -600,6 +606,55 @@ model SharpMoneyIndicator {
   @@map("sharp_money_indicators")
 }
 
+// Arbitrage / middle opportunities detected across bookmakers
+model ArbitrageOpportunity {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId           String    @map("game_id") @db.Uuid
+  detectedAt       DateTime  @default(now()) @map("detected_at") @db.Timestamptz(6)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+
+  // Opportunity type
+  arbType          String    @map("arb_type") @db.VarChar(20)    // two-way, three-way, middle
+  marketType       String    @map("market_type") @db.VarChar(20) // h2h, spreads, totals
+
+  // Profitability
+  profitPercentage Decimal   @map("profit_percentage") @db.Decimal(5, 2)
+  stake            Decimal   @db.Decimal(10, 2)
+  expectedProfit   Decimal   @map("expected_profit") @db.Decimal(10, 2)
+
+  // Legs: [{ side, label, bookmaker, odds, line, stake, toWin }]
+  legs             Json
+
+  // Middle specific (null for pure arbitrage)
+  middleProbability Decimal? @map("middle_probability") @db.Decimal(5, 4)
+  middleGapLow      Decimal? @map("middle_gap_low") @db.Decimal(6, 2)
+  middleGapHigh     Decimal? @map("middle_gap_high") @db.Decimal(6, 2)
+
+  // Risk assessment
+  riskLevel        String    @map("risk_level") @db.VarChar(20)  // low, medium, high
+  riskFactors      String[]  @map("risk_factors")
+  limitRisk        Boolean   @map("limit_risk")
+  oddsDrift        Decimal?  @map("odds_drift") @db.Decimal(5, 2)
+  oddsSnapshotAge  Int       @map("odds_snapshot_age")           // Seconds since the odds were synced
+
+  // Status
+  status           String    @default("active") @db.VarChar(20)  // active, expired, taken
+  takenAt          DateTime? @map("taken_at") @db.Timestamptz(6)
+  userId           String?   @map("user_id") @db.Uuid
+  actualProfit     Decimal?  @map("actual_profit") @db.Decimal(10, 2)
+
+  game             Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user             User?     @relation(fields: [userId], references: [id])
+
+  @@index([gameId])
+  @@index([status])
+  @@index([profitPercentage])
+  @@index([detectedAt])
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("arbitrage_opportunities")
+}
+
 // Site configuration for branding
 model SiteConfig {
   id        Int      @id @default(1)
@@ -610,6 +665,72 @@ model SiteConfig {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("site_config")
+}
+
+// Correlation between two legs of a parlay (same-game, derivative, inverse, temporal)
+model BetLegCorrelation {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Correlated legs (note: BetLeg, not Bet)
+  betLeg1Id         String   @map("bet_leg1_id") @db.Uuid
+  betLeg2Id         String   @map("bet_leg2_id") @db.Uuid
+
+  // Correlation metrics
+  correlationType   String   @map("correlation_type") @db.VarChar(30) // same-game, derivative, inverse, temporal
+  correlationScore  Decimal  @map("correlation_score") @db.Decimal(5, 4) // -1.0 to 1.0
+  confidence        Decimal  @db.Decimal(5, 4)                          // 0.0 to 1.0
+
+  // Analysis
+  reasoning         String?  @db.Text
+  commonFactors     Json?    @map("common_factors")
+
+  // Validation
+  historicalSamples Int?     @map("historical_samples")
+  pValue            Decimal? @map("p_value") @db.Decimal(6, 5)
+
+  betLeg1 BetLeg @relation("betLeg1_correlations", fields: [betLeg1Id], references: [id], onDelete: Cascade)
+  betLeg2 BetLeg @relation("betLeg2_correlations", fields: [betLeg2Id], references: [id], onDelete: Cascade)
+
+  @@unique([betLeg1Id, betLeg2Id])
+  @@index([correlationType])
+  @@index([correlationScore])
+  @@map("bet_leg_correlations")
+}
+
+// Correlation-adjusted analysis of a parlay (placed bet or draft slip)
+model ParlayAnalysis {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  userId            String   @map("user_id") @db.Uuid
+
+  // Parlay details — legs analyzed (may be a draft slip before the Bet is created)
+  betLegIds         String[] @map("bet_leg_ids") @db.Uuid
+  betId             String?  @map("bet_id") @db.Uuid // Set once the parlay is actually placed
+  nominalOdds       Int      @map("nominal_odds")    // Advertised combined odds
+  trueOdds          Int      @map("true_odds")       // Correlation-adjusted
+  oddsDiscrepancy   Decimal  @map("odds_discrepancy") @db.Decimal(5, 2) // % difference
+
+  // Risk assessment
+  riskLevel         String   @map("risk_level") @db.VarChar(20) // low, medium, high
+  correlationFlags  Json     @map("correlation_flags")          // [{ betLeg1Id, betLeg2Id, type, score }]
+
+  // Recommendation
+  recommendation    String   @db.VarChar(30) // approve, warning, reject
+  reasoning         String   @db.Text
+  suggestedFix      String?  @map("suggested_fix") @db.Text
+
+  // Outcome (if placed)
+  placed            Boolean  @default(false)
+  actualResult      String?  @map("actual_result") @db.VarChar(20) // won, lost, push
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bet  Bet?  @relation(fields: [betId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([riskLevel])
+  @@map("parlay_analyses")
 }
 
 // Deployment-wide settings for configurable MCP risk thresholds
