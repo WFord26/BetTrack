@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP Analytics Surface** (`/api/mcp/analytics/*`): API key authenticated mirrors of the session gated `/api/analytics/*` routers, so Claude Desktop can now reach the analytics suite that was previously reachable only from a logged in browser session
+  - Backend: new `routes/mcp-analytics.routes.ts` covering arbitrage (live, history, stats, stake calculator, by id), CLV (summary, by sport, by bookmaker, full report), sharp money (live, per game, contrarian, stats), line movement (live, per game, stats), market disagreement (live, per game), and bookmaker analytics (rankings, sharp books, compare, best value by sport, per book metrics, outlier stats)
+  - Backend: mounted from `mcp.routes.ts` via `router.use('/analytics', requirePermission('stats'), mcpAnalyticsRoutes)`, so `apiKeyAuth` is inherited from the parent router and a `bets` only key cannot read analytics
+  - Backend: handlers call the same service singletons as the session routes (`arbitrageService`, `clvService`, `sharpIndicatorService`, `marketConsensusService`, `bookmakerAnalyticsService`, `LineMovementService`); no analytics logic is duplicated
+  - Security: read only by design. The session routers' mutating endpoints (`POST /arbitrage/:id/take`, `POST /clv/calculate/:betId`, `POST /clv/update-stats`) are deliberately not mirrored, so a `stats` key can never change state. The one `POST` on this surface is the stateless arbitrage stake calculator, which persists nothing
+  - Security: user scoped queries resolve the caller from `req.apiKey.userId` rather than a session user, matching the `getScopedUserId` contract (undefined means no user filter, consistent with `AUTH_MODE=none`)
+  - Route ordering: dynamic segments are declared after their static siblings (`/arbitrage/:id` after `/arbitrage/live|history|stats|calculator`, `/bookmakers/:bookmaker` after `/bookmakers/rankings|sharp|compare|best-value/:sport` and after `/bookmakers/:bookmaker/outliers`) so specific paths are never shadowed
+
 - **Bet Correlation Analysis** (Phase 3, issue #10): Detects correlation between the legs of a parlay, computes a correlation-adjusted true-odds figure, and surfaces pre-game hedging opportunities
   - Backend: `BetLegCorrelation` + `ParlayAnalysis` models and migration `20260815120000_add_bet_correlation_analysis`, with `BetLeg`/`Bet`/`User` back-relations
   - Backend: `correlationService` singleton — pairwise detection for same-game (spread+total), derivative (moneyline+small spread, same side), inverse (opposite moneylines, hard-blocked), and temporal (same team, games within 48h) correlation; `analyzeParlay`/`analyzeDraftSlip` flag pairs beyond ±30%, respect existing `sgpGroupId` groupings as priced/expected rather than a mistake, and produce a risk-scored approve/warning/reject recommendation
