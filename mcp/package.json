@@ -29,13 +29,5 @@
   "bugs": {
     "url": "https://github.com/WFord26/Sports-Odds-MCP/issues"
   },
-  "homepage": "https://github.com/WFord26/Sports-Odds-MCP#readme",
-  "dependencies": {
-    "mcp": "^1.0.0",
-    "aiohttp": "^3.9.0",
-    "python-dotenv": "^1.0.0"
-  },
-  "engines": {
-    "python": ">=3.11"
-  }
+  "homepage": "https://github.com/WFord26/Sports-Odds-MCP#readme"
 }
