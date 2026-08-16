@@ -49,6 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Split the two oversized backend services** (tech debt, issue #73): `arbitrage.service.ts` (1,096 lines) and `bet.service.ts` (1,030 lines) each became a thin entry point over a directory of single-responsibility modules
+  - Backend: `services/arbitrage/` — types, config, calculator (stake maths), finder (pure detection), alert (risk + notification), scanner (scan loop and persistence), query (the analytics reads). `arbitrage.service.ts` is now a 123-line facade
+  - Backend: `services/bet/` — crud, analytics, validation, odds, formatter. `bet.service.ts` is now a 77-line facade
+  - Public API unchanged: `arbitrageService`, `betService`, the service classes, and every exported detection helper and type still resolve from the same two paths, so no route, job, controller or test import moved
+  - See [dashboard/backend/CHANGELOG.md](backend/CHANGELOG.md) for the per-module breakdown
+
 - **`BaseStatsService` — de-duplicated the API-Sports stats services** (tech debt, issue #72): `src/services/api-sports/` went from seven near-identical services (2,948 lines, no shared base, no tests) to an abstract base plus thin per-sport adapters (~2,115 lines, 35 tests)
   - Backend: new `base-stats.service.ts` — `BaseStatsService<TGame>` owns client construction, quota accounting, live-game fetching, `syncTeams`/`syncTeamStats`, and the team/game/player Prisma helpers; `ScheduledStatsService<TGame>` adds the date-range walk for the three sports (NFL, NCAAF, MLB) with a usable dated `/games` query
   - Backend: new `american-football.service.ts` — NFL and NCAAF share a host and therefore a `/games` payload, so schedule handling, game reconciliation and season labelling collapse into one class; only the differing `/games/statistics` shapes stay per-sport
