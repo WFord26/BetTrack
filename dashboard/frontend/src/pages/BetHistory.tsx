@@ -4,6 +4,7 @@ import { Bet } from '../types/game.types';
 import { useDarkMode } from '../contexts/DarkModeContext';
 import { formatCurrency } from '../utils/format';
 import api from '../services/api';
+import { logger } from '../utils/logger';
 
 const STATUS_OPTIONS = ['all', 'pending', 'won', 'lost', 'push', 'cancelled'] as const;
 
@@ -65,7 +66,7 @@ export default function BetHistory() {
       setHasMore(newBets.length === limit);
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching bets:', err);
+      logger.error('Error fetching bets:', err);
       setError(err.response?.data?.message || 'Failed to load bets');
     } finally {
       setLoading(false);

@@ -23,6 +23,7 @@ import {
 } from '../store/betSlipSlice';
 import { BetLeg, FutureLeg } from '../types/game.types';
 import api from '../services/api';
+import { logger } from '../utils/logger';
 
 interface SubmitBetParams {
   name: string;
@@ -92,7 +93,7 @@ export function useBetSlip() {
     setSubmitError(null);
 
     try {
-      console.log('Submitting bet:', { 
+      logger.debug('Submitting bet:', { 
         betType,
         stake,
         boostedCombinedOdds,
@@ -116,7 +117,7 @@ export function useBetSlip() {
       // Only add boostedCombinedOdds if it's defined
       if (boostedCombinedOdds !== undefined) {
         betData.boostedCombinedOdds = boostedCombinedOdds;
-        console.log('Adding boostedCombinedOdds to request:', boostedCombinedOdds);
+        logger.debug('Adding boostedCombinedOdds to request:', boostedCombinedOdds);
       }
 
       // Include futures legs if present

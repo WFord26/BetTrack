@@ -49,10 +49,10 @@ export default defineConfig({
         'dist/'
       ],
       thresholds: {
-        lines: 8,
-        functions: 8,
-        branches: 8,
-        statements: 8
+        lines: 13,
+        functions: 13,
+        branches: 13,
+        statements: 13
       }
     },
     // maxForks:1 runs one file at a time, each in its own fresh fork process,

@@ -5,6 +5,7 @@ import { useDarkMode } from '../contexts/DarkModeContext';
 import { formatOdds } from '../utils/format';
 import { addFutureLeg } from '../store/betSlipSlice';
 import apiClient from '../services/api';
+import { logger } from '../utils/logger';
 
 interface Outcome {
   outcome: string;
@@ -66,7 +67,7 @@ export default function Futures() {
       });
       setTimeout(() => fetchFutures(), 3000);
     } catch (err) {
-      console.error('Sync failed:', err);
+      logger.error('Sync failed:', err);
     }
   };
 

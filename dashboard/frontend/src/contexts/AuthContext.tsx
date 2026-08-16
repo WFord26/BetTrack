@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../services/api';
+import { logger } from '../utils/logger';
 
 interface User {
   id: string;
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(status.user);
       setProviders(status.providers);
     } catch (error) {
-      console.error('Failed to fetch auth status:', error);
+      logger.error('Failed to fetch auth status:', error);
       setAuthEnabled(false);
       setAuthMode('none');
       setUser(null);
@@ -84,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       window.location.href = '/';
     } catch (error) {
-      console.error('Logout failed:', error);
+      logger.error('Logout failed:', error);
     }
   };
 

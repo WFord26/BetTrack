@@ -14,6 +14,8 @@ import sharpReducer from '../store/sharpSlice';
 import bookmakerReducer from '../store/bookmakerSlice';
 import arbitrageReducer from '../store/arbitrageSlice';
 import correlationReducer from '../store/correlationSlice';
+import { AuthProvider } from '../contexts/AuthContext';
+import { DarkModeProvider } from '../contexts/DarkModeContext';
 import type { RootState } from '../store';
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
@@ -22,7 +24,7 @@ interface ExtendedRenderOptions extends Omit<RenderOptions, 'queries'> {
 }
 
 /**
- * Render component with Redux store and Router
+ * Render component with Redux store, Router, and context providers
  */
 export function renderWithProviders(
   ui: ReactElement,
@@ -48,9 +50,13 @@ export function renderWithProviders(
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <Provider store={store}>
-        <BrowserRouter>
-          {children}
-        </BrowserRouter>
+        <DarkModeProvider>
+          <AuthProvider>
+            <BrowserRouter>
+              {children}
+            </BrowserRouter>
+          </AuthProvider>
+        </DarkModeProvider>
       </Provider>
     );
   }

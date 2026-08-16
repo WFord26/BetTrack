@@ -1,13 +1,7 @@
 import express from 'express';
 import { apiKeyAuth } from '../middleware/api-key-auth';
 import { prisma } from '../config/database';
-
-// Simple logger
-const logger = {
-  info: (...args: any[]) => console.log('[INFO]', ...args),
-  warn: (...args: any[]) => console.warn('[WARN]', ...args),
-  error: (...args: any[]) => console.error('[ERROR]', ...args)
-};
+import { logger } from '../config/logger';
 
 const router = express.Router();
 

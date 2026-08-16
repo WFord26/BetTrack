@@ -28,6 +28,15 @@ export default [
       'react-refresh/only-export-components': 'off', // Allow exporting hooks and contexts
       'no-unused-vars': 'off',
       'no-undef': 'off',
+      // Use the logger from src/utils/logger.ts instead of console.
+      'no-console': 'error',
+    }
+  },
+  {
+    // The logger wraps console, and tests spy on it directly.
+    files: ['src/utils/logger.ts', 'src/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
     }
   }
 ];

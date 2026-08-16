@@ -5,6 +5,11 @@
  * 
  * Example:
  *   tsx src/scripts/create-api-token.ts "Claude Desktop" 365
+ *
+ * Note: this script deliberately uses console rather than the Winston logger.
+ * The generated key is shown once and must not be persisted to logs/, which is
+ * where every logger transport would write it. It is allowlisted for the
+ * `no-console` eslint rule in eslint.config.js for that reason.
  */
 
 import { prisma } from '../config/database';

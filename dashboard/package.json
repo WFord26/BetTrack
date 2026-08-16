@@ -22,10 +22,17 @@
     "bump:major": "npm run bump -- --force major"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "react-router-dom": "^7.18.2",
+    "tar": "^7.5.22"
   }
 }

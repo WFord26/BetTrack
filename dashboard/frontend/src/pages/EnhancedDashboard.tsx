@@ -4,6 +4,7 @@ import EnhancedGameCard from '../components/odds/EnhancedGameCard';
 import BetSlip from '../components/bets/BetSlip';
 import { useDarkMode } from '../contexts/DarkModeContext';
 import api from '../services/api';
+import { logger } from '../utils/logger';
 
 interface Game {
   id: string;
@@ -53,7 +54,7 @@ export default function EnhancedDashboard() {
       const fetchedGames = response.data.data?.games || response.data.games || [];
       setGames(fetchedGames);
     } catch (err: any) {
-      console.error('Error fetching games:', err);
+      logger.error('Error fetching games:', err);
       setError(err.response?.data?.message || 'Failed to load games');
     } finally {
       setLoading(false);

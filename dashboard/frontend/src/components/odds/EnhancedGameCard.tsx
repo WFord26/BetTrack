@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { addLeg } from '../../store/betSlipSlice';
 import { formatTime, getSportDisplayName } from '../../utils/format';
 import { useDarkMode } from '../../contexts/DarkModeContext';
+import { logger } from '../../utils/logger';
 
 interface Bookmaker {
   key: string;
@@ -241,7 +242,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
   const primaryBookmaker = game.bookmakers?.[0]?.key || 'draftkings';
   const bookmakerInfo = BOOKMAKER_INFO[primaryBookmaker] || { logo: '🎲', color: 'bg-gray-600', useImage: false };
   
-  console.log('Game data:', { 
+  logger.debug('Game data:', { 
     id: game.id, 
     period: game.period, 
     clock: game.clock, 

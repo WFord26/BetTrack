@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # NPM dependencies in dashboard
+  - package-ecosystem: npm
+    directory: /dashboard
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+    groups:
+      production-dependencies:
+        dependency-type: production
+      dev-dependencies:
+        dependency-type: development
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "WFord26"
+    commit-message:
+      prefix: "chore(deps):"
+      prefix-major: "chore(deps-major):"
+      prefix-minor: "chore(deps-minor):"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "/"
+
+  # Python dependencies in mcp
+  - package-ecosystem: pip
+    directory: /mcp
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:30"
+    reviewers:
+      - "WFord26"
+    commit-message:
+      prefix: "chore(python):"
+      prefix-major: "chore(python-major):"
+      prefix-minor: "chore(python-minor):"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "/"
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+    reviewers:
+      - "WFord26"
+    commit-message:
+      prefix: "chore(actions):"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "/"

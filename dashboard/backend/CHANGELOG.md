@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Dependency Management & Quality (issues #62-#63, #66, #68)**:
+  - npm audit: Reduced vulnerabilities from 23 to 4; key upgrades: vitest 3.2.4→4.1.10, vite 6.4.3→8.2.1, react-router-dom 6.30.4→7.18.2, bcrypt to latest
+  - Coverage thresholds ratchet: Established baseline coverage gates with {branches:34, functions:56, lines:52, statements:51}; configured Jest to enforce ratchet policy (only increase, never decrease)
+  - Node.js runtime: Upgraded Docker images from node:20-alpine to node:22-alpine; updated package.json engines constraint to >=22.0.0
+  - asyncHandler middleware: Created `/src/utils/async-handler.ts` utility for centralized async route error handling; created `/src/schemas/query-params.schema.ts` with Zod validation schemas; documented one-file-per-PR migration strategy in ASYNC-HANDLER-MIGRATION.md (to eliminate 63+ hand-rolled try/catch blocks across 17 route files)
+
+### Added
+
+- **asyncHandler Middleware Infrastructure (issue #68)**:
+  - `/src/utils/async-handler.ts`: Express middleware wrapper for async route handlers; catches errors and passes to Express error middleware
+  - `/src/schemas/query-params.schema.ts`: Reusable Zod schemas for query parameter validation (pagination, date ranges, sorting)
+  - `ASYNC-HANDLER-MIGRATION.md`: Comprehensive migration guide with examples, priority order, and checklist for refactoring existing route handlers
+
 ---
 
 ## [0.4.3] - 2026-08-16
