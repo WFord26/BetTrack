@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.3] - 2026-08-16
+
 ### Added
 
 - **Response cache** (`sports_api/cache.py`): TTL cache in front of every Odds API and ESPN request. Repeated questions inside a conversation no longer each cost a request against the 500 a month free tier.
