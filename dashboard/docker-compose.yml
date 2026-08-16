@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: sports_betting_dashboard
       POSTGRES_USER: sports_user
-      POSTGRES_PASSWORD: sports_password_change_in_production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sports_dev}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
@@ -29,7 +29,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://sports_user:sports_password_change_in_production@postgres:5432/sports_betting_dashboard
+      DATABASE_URL: postgresql://sports_user:${POSTGRES_PASSWORD:-sports_dev}@postgres:5432/sports_betting_dashboard
       PORT: 3001
       NODE_ENV: development
       LOG_LEVEL: info
