@@ -158,6 +158,9 @@ dashboard/frontend/dist/
 dashboard/frontend/dist-ssr/
 dashboard/build/
 dashboard/coverage/
+dashboard/backend/coverage/
+dashboard/frontend/coverage/
+dashboard/dist/
 dashboard/backend/logs/
 dashboard/*.db
 dashboard/*.db-*
