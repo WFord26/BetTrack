@@ -51,9 +51,10 @@ The BetTrack Dashboard is a full-featured web application for tracking sports be
 
 - **Bet Management**: Create, track, and settle bets across multiple sports
 - **Odds Visualization**: Line movement charts with Recharts
-- **Performance Analytics**: Win rates, ROI, profit/loss tracking
-- **Background Jobs**: Automated odds syncing and bet settlement
-- **Multi-Sport Support**: NFL, NBA, NHL, MLB, Soccer leagues
+- **Performance Analytics**: Win rates, ROI, profit/loss, Closing Line Value (CLV)
+- **Background Jobs**: Automated odds syncing, team sync, NFL/NCAAF hourly window, and bet settlement
+- **Multi-Sport Support**: NFL, NBA, NHL, MLB, NCAAB, Soccer leagues
+- **Advanced Analytics**: Sharp money indicators, bookmaker performance rankings, arbitrage/middle detection, parlay correlation analysis
 
 ### 🏗️ Technology Stack
 
@@ -100,22 +101,33 @@ The BetTrack Dashboard is a full-featured web application for tracking sports be
 │         Node.js Backend (Port 3001)                     │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │  Express API Routes                             │   │
-│  │  - /api/games                                   │   │
-│  │  - /api/bets                                    │   │
-│  │  - /api/odds                                    │   │
-│  │  - /api/admin                                   │   │
+│  │  - /api/games, /api/bets, /api/admin            │   │
+│  │  - /api/mcp/*, /api/mcp/analytics/*             │   │
+│  │  - /api/analytics/clv                           │   │
+│  │  - /api/analytics/sharp                         │   │
+│  │  - /api/analytics/movements                     │   │
+│  │  - /api/analytics/disagreement                  │   │
+│  │  - /api/analytics/bookmakers                    │   │
+│  │  - /api/analytics/arbitrage                     │   │
+│  │  - /api/analytics/correlation                   │   │
 │  └──────────────────┬──────────────────────────────┘   │
 │  ┌──────────────────┴──────────────────────────────┐   │
 │  │  Service Layer                                  │   │
-│  │  - OddsSyncService (background)                 │   │
-│  │  - BetService                                   │   │
+│  │  - OddsSyncService, BetService, GameService     │   │
 │  │  - OutcomeService (background)                  │   │
-│  │  - GameService                                  │   │
+│  │  - LineMovementService, ArbitrageService        │   │
+│  │  - BookmakerAnalyticsService, CorrelationSvc    │   │
+│  │  - CLVService, SharpIndicatorService            │   │
+│  │  - MarketConsensusService, StatsSyncService     │   │
 │  └──────────────────┬──────────────────────────────┘   │
 │  ┌──────────────────┴──────────────────────────────┐   │
 │  │  Scheduled Jobs (node-cron)                     │   │
-│  │  - Odds sync: Every 5 minutes                   │   │
+│  │  - Odds sync: ~10 minutes                       │   │
 │  │  - Outcome resolution: Hourly                   │   │
+│  │  - Arbitrage scan: after each odds sync         │   │
+│  │  - Bookmaker analytics: Daily 02:00 UTC         │   │
+│  │  - Football window sync: Hourly                 │   │
+│  │  - MLB hourly window sync                       │   │
 │  └──────────────────┬──────────────────────────────┘   │
 └────────────────────┼────────────────────────────────────┘
                      │ Prisma ORM
@@ -123,13 +135,17 @@ The BetTrack Dashboard is a full-featured web application for tracking sports be
 ┌─────────────────────────────────────────────────────────┐
 │         PostgreSQL Database                             │
 │  - Sports, Teams, Games                                 │
-│  - Bets, OddSnapshots                                   │
+│  - Bets, OddSnapshots, CurrentOdds                      │
+│  - MarketConsensus, SharpMoneyIndicator                 │
+│  - BookmakerAnalytics, ArbitrageOpportunity             │
+│  - BetLegCorrelation, ParlayAnalysis                    │
 │  - Indexes for performance                              │
 └─────────────────────────────────────────────────────────┘
 
 External APIs:
 - The Odds API (betting odds)
 - ESPN API (games, scores, teams)
+- API-Sports (live stats: NBA, NFL, NCAAF, NHL, MLB)
 ```
 
 ### Key Design Patterns
@@ -290,16 +306,11 @@ const betSlipSlice = createSlice({
 
 ### Styling
 
-**Tailwind CSS** utility-first approach:
-
-```tsx
-<div className="bg-white rounded-lg shadow-md p-4">
-  <h3 className="font-bold text-lg">{game.homeTeam}</h3>
-  <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-    Bet
-  </button>
-</div>
-```
+**Tailwind CSS** with Desert Sunset token system:
+- Dark mode: `dusk-*` purple palette with `gold`/`ember`/`terra-*`/`coral-*`/`plum` accents
+- Light mode: `cream-*` / `sand-*` / `ink-*` palette
+- Card treatments: `.ds-panel` (notched), `.ds-card-ink` (bordered), ticket stub (bet history)
+- Fonts: `Press Start 2P` (display headings), `Space Grotesk` (body)
 
 **Full Guide**: [Frontend Guide](Frontend-Guide.md)
 
@@ -311,21 +322,55 @@ const betSlipSlice = createSlice({
 
 ```
 src/
-├── routes/              # Express route handlers
+├── routes/                         # Express route handlers
 │   ├── games.routes.ts
 │   ├── bets.routes.ts
-│   ├── odds.routes.ts
-│   └── admin.routes.ts
-├── services/            # Business logic
+│   ├── admin.routes.ts
+│   ├── auth.routes.ts
+│   ├── api-keys.routes.ts
+│   ├── futures.routes.ts
+│   ├── stats.routes.ts
+│   ├── mcp.routes.ts
+│   ├── mcp-analytics.routes.ts
+│   ├── analytics-clv.routes.ts
+│   ├── analytics-sharp.routes.ts
+│   ├── analytics-movements.routes.ts
+│   ├── analytics-disagreement.routes.ts
+│   ├── analytics-bookmaker.routes.ts
+│   ├── analytics-arbitrage.routes.ts
+│   └── analytics-correlation.routes.ts
+├── services/                       # Business logic
 │   ├── odds-sync.service.ts
 │   ├── bet.service.ts
 │   ├── outcome.service.ts
-│   └── game.service.ts
-├── jobs/                # Scheduled cron jobs
+│   ├── game.service.ts
+│   ├── line-movement.service.ts
+│   ├── arbitrage.service.ts
+│   ├── bookmaker-analytics.service.ts
+│   ├── correlation.service.ts
+│   ├── clv.service.ts
+│   ├── sharp-indicator.service.ts
+│   ├── market-consensus.service.ts
+│   ├── stats-sync.service.ts
+│   └── api-sports/                 # API-Sports per-sport services
+│       ├── nba.service.ts
+│       ├── nfl.service.ts
+│       ├── ncaaf.service.ts
+│       ├── nhl.service.ts
+│       ├── mlb.service.ts
+│       └── ncaab.service.ts
+├── jobs/                           # Scheduled cron jobs
 │   ├── odds-sync.job.ts
-│   └── outcome-resolver.job.ts
-└── middleware/          # Express middleware
+│   ├── outcome-resolver.job.ts
+│   ├── arbitrage-scan.job.ts
+│   ├── bookmaker-analytics.job.ts
+│   ├── football-hourly-sync.job.ts
+│   └── mlb-hourly-sync.job.ts
+└── middleware/                     # Express middleware
+    ├── auth-session.middleware.ts
+    ├── api-key.middleware.ts
     ├── error.middleware.ts
+    ├── validation.middleware.ts
     └── logger.middleware.ts
 ```
 
@@ -369,6 +414,15 @@ POST /api/admin/sync-odds
 POST /api/admin/resolve-outcomes
   Trigger background bet settlement
 
+POST /api/admin/sync-teams
+  Sync teams for all sports from API-Sports (background)
+
+POST /api/admin/sync-football-hourly-window
+  Trigger immediate NFL/NCAAF window sync (background)
+
+GET /api/admin/football-sync-status
+  Football hourly sync job status
+
 GET /api/admin/stats
   Database statistics
 
@@ -380,36 +434,41 @@ GET /api/admin/health
 
 #### Odds Sync Job
 
-Runs every 5 minutes to update odds from The Odds API.
-
-```typescript
-cron.schedule('*/5 * * * *', async () => {
-  await oddsSyncService.syncOdds();
-});
-```
+Runs approximately every 10 minutes to update odds from The Odds API. Emits an `odds-sync:completed` event on finish so downstream jobs (arbitrage scan) react immediately.
 
 **Process**:
 1. Fetch odds from The Odds API for all active sports
 2. Upsert games in database
 3. Create odds snapshots for time-series
-4. Log API usage (requests remaining)
+4. Emit `odds-sync:completed` event
+5. Log API usage (requests remaining)
 
 #### Outcome Resolution Job
 
 Runs hourly to settle pending bets based on game results.
 
-```typescript
-cron.schedule('0 * * * *', async () => {
-  await outcomeService.resolveOutcomes();
-});
-```
-
 **Process**:
 1. Find completed games with pending bets
-2. Fetch final scores
+2. Fetch final scores from ESPN
 3. Determine bet outcomes (won/lost/push)
 4. Calculate payouts
 5. Update bet status
+
+#### Arbitrage Scan Job
+
+Runs automatically after each odds sync (triggered by `odds-sync:completed` event). A 30-second cron pass expires stale opportunities and re-scans only if a sync notification was missed.
+
+#### Bookmaker Analytics Job
+
+Runs daily at 02:00 UTC. Computes value, sharpness, and reliability metrics for each bookmaker and persists them in `bookmaker_analytics`. Also runs immediately on startup if the table is empty or more than 48 hours stale.
+
+#### Football Hourly Sync Job
+
+Runs hourly, syncing NFL and NCAAF over a rolling window (96 h back / 72 h forward). Uses a re-entrancy guard and pauses on API-Sports quota exhaustion.
+
+#### MLB Hourly Sync Job
+
+Runs hourly, syncing MLB games over a rolling window. Shares the same pattern as the football sync job.
 
 ### Timezone Handling
 
@@ -443,10 +502,15 @@ const games = await prisma.game.findMany({
 
 **Core Models**:
 - `Sport` - Available sports leagues
-- `Team` - Teams across all sports
-- `Game` - Individual sporting events
-- `Bet` - User bets on games
-- `OddSnapshot` - Historical odds for charting
+- `Team` - Teams across all sports (153 teams: NFL, NBA, NHL, NCAAB, MLB)
+- `Game` - Individual sporting events (shared between odds and stats sources via `game-resolver`)
+- `Bet` / `BetLeg` - User bets and parlay legs
+- `OddSnapshot` / `CurrentOdds` - Historical and current odds
+- `MarketConsensus` - Bookmaker line consensus and dispersion metrics
+- `SharpMoneyIndicator` - Steam move and reverse line movement data
+- `BookmakerAnalytics` / `BookmakerMovementEvent` - Bookmaker performance data
+- `ArbitrageOpportunity` - Detected arbitrage and middle opportunities
+- `BetLegCorrelation` / `ParlayAnalysis` - Correlation analysis records
 
 ### Key Relationships
 
@@ -514,8 +578,8 @@ npm run prisma:studio
 **User Flow**:
 1. Browse games on home page
 2. Click odds to add bet to slip
-3. Enter stake amount
-4. Review potential payout
+3. Enter stake amount — `ParlayValidator` checks for correlated legs in real time
+4. Review potential payout (true-odds adjusted if correlation detected)
 5. Submit bets to backend
 6. Bets saved with "pending" status
 
@@ -608,6 +672,38 @@ Each sport has:
 - Dedicated odds sync
 - Team reference data
 - Sport-specific markets
+
+### 6. Sharp Money Analytics
+
+Live steam move and reverse line movement indicators at `/analytics/sharp`:
+- Per-game sharp-confidence score (1-10 scale)
+- Contrarian picks tab (sharp side opposing likely public side)
+- Stats bar by movement type and market
+
+### 7. Bookmaker Performance Analytics
+
+Daily-computed rankings at `/analytics/bookmakers`:
+- Value, sharpness, reliability, coverage, and limit profiles
+- Side-by-side comparison for selected bookmakers
+- Best-value bookmaker by sport
+- Outlier detection based on consensus divergence
+
+### 8. Arbitrage & Middle Detection
+
+Real-time guaranteed-profit opportunity detection at `/analytics/arbitrage`:
+- 2-way, 3-way, and middle opportunities
+- Line-aware detection (prevents false arb from different lines)
+- Stake calculator with per-leg guarantees
+- Snapshot age badge (amber > 2.5 min, red > 5 min)
+- In-app alert settings with local persistence
+
+### 9. Parlay Correlation Analysis
+
+Correlation-aware true-odds at `/analytics/correlation`:
+- Real-time `ParlayValidator` in the bet slip (debounced on leg changes)
+- Heatmap, hedge calculator, and education reference
+- 4 correlation types: same-game, derivative, inverse (hard-blocked), temporal
+- Stale-request guard so out-of-order responses don't overwrite current state
 
 ---
 
