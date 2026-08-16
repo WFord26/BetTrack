@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-
 - **Response cache** (`sports_api/cache.py`): TTL cache in front of every Odds API and ESPN request. Repeated questions inside a conversation no longer each cost a request against the 500 a month free tier.
   - Concurrent identical requests are coalesced: 8 parallel calls for the same scoreboard issue 1 upstream request, not 8.
   - Only successful responses are stored, so an upstream blip cannot be cached into a full TTL window of guaranteed failure.
@@ -26,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-
 - **`search_odds` no longer fans out across four sports by default.** It infers the league from the team name ("Chiefs" to NFL, "Red Sox" to MLB) and queries only that one, falling back to the full sweep only when the name is genuinely ambiguous (such as "Rangers") or the guess returns nothing. A typical unfiltered search drops from 4 requests to 1.
 - **`search_odds` now reports `sports_searched`**, and surfaces per-sport failures under `partial_errors` instead of silently returning fewer results.
 - **`markets` defaults to `h2h` explicitly** in `get_odds` and `get_event_odds`. The API already defaulted to it, but omitting the parameter produced a second cache entry for a request identical to the explicit one.
@@ -41,11 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-
 - **Real HTTPS enforcement warning**: plain `http://` pointed at a non-loopback `DASHBOARD_API_URL` now logs an explicit warning that the API key and bet data will travel unencrypted. Previously this was only a comment in `.env.example`. Loopback addresses (`localhost`, `127.0.0.1`, `::1`) stay silent.
 
 ### Fixed
-
 
 - **Naive substring team matching.** `query.lower() in team.lower()` meant "LA" matched Dal**la**s Mavericks, At**la**nta Hawks, and Phi**la**delphia 76ers, and "Sox" could not distinguish Boston from Chicago. Matching is now word aware, with short queries required to match a whole word or a known abbreviation.
 
