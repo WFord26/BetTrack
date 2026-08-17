@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.0] - 2026-08-16
+
 ### Added
 
 - **MCP Analytics Surface** (`/api/mcp/analytics/*`): API key authenticated mirrors of the session gated `/api/analytics/*` routers, so Claude Desktop can now reach the analytics suite that was previously reachable only from a logged in browser session

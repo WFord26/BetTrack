@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.0.0] - 2026-08-16
+
 ### Changed
 
 - **`sports_mcp_server.py` split into `sports_api/tools/` (issue #74)**: The 1,540-line monolith (25+ inline tool definitions, one 261-line function) is now a ~220-line composition root — env/config loading, handler wiring, and five `register_*_tools(mcp, ...)` calls.

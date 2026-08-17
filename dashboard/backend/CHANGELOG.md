@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.5.0] - 2026-08-16
+
 ### Changed
 
 - **Split the two oversized services — arbitrage and bet (issue #73)**: `arbitrage.service.ts` (1,096 lines) and `bet.service.ts` (1,030 lines) each became a thin entry point over a directory of single-responsibility modules. The public API is unchanged: `arbitrageService` / `betService`, the `ArbitrageService` / `BetService` classes, and every exported detection helper and type still resolve from the same two paths, so no route, job, controller or test import moved.
