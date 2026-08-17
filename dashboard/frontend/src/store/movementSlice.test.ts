@@ -41,6 +41,13 @@ function makeStore() {
   return configureStore({ reducer: { movements: reducer } });
 }
 
+/**
+ * The argument a caller leaves off. `createAsyncThunk` types its thunk arg as
+ * required even when the payload creator declares a default, so this is how a
+ * typed test reaches the runtime default the slice actually ships.
+ */
+const omitted = undefined as never;
+
 describe('movementSlice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -196,7 +203,7 @@ describe('movementSlice', () => {
       });
       const store = makeStore();
 
-      await store.dispatch(fetchMovementStats());
+      await store.dispatch(fetchMovementStats(omitted));
 
       expect(mockService.getMovementStats).toHaveBeenCalledWith(24);
     });
@@ -224,7 +231,7 @@ describe('movementSlice', () => {
       mockService.getSteamMoves.mockRejectedValue(axiosError('Steam feed unavailable'));
       const store = makeStore();
 
-      await store.dispatch(fetchSteamMoves());
+      await store.dispatch(fetchSteamMoves(omitted));
 
       expect(store.getState().movements.error).toBe('Steam feed unavailable');
     });

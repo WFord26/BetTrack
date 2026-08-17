@@ -19,7 +19,11 @@
     "bump": "node ../scripts/bump-version.mjs",
     "bump:patch": "npm run bump -- --force patch",
     "bump:minor": "npm run bump -- --force minor",
-    "bump:major": "npm run bump -- --force major"
+    "bump:major": "npm run bump -- --force major",
+    "bump:ci": "npm run bump -- --no-input",
+    "bump:dry": "npm run bump -- --no-input --dry-run",
+    "bump:tag": "npm run bump -- --tag",
+    "test:bump": "node --test ../scripts/bump-version.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

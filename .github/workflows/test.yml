@@ -6,12 +6,14 @@ on:
     paths:
       - 'dashboard/**'
       - 'mcp/**'
+      - 'scripts/**'
       - '.github/workflows/test.yml'
   push:
     branches: [main, dev, beta]
     paths:
       - 'dashboard/**'
       - 'mcp/**'
+      - 'scripts/**'
       - '.github/workflows/test.yml'
 
 permissions:
@@ -255,10 +257,33 @@ jobs:
             exit $code
           fi
 
+  bump-script-tests:
+    name: Version Bump Script
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The script and its tests are dependency-free (node:test only), so there
+      # is nothing to install.
+      - name: Run bump script tests
+        run: node --test scripts/bump-version.test.mjs
+
+      # Catches a manifest that has drifted off semver, a missing package.json,
+      # or a changelog the level inference cannot read.
+      - name: Validate bump plan against the real manifests
+        run: node scripts/bump-version.mjs --no-input --dry-run
+
   build-validation:
     name: Build Validation
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests, mcp-validation]
+    needs: [backend-tests, frontend-tests, mcp-validation, bump-script-tests]
     
     steps:
       - name: Checkout code
@@ -267,10 +292,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: dashboard/package-lock.json
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

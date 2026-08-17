@@ -44,6 +44,13 @@ function makeStore() {
   return configureStore({ reducer: { sharp: reducer } });
 }
 
+/**
+ * The argument a caller leaves off. `createAsyncThunk` types its thunk arg as
+ * required even when the payload creator declares a default, so this is how a
+ * typed test reaches the runtime default the slice actually ships.
+ */
+const omitted = undefined as never;
+
 describe('sharpSlice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -95,7 +102,7 @@ describe('sharpSlice', () => {
       mockService.getLiveIndicators.mockRejectedValue(axiosError('Sharp feed unavailable'));
       const store = makeStore();
 
-      await store.dispatch(fetchLiveIndicators());
+      await store.dispatch(fetchLiveIndicators(omitted));
 
       expect(store.getState().sharp.error).toBe('Sharp feed unavailable');
       expect(store.getState().sharp.loading).toBe(false);
@@ -105,7 +112,7 @@ describe('sharpSlice', () => {
       mockService.getLiveIndicators.mockRejectedValue(new Error('Network Error'));
       const store = makeStore();
 
-      await store.dispatch(fetchLiveIndicators());
+      await store.dispatch(fetchLiveIndicators(omitted));
 
       expect(store.getState().sharp.error).toBe('Failed to fetch sharp indicators');
     });
@@ -123,7 +130,7 @@ describe('sharpSlice', () => {
       });
       const store = makeStore();
 
-      await store.dispatch(fetchLiveIndicators());
+      await store.dispatch(fetchLiveIndicators(20));
       await store.dispatch(fetchGameIndicators('game-lal-bos'));
 
       const state = store.getState().sharp;
@@ -200,7 +207,7 @@ describe('sharpSlice', () => {
       mockService.getStats.mockResolvedValue(SHARP_STATS);
       const store = makeStore();
 
-      await store.dispatch(fetchSharpStats());
+      await store.dispatch(fetchSharpStats(omitted));
 
       expect(mockService.getStats).toHaveBeenCalledWith(24);
     });

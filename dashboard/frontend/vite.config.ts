@@ -48,11 +48,13 @@ export default defineConfig({
         '**/mockData',
         'dist/'
       ],
+      // Set just under the measured numbers (38.7 / 67.3 / 76.1 / 38.7) so an
+      // unrelated change cannot fail CI on rounding, while any real drop does.
       thresholds: {
-        lines: 13,
-        functions: 13,
-        branches: 13,
-        statements: 13
+        lines: 37,
+        functions: 65,
+        branches: 74,
+        statements: 37
       }
     },
     // maxForks:1 runs one file at a time, each in its own fresh fork process,

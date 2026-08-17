@@ -42,6 +42,13 @@ function makeStore() {
   return configureStore({ reducer: { bookmaker: reducer } });
 }
 
+/**
+ * The argument a caller leaves off. `createAsyncThunk` types its thunk arg as
+ * required even when the payload creator declares a default, so this is how a
+ * typed test reaches the runtime default the slice actually ships.
+ */
+const omitted = undefined as never;
+
 describe('bookmakerSlice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -94,7 +101,7 @@ describe('bookmakerSlice', () => {
       mockService.getRankings.mockRejectedValue(axiosError('Rankings not yet calculated'));
       const store = makeStore();
 
-      await store.dispatch(fetchRankings());
+      await store.dispatch(fetchRankings(omitted));
 
       expect(store.getState().bookmaker.error).toBe('Rankings not yet calculated');
       expect(store.getState().bookmaker.loading).toBe(false);
@@ -104,7 +111,7 @@ describe('bookmakerSlice', () => {
       mockService.getRankings.mockRejectedValue(new Error('Network Error'));
       const store = makeStore();
 
-      await store.dispatch(fetchRankings());
+      await store.dispatch(fetchRankings(omitted));
 
       expect(store.getState().bookmaker.error).toBe('Failed to fetch bookmaker rankings');
     });
@@ -122,7 +129,7 @@ describe('bookmakerSlice', () => {
       );
       const store = makeStore();
 
-      await store.dispatch(fetchRankings());
+      await store.dispatch(fetchRankings('recommendation'));
       await store.dispatch(fetchBookmakerDetail('fanduel'));
 
       const state = store.getState().bookmaker;

@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 async function loadLogger(isDev: boolean) {
   vi.resetModules();
-  vi.stubEnv('DEV', isDev as unknown as string);
+  vi.stubEnv('DEV', isDev);
   const { logger } = await import('./logger');
   return logger;
 }
