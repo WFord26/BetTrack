@@ -81,4 +81,4 @@ These YAML files follow the OpenAPI 3.1 standard. You can render them using:
 
 The API version tracks the dashboard backend package version. Check `dashboard/backend/package.json` for the current version.
 
-Current backend version: `0.2.11`
+Current backend version: `0.4.3`

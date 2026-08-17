@@ -626,7 +626,7 @@ function Build-Dashboard {
     try {
         # Check for Node.js
         if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-            Write-ColorOutput "Node.js not found. Please install Node.js 20+ from https://nodejs.org/" -Type Error
+            Write-ColorOutput "Node.js not found. Please install Node.js 22+ from https://nodejs.org/" -Type Error
             return $false
         }
         

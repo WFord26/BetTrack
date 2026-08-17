@@ -94,7 +94,7 @@ For the web-based bet tracking and analytics platform:
 
 👉 **[Complete Dashboard Setup Guide](dashboard/README.md)**
 
-Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compose configurations available for production deployment.
+Quick start: Requires Node.js 22+, PostgreSQL, and an Odds API key. Docker Compose configurations available for production deployment.
 
 ## Documentation
 
@@ -152,7 +152,7 @@ Quick start: Requires Node.js 20+, PostgreSQL, and an Odds API key. Docker Compo
 
 - **Frontend:** React 18, Vite, Redux Toolkit, Tailwind CSS with custom 8-bit pixel styling
 - **Design:** Retro 8-bit aesthetic with monospace fonts, pixel grid overlays, and arcade-inspired UI
-- **Backend:** Node.js 20, Express, TypeScript, Prisma ORM
+- **Backend:** Node.js 22, Express, TypeScript, Prisma ORM
 - **Database:** PostgreSQL 16
 - **Deployment:** Docker, Nginx, Let's Encrypt SSL
 

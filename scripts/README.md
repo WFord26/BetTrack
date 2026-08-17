@@ -13,7 +13,7 @@ The `build.ps1` PowerShell script provides comprehensive build automation for bo
 - **GitHub CLI** (optional): For automated GitHub releases
 
 ### For Dashboard Builds
-- **Node.js 20+**: Required for dashboard
+- **Node.js 22+**: Required for dashboard
 - **npm 10+**: Package manager (comes with Node.js)
 
 ## Usage
@@ -136,7 +136,7 @@ dashboard/dist/
 ```
 
 **Build process:**
-1. Check Node.js version (requires 20+)
+1. Check Node.js version (requires 22+)
 2. Install dependencies (if `node_modules/` missing)
 3. Build backend with TypeScript compiler
 4. Build frontend with Vite (production optimization)
@@ -179,7 +179,7 @@ Build the MCP server package (MCPB format).
 Build the web dashboard (React + Node.js).
 
 **Requires:**
-- Node.js 20+ installed
+- Node.js 22+ installed
 - Valid `package.json` in `dashboard/`, `dashboard/backend/`, `dashboard/frontend/`
 
 **Creates:**
@@ -334,7 +334,7 @@ cd ..
 ### Dashboard Build Issues
 
 **"Node.js not found"**
-- Install Node.js 20+ from https://nodejs.org/
+- Install Node.js 22+ from https://nodejs.org/
 - Verify installation: `node --version`
 
 **"Backend build failed"**

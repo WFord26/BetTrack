@@ -21,7 +21,7 @@ Complete guide for developers contributing to or extending BetTrack.
 
 - **Git** - Version control
 - **Python 3.11+** - MCP server development
-- **Node.js 20+** - Dashboard development
+- **Node.js 22+** - Dashboard development
 - **PostgreSQL 15+** - Database
 - **Docker** - Container testing (optional)
 - **VS Code** - Recommended IDE

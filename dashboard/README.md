@@ -6,7 +6,7 @@
 **A comprehensive full-stack sports betting tracker with real-time odds, futures betting, SGP support, and automatic bet settlement**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-blue.svg)](https://www.postgresql.org/)
 
@@ -47,7 +47,7 @@
 ## 🏗️ Tech Stack
 
 ### 🔧 Backend
-- **Runtime** - Node.js 20-alpine (Docker)
+- **Runtime** - Node.js 22-alpine (Docker)
 - **Language** - TypeScript 5.7.3 with strict mode
 - **Framework** - Express.js REST API
 - **Database** - PostgreSQL 16-alpine with Prisma ORM 5.22.0
@@ -66,7 +66,7 @@
 
 ## 📋 Prerequisites
 
-- Node.js 20+ and npm
+- Node.js 22+ and npm
 - PostgreSQL 16+
 - The Odds API key (free tier available at https://the-odds-api.com)
 

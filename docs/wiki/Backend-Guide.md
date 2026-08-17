@@ -64,7 +64,7 @@ The BetTrack backend is a RESTful API server built with Node.js, Express, TypeSc
     "nodemon": "^3.0.2",
     "jest": "^29.7.0",
     "@types/express": "^4.17.21",
-    "@types/node": "^20.10.6"
+    "@types/node": "^22.0.0"
   }
 }
 ```

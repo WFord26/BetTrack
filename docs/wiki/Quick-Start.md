@@ -75,7 +75,7 @@ Claude should respond with game information and betting lines!
 
 ### Prerequisites
 
-- **Node.js 20+** - [Download](https://nodejs.org/)
+- **Node.js 22+** - [Download](https://nodejs.org/)
 - **PostgreSQL 15+** - [Download](https://www.postgresql.org/download/)
 - **The Odds API key** - [Get key](https://the-odds-api.com)
 

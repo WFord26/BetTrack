@@ -67,7 +67,7 @@ The BetTrack Dashboard is a full-featured web application for tracking sports be
 - Vitest for testing
 
 **Backend**:
-- Node.js 20+ with TypeScript
+- Node.js 22+ with TypeScript
 - Express.js for HTTP routing
 - Prisma ORM for database access
 - PostgreSQL 15+ database
@@ -162,7 +162,7 @@ External APIs:
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - PostgreSQL 15+
 - The Odds API key
 

@@ -13,7 +13,7 @@ BetTrack consists of two coordinated applications sharing a PostgreSQL backend:
 | Component | Stack | Purpose |
 |-----------|-------|---------|
 | **MCP Server** | Python 3.11+, FastMCP, aiohttp | Claude Desktop integration — 23+ conversational betting tools |
-| **Dashboard Backend** | Node.js 20, Express, TypeScript, Prisma ORM | REST API, background jobs (odds sync, bet settlement, CLV capture) |
+| **Dashboard Backend** | Node.js 22, Express, TypeScript, Prisma ORM | REST API, background jobs (odds sync, bet settlement, CLV capture) |
 | **Dashboard Frontend** | React 18, Vite, Redux Toolkit, Tailwind CSS, Recharts | Web dashboard with retro 8-bit aesthetic |
 | **Database** | PostgreSQL 16 | Shared data store for bets, odds, games, analytics |
 | **Infrastructure** | Docker, Nginx, Let's Encrypt SSL | Self-hosted deployment |
@@ -148,7 +148,7 @@ All ADRs are in [`docs/architecture/`](./architecture/):
 See the main [README.md](../README.md) for setup instructions. Key requirements:
 
 - **MCP Server:** Python 3.11+, `pip install -r requirements.txt`
-- **Dashboard:** Node.js 20, PostgreSQL 16, `npm install` in `dashboard/`
+- **Dashboard:** Node.js 22, PostgreSQL 16, `npm install` in `dashboard/`
 - **Docker:** `docker-compose up` in `dashboard/` for full stack
 - **Environment:** Copy `.env.example` to `.env` and configure API keys
 

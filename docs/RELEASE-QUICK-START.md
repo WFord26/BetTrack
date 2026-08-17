@@ -90,10 +90,10 @@ See [dashboard/secrets/README.md](../dashboard/secrets/README.md) for advanced s
 ## Version Numbers
 
 **Release Tag**: `2026.01.12` (calendar-based)  
-**MCP Version**: `0.1.15` (semver)  
-**Dashboard Version**: `0.2.4` (semver)  
-**Backend Version**: `0.1.22` (semver)  
-**Frontend Version**: `0.2.4` (semver)
+**MCP Version**: `0.4.4` (semver)
+**Dashboard Version**: `0.2.5` (semver)
+**Backend Version**: `0.4.3` (semver)
+**Frontend Version**: `0.5.4` (semver)
 
 ## Prerequisites
 

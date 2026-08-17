@@ -378,7 +378,7 @@ build_dashboard() {
     fi
 
     if ! command -v node &>/dev/null; then
-        log_error "Node.js not found. Install Node.js 20+ from https://nodejs.org/"
+        log_error "Node.js not found. Install Node.js 22+ from https://nodejs.org/"
         return 1
     fi
     log_info "Using Node.js $(node --version)"

@@ -102,7 +102,7 @@ Before tagging a release:
 ```bash
 # Check database connection
 # Review test logs in GitHub Actions
-# Run tests locally with same Node version (20.x)
+# Run tests locally with same Node version (22.x)
 cd dashboard/backend
 npm ci  # Use exact versions from package-lock.json
 npm run test:ci

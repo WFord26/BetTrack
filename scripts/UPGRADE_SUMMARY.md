@@ -219,7 +219,7 @@ PS> .\build.ps1 -MCP -Beta
 ```
 
 ### Dashboard Build Requirements
-- Requires Node.js 20+
+- Requires Node.js 22+
 - Requires all npm dependencies installed
 - TypeScript compilation must pass
 - Vite build must complete
