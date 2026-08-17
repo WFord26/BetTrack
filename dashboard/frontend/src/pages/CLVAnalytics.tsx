@@ -157,8 +157,8 @@ export default function CLVAnalytics() {
               { label: 'BET TYPE', field: 'betType', options: [{ v: '', l: 'All Types' }, { v: 'moneyline', l: 'Moneyline' }, { v: 'spread', l: 'Spread' }, { v: 'total', l: 'Total' }, { v: 'player_prop', l: 'Player Props' }], value: localFilters.betType || '', onChange: (v: string) => setLocalFilters({ ...localFilters, betType: v || undefined }) },
             ].map(({ label, field, options, value, onChange }) => (
               <div key={field}>
-                <label className="block font-display text-[6px] tracking-[.1em] text-cream-muted mb-1.5">{label}</label>
-                <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-dusk-panel2 text-cream font-display text-[7px] tracking-[.06em] px-3 py-2 border-0 focus:outline-none focus:ring-2 focus:ring-gold">
+                <label htmlFor={`clv-filter-${field}`} className="block font-display text-[6px] tracking-[.1em] text-cream-muted mb-1.5">{label}</label>
+                <select id={`clv-filter-${field}`} value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-dusk-panel2 text-cream font-display text-[7px] tracking-[.06em] px-3 py-2 border-0 focus:outline-none focus:ring-2 focus:ring-gold">
                   {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                 </select>
               </div>

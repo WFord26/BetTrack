@@ -94,7 +94,7 @@ class TestScoreboardTable:
     """Tests for format_scoreboard_table() - Markdown table"""
 
     def test_table_structure(self):
-        """Verify table has correct markdown format"""
+        """Verify table has box-drawing structure and team names"""
         games = [
             {
                 "home_team": "Lakers",
@@ -104,12 +104,13 @@ class TestScoreboardTable:
                 "status": "completed",
             },
         ]
-        
+
         table = format_scoreboard_table(games)
-        
-        # Should be markdown table with pipes
-        assert "|" in table, "Table should use pipe separators"
-        assert "---" in table or ":-" in table, "Table should have separator row"
+
+        assert "│" in table, "Table should use box-drawing separators"
+        assert "Lakers" in table
+        assert "Celtics" in table
+        assert "118 - 120" in table
 
     def test_emoji_status_indicators(self):
         """Verify status emoji indicators are included"""
@@ -148,42 +149,37 @@ class TestStandingsTable:
     """Tests for format_standings_table() - Conference/division standings"""
 
     def test_standings_format(self):
-        """Verify standings table includes win percentages"""
+        """Verify standings table includes win/loss records"""
         standings = [
             {
-                "team": "Lakers",
-                "wins": 20,
-                "losses": 10,
-                "division": "Pacific",
+                "team": {"displayName": "Lakers"},
+                "stats": {"wins": 20, "losses": 10, "winPercent": ".667"},
             },
             {
-                "team": "Celtics",
-                "wins": 22,
-                "losses": 8,
-                "division": "Atlantic",
+                "team": {"displayName": "Celtics"},
+                "stats": {"wins": 22, "losses": 8, "winPercent": ".733"},
             },
         ]
-        
+
         table = format_standings_table(standings)
-        
+
         # Should include teams and records
         assert "Lakers" in table, "Lakers not in standings"
         assert "Celtics" in table, "Celtics not in standings"
-        assert "20" in table or ".667" in table, "Win data not in standings"
+        assert "20" in table and ".667" in table, "Win data not in standings"
 
     def test_division_grouping(self):
-        """Verify standings groups by division"""
+        """Verify standings lists every team, ranked in input order"""
         standings = [
-            {"team": "Lakers", "wins": 20, "losses": 10, "division": "Pacific"},
-            {"team": "Warriors", "wins": 18, "losses": 12, "division": "Pacific"},
-            {"team": "Celtics", "wins": 22, "losses": 8, "division": "Atlantic"},
+            {"team": {"displayName": "Lakers"}, "stats": {"wins": 20, "losses": 10}},
+            {"team": {"displayName": "Warriors"}, "stats": {"wins": 18, "losses": 12}},
+            {"team": {"displayName": "Celtics"}, "stats": {"wins": 22, "losses": 8}},
         ]
-        
+
         table = format_standings_table(standings)
-        
-        # Should contain multiple teams
-        assert "Lakers" in table and "Warriors" in table, "Pacific teams missing"
-        assert "Celtics" in table, "Atlantic team missing"
+
+        assert "Lakers" in table and "Warriors" in table
+        assert "Celtics" in table
 
 
 class TestOddsComparison:
@@ -191,43 +187,82 @@ class TestOddsComparison:
 
     def test_odds_table_format(self):
         """Verify odds comparison table structure"""
-        odds_data = {
-            "game": "Lakers vs Celtics",
-            "bookmakers": [
-                {
-                    "name": "DraftKings",
-                    "h2h": {"home": -110, "away": -110},
-                },
-                {
-                    "name": "FanDuel",
-                    "h2h": {"home": -110, "away": -110},
-                },
-            ],
-        }
-        
-        table = format_odds_comparison(odds_data)
-        
-        # Should include bookmaker names and odds
-        assert "DraftKings" in table or "FanDuel" in table, "Bookmakers not in table"
-        assert len(table) > 0, "Table is empty"
+        games = [
+            {
+                "home_team": "Lakers",
+                "away_team": "Celtics",
+                "bookmakers": [
+                    {
+                        "title": "DraftKings",
+                        "markets": [
+                            {
+                                "key": "h2h",
+                                "outcomes": [
+                                    {"name": "Lakers", "price": -110},
+                                    {"name": "Celtics", "price": -110},
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "title": "FanDuel",
+                        "markets": [
+                            {
+                                "key": "h2h",
+                                "outcomes": [
+                                    {"name": "Lakers", "price": -110},
+                                    {"name": "Celtics", "price": -110},
+                                ],
+                            }
+                        ],
+                    },
+                ],
+            }
+        ]
+
+        table = format_odds_comparison(games)
+
+        assert "DraftKings" in table and "FanDuel" in table, "Bookmakers not in table"
+        assert "Celtics @ Lakers" in table
 
     def test_odds_line_movement_display(self):
-        """Verify line movement is indicated if available"""
-        odds_data = {
-            "game": "Lakers vs Celtics",
-            "bookmakers": [
-                {
-                    "name": "DraftKings",
-                    "h2h": {"home": -110, "away": -105},
-                    "last_update": "2026-01-15T10:00:00Z",
-                },
-            ],
-        }
-        
-        table = format_odds_comparison(odds_data)
-        
-        # Should format odds numerically
-        assert len(table) > 0, "Table is empty"
+        """Verify per-outcome prices are rendered"""
+        games = [
+            {
+                "home_team": "Lakers",
+                "away_team": "Celtics",
+                "bookmakers": [
+                    {
+                        "title": "DraftKings",
+                        "markets": [
+                            {
+                                "key": "h2h",
+                                "outcomes": [
+                                    {"name": "Lakers", "price": -110},
+                                    {"name": "Celtics", "price": -105},
+                                ],
+                            }
+                        ],
+                    },
+                ],
+            }
+        ]
+
+        table = format_odds_comparison(games)
+
+        assert "-110" in table and "-105" in table
+
+    def test_no_bookmakers(self):
+        """A game with no bookmaker data still renders a section"""
+        games = [{"home_team": "Lakers", "away_team": "Celtics", "bookmakers": []}]
+
+        table = format_odds_comparison(games)
+
+        assert "No odds available" in table
+
+    def test_empty_games_list(self):
+        """An empty games list returns a friendly message"""
+        assert format_odds_comparison([]) == "No odds available."
 
 
 if __name__ == "__main__":

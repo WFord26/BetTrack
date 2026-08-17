@@ -267,8 +267,9 @@ export default function SharpMoneyAnalytics() {
           <div className="flex items-center gap-3 ml-auto">
             {activeTab === 'contrarian' && (
               <div className="flex items-center gap-2">
-                <label className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>MIN CONF:</label>
+                <label htmlFor="sharp-min-confidence" className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>MIN CONF:</label>
                 <select
+                  id="sharp-min-confidence"
                   value={minConfidence}
                   onChange={(e) => setMinConfidence(parseInt(e.target.value))}
                   className={`font-display text-[7px] px-2 py-1.5 focus:outline-none ${isDarkMode ? 'bg-dusk-panel2 text-cream border-0' : 'bg-sand-panel2 text-ink border-2 border-ink'}`}
@@ -281,8 +282,9 @@ export default function SharpMoneyAnalytics() {
             )}
 
             <div className="flex items-center gap-2">
-              <label className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>SHOW:</label>
+              <label htmlFor="sharp-limit" className={`font-display text-[6px] tracking-[.08em] ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>SHOW:</label>
               <select
+                id="sharp-limit"
                 value={limit}
                 onChange={(e) => setLimit(parseInt(e.target.value))}
                 className={`font-display text-[7px] px-2 py-1.5 focus:outline-none ${isDarkMode ? 'bg-dusk-panel2 text-cream border-0' : 'bg-sand-panel2 text-ink border-2 border-ink'}`}

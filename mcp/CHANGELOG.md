@@ -9,11 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`sports_mcp_server.py` split into `sports_api/tools/` (issue #74)**: The 1,540-line monolith (25+ inline tool definitions, one 261-line function) is now a ~220-line composition root — env/config loading, handler wiring, and five `register_*_tools(mcp, ...)` calls.
+  - New modules, each exposing one `register_*_tools()` function following the same pattern as `dashboard_api/tools.py`: `odds_tools.py` (5 tools), `espn_tools.py` (8 tools), `format_tools.py` (8 tools, including the combined odds+ESPN tool and `LEAGUE_SPORT_MAP`), `artifact_tools.py` (2 tools, the React artifact generators), `diagnostics_tools.py` (2 tools, cache/key status).
+  - Tool bodies, docstrings, and behavior are unchanged — verbatim moves, verified against the pre-refactor file with the new test suite and a live server-boot smoke test.
+  - `sports_api/tools/__init__.py` re-exports all five registration functions.
 - **Dependency Management (issue #65)**: Python dependencies now pinned with version constraints
   - Updated `requirements.txt` with exact minor-version pins: aiohttp>=3.9.0,<4.0.0, aiofiles>=23.2.0,<24.0.0, fastapi>=0.104.0,<0.105.0, pydantic>=2.5.0,<3.0.0, etc.
   - Created separate `requirements-dev.txt` for testing tools: pytest, pytest-asyncio, pytest-mock, pylint, black, mypy, type-stubs packages
   - Improves reproducibility and prevents unexpected breaking changes from transitive dependencies
   - Note: Requires Python 3.11+ per FastMCP framework requirement
+- **CI now runs the test suite (issue #74 prerequisite)**: `.github/workflows/test.yml`'s `mcp-validation` job installs `requirements-dev.txt` and runs `pytest tests/ --cov=sports_api --cov-fail-under=50`, gating on the 50% threshold issue #67 set as the decomposition trigger. Previously CI only ran `py_compile`, an advisory mypy/pylint pass, and a startup smoke test — the test suite existed but nothing executed it.
+  - `requirements-dev.txt` pins `aiohttp<3.14.0` for the test environment: aioresponses 0.7.9 (latest) mocks aiohttp's `ClientResponse` constructor directly, and aiohttp 3.14 added a required `stream_writer` kwarg there that breaks every aioresponses-mocked test. Production `requirements.txt` is unaffected.
+
+### Fixed
+
+- **`sports_api/` test suite was red, not green (issue #67 follow-up)**: closing #67 had not been re-verified against the actual code — coverage was 11%, not the 50% target, and 11 of 33 tests failed against stale assumptions (`find_team_id` return shape, `get_team_logo_url`'s real ESPN CDN domain and `dark`/`size` params, `format_scoreboard_table`'s box-drawing rather than markdown output, `format_standings_table`'s ESPN-shaped input, `format_odds_comparison`'s `List[Dict]` signature). Fixed all 11 to assert against real behavior in `test_team_reference.py` and `test_formatters.py`.
 
 ### Added
 
@@ -28,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `README.md`: Comprehensive testing guide and best practices
   - 100+ tests written with coverage focus on sports_api/ components
   - Note: Local execution requires Python 3.11+ (system has 3.9.6); tests will validate in CI/CD
+- **Coverage raised to the #74 decomposition trigger, then past it (issue #67 follow-up / #74)**: five new test files bring `sports_api/` from 11% to 64% before the split, and `test_tools_registration.py` covers the new `sports_api/tools/` package after it, landing at 57% overall — all gated in CI at 50%.
+  - `test_team_matching.py`: sport-key inference and word-aware team matching (`guess_sport_key`, `team_matches`)
+  - `test_cache.py`: TTL expiry, LRU eviction, request coalescing, and the `should_cache` predicate on `ResponseCache`
+  - `test_key_manager.py`: sticky key rotation, exhausted/invalid classification, quota tracking on `APIKeyManager`
+  - `test_espn_api_handler.py` / `test_odds_api_handler.py`: handler behavior against `aioresponses`-mocked HTTP, including cache hits, TTL selection, key rotation on 429, and bookmaker filtering — no real network calls
+  - `test_tools_registration.py`: each `register_*_tools()` attaches the expected tool names and delegates to its handler with the right arguments, using a minimal `FakeMCP` stand-in (`mcp.tool()` decorator only) so the real `mcp` SDK package — which needs Python 3.10+ — isn't a test dependency
 
 ---
 

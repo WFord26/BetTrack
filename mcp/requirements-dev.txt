@@ -9,7 +9,13 @@
 pytest>=7.4.0,<8.0.0
 pytest-asyncio>=0.21.0,<1.0.0
 pytest-mock>=3.12.0,<4.0.0
+pytest-cov>=4.1.0,<5.0.0
 aioresponses>=0.7.4,<1.0.0
+# aioresponses 0.7.9 (the latest release) mocks aiohttp's ClientResponse
+# constructor directly; aiohttp 3.14 added a required stream_writer kwarg
+# there, so anything >=3.14 breaks every aioresponses-mocked test. Cap it
+# here (test-only) until aioresponses ships a fix.
+aiohttp<3.14.0
 
 # Code quality
 pylint>=3.0.0,<4.0.0
