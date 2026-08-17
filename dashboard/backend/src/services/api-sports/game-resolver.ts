@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database';
 import { logger } from '../../config/logger';
-
-const prisma = new PrismaClient();
 
 /** Games created from The Odds API and games synced from API-Sports must be
  * reconciled onto the same row: Game.externalId holds The Odds API's event

@@ -19,6 +19,8 @@ Changes that affect the entire project structure:
 ## [Unreleased]
 
 - **Arbitrage & Middle Detection** (Phase 3, issue #9): Merged to `beta`, pending version bump/release. Full-stack detection of guaranteed-profit arbitrage and middle opportunities across bookmakers — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
+- **Oversized service split — Phase 3 tech debt** (issue #73): `arbitrage.service.ts` (1,096 lines) and `bet.service.ts` (1,030 lines) became thin entry points over `services/arbitrage/` and `services/bet/`, each a set of single-responsibility modules. Public API unchanged, so no consumer import moved — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
+- **`BaseStatsService` extraction — Phase 3 tech debt** (issue #72): Replaced the seven near-identical API-Sports stats services (2,948 lines, no shared base, no tests) with an abstract base plus thin per-sport adapters (~2,115 lines, 35 tests). Consolidating the copies surfaced four bugs that had been fixed in one sport but not the others — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
 - **TypeScript `any` reduction — Phase 2 tech debt** (issue #71): Cleared all explicit `any` annotations from the six heaviest backend files; repo-wide count dropped from 253 to 178. Surfaced and fixed a broken odds-history endpoint, and surfaced a CLV closing-line defect now tracked as issue #87 — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
 
 ---

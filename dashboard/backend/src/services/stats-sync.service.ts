@@ -5,6 +5,7 @@ import { NCAABService } from './api-sports/ncaab.service';
 import { NCAAFService } from './api-sports/ncaaf.service';
 import { SoccerService } from './api-sports/soccer.service';
 import { MLBStatsService } from './api-sports/mlb.service';
+import { BaseStatsService } from './api-sports/base-stats.service';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 
@@ -69,6 +70,21 @@ export class StatsSyncService {
     }
   }
 
+  /** Every initialized stats service, in live-sync order. */
+  private get statsServices(): BaseStatsService<any>[] {
+    const services: Array<BaseStatsService<any> | undefined> = [
+      this.nflService,
+      this.nbaService,
+      this.nhlService,
+      this.ncaabService,
+      this.ncaafService,
+      this.soccerService,
+      this.mlbService,
+    ];
+
+    return services.filter((service): service is BaseStatsService<any> => service !== undefined);
+  }
+
   async syncAllLiveStats(): Promise<StatsSyncResult> {
     const result: StatsSyncResult = {
       gamesProcessed: 0,
@@ -81,149 +97,24 @@ export class StatsSyncService {
     }
 
     try {
-      // Fetch and sync NFL live games
-      if (this.nflService) {
-        const nflGames = await this.nflService.getLiveGames();
-        
-        for (const gameId of nflGames) {
+      for (const service of this.statsServices) {
+        const games = await service.getLiveGames();
+
+        for (const game of games) {
           result.gamesProcessed++;
-          
+          const gameId = service.extractGameId(game);
+
           try {
-            await this.nflService.syncGameStats(gameId);
+            await service.syncGameStats(gameId);
+            await service.syncPlayerStats(gameId);
             result.gamesUpdated++;
           } catch (error) {
-            const errorMsg = `Failed to sync NFL game ${gameId}: ${error}`;
+            const errorMsg = `Failed to sync ${service.label} game ${gameId}: ${error}`;
             logger.error(errorMsg);
             result.errors.push(errorMsg);
           }
 
           // Small delay to respect rate limits
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-
-      // Fetch and sync NBA live games
-      if (this.nbaService) {
-        const nbaGames = await this.nbaService.getLiveGames();
-        
-        for (const gameId of nbaGames) {
-          result.gamesProcessed++;
-          
-          try {
-            await this.nbaService.syncGameStats(gameId);
-            result.gamesUpdated++;
-          } catch (error) {
-            const errorMsg = `Failed to sync NBA game ${gameId}: ${error}`;
-            logger.error(errorMsg);
-            result.errors.push(errorMsg);
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-
-      // Fetch and sync NHL live games
-      if (this.nhlService) {
-        const nhlGames = await this.nhlService.getLiveGames();
-        
-        for (const gameId of nhlGames) {
-          result.gamesProcessed++;
-          
-          try {
-            await this.nhlService.syncGameStats(gameId);
-            result.gamesUpdated++;
-          } catch (error) {
-            const errorMsg = `Failed to sync NHL game ${gameId}: ${error}`;
-            logger.error(errorMsg);
-            result.errors.push(errorMsg);
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-
-      // Fetch and sync NCAA Basketball live games
-      if (this.ncaabService) {
-        const ncaabGames = await this.ncaabService.getLiveGames();
-        
-        for (const game of ncaabGames) {
-          result.gamesProcessed++;
-          const gameId = String(game.id);
-          
-          try {
-            await this.ncaabService.syncGameStats(gameId);
-            await this.ncaabService.syncPlayerStats(gameId);
-            result.gamesUpdated++;
-          } catch (error) {
-            const errorMsg = `Failed to sync NCAAB game ${gameId}: ${error}`;
-            logger.error(errorMsg);
-            result.errors.push(errorMsg);
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-
-      // Fetch and sync NCAA Football live games
-      if (this.ncaafService) {
-        const ncaafGames = await this.ncaafService.getLiveGames();
-        
-        for (const game of ncaafGames) {
-          result.gamesProcessed++;
-          const gameId = String(game.game.id);
-
-          try {
-            await this.ncaafService.syncGameStats(gameId);
-            await this.ncaafService.syncPlayerStats(gameId);
-            result.gamesUpdated++;
-          } catch (error) {
-            const errorMsg = `Failed to sync NCAAF game ${gameId}: ${error}`;
-            logger.error(errorMsg);
-            result.errors.push(errorMsg);
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-
-      // Fetch and sync Soccer live games
-      if (this.soccerService) {
-        const soccerGames = await this.soccerService.getLiveGames();
-        
-        for (const game of soccerGames) {
-          result.gamesProcessed++;
-          const gameId = String(game.fixture?.id);
-          
-          try {
-            await this.soccerService.syncGameStats(gameId);
-            await this.soccerService.syncPlayerStats(gameId);
-            result.gamesUpdated++;
-          } catch (error) {
-            const errorMsg = `Failed to sync Soccer game ${gameId}: ${error}`;
-            logger.error(errorMsg);
-            result.errors.push(errorMsg);
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-
-      // Fetch and sync MLB live games
-      if (this.mlbService) {
-        const mlbGames = await this.mlbService.getLiveGames();
-
-        for (const gameId of mlbGames) {
-          result.gamesProcessed++;
-
-          try {
-            await this.mlbService.syncGameStats(gameId);
-            result.gamesUpdated++;
-          } catch (error) {
-            const errorMsg = `Failed to sync MLB game ${gameId}: ${error}`;
-            logger.error(errorMsg);
-            result.errors.push(errorMsg);
-          }
-
           await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
@@ -287,59 +178,26 @@ export class StatsSyncService {
     }
 
     const currentYear = new Date().getFullYear();
+    // Basketball seasons are labelled by the pair of years they span.
     const seasonYearOverYear = `${currentYear - 2}-${currentYear - 1}`;
 
-    if (this.nflService) {
-      try {
-        results['americanfootball_nfl'] = await this.nflService.syncTeams(currentYear - 2);
-      } catch (error) {
-        logger.error(`NFL team sync failed: ${error}`);
-        results['americanfootball_nfl'] = 0;
-      }
-    }
+    const plan: Array<[BaseStatsService<any> | undefined, number | string]> = [
+      [this.nflService, currentYear - 2],
+      [this.nbaService, seasonYearOverYear],
+      [this.nhlService, currentYear - 2],
+      [this.ncaabService, seasonYearOverYear],
+      [this.mlbService, currentYear - 2],
+      [this.ncaafService, currentYear - 2],
+    ];
 
-    if (this.nbaService) {
-      try {
-        results['basketball_nba'] = await this.nbaService.syncTeams(seasonYearOverYear);
-      } catch (error) {
-        logger.error(`NBA team sync failed: ${error}`);
-        results['basketball_nba'] = 0;
-      }
-    }
+    for (const [service, season] of plan) {
+      if (!service?.sportKey) continue;
 
-    if (this.nhlService) {
       try {
-        results['icehockey_nhl'] = await this.nhlService.syncTeams(currentYear - 2);
+        results[service.sportKey] = await service.syncTeams(season);
       } catch (error) {
-        logger.error(`NHL team sync failed: ${error}`);
-        results['icehockey_nhl'] = 0;
-      }
-    }
-
-    if (this.ncaabService) {
-      try {
-        results['basketball_ncaab'] = await this.ncaabService.syncTeams(seasonYearOverYear);
-      } catch (error) {
-        logger.error(`NCAAB team sync failed: ${error}`);
-        results['basketball_ncaab'] = 0;
-      }
-    }
-
-    if (this.mlbService) {
-      try {
-        results['baseball_mlb'] = await this.mlbService.syncTeams(currentYear - 2);
-      } catch (error) {
-        logger.error(`MLB team sync failed: ${error}`);
-        results['baseball_mlb'] = 0;
-      }
-    }
-
-    if (this.ncaafService) {
-      try {
-        results['americanfootball_ncaaf'] = await this.ncaafService.syncTeams(currentYear - 2);
-      } catch (error) {
-        logger.error(`NCAAF team sync failed: ${error}`);
-        results['americanfootball_ncaaf'] = 0;
+        logger.error(`${service.label} team sync failed: ${error}`);
+        results[service.sportKey] = 0;
       }
     }
 
