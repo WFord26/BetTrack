@@ -43,7 +43,7 @@ describe('Login Page', () => {
   });
 
   it('has displayName or name property', () => {
-    expect(Login.name || Login.displayName).toBeDefined();
+    expect(Login.name || (Login as { displayName?: string }).displayName).toBeDefined();
   });
 });
 
