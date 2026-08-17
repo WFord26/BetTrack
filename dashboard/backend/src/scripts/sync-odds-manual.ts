@@ -11,6 +11,24 @@
 import { oddsSyncService } from '../services/odds-sync.service';
 import { logger } from '../config/logger';
 import { prisma } from '../config/database';
+import type { SyncResult } from '../types/odds-api.types';
+
+function logSyncResults(result: SyncResult) {
+  logger.info('=== Sync Results ===');
+  logger.info(`Success: ${result.success}`);
+  logger.info(`Games Processed: ${result.gamesProcessed}`);
+  logger.info(`Odds Processed: ${result.oddsProcessed}`);
+  logger.info(`Snapshots Created: ${result.snapshotsCreated}`);
+  logger.info(`Errors: ${result.errors.length}`);
+
+  if (result.requestsRemaining !== undefined) {
+    logger.info(`API Requests Remaining: ${result.requestsRemaining}`);
+  }
+
+  result.errors.forEach((error, idx) => {
+    logger.error(`Sync error ${idx + 1}: ${error}`);
+  });
+}
 
 async function main() {
   const sportKey = process.argv[2];
@@ -18,42 +36,10 @@ async function main() {
   try {
     if (sportKey) {
       logger.info(`Manually syncing odds for ${sportKey}...`);
-      const result = await oddsSyncService.syncSportOdds(sportKey);
-      
-      console.log('\n=== Sync Results ===');
-      console.log(`Success: ${result.success}`);
-      console.log(`Games Processed: ${result.gamesProcessed}`);
-      console.log(`Odds Processed: ${result.oddsProcessed}`);
-      console.log(`Snapshots Created: ${result.snapshotsCreated}`);
-      console.log(`Errors: ${result.errors.length}`);
-      
-      if (result.errors.length > 0) {
-        console.log('\nErrors:');
-        result.errors.forEach((error, idx) => {
-          console.log(`  ${idx + 1}. ${error}`);
-        });
-      }
+      logSyncResults(await oddsSyncService.syncSportOdds(sportKey));
     } else {
       logger.info('Manually syncing odds for all sports...');
-      const result = await oddsSyncService.syncAllOdds();
-      
-      console.log('\n=== Sync Results ===');
-      console.log(`Success: ${result.success}`);
-      console.log(`Games Processed: ${result.gamesProcessed}`);
-      console.log(`Odds Processed: ${result.oddsProcessed}`);
-      console.log(`Snapshots Created: ${result.snapshotsCreated}`);
-      console.log(`Errors: ${result.errors.length}`);
-      
-      if (result.requestsRemaining !== undefined) {
-        console.log(`API Requests Remaining: ${result.requestsRemaining}`);
-      }
-      
-      if (result.errors.length > 0) {
-        console.log('\nErrors:');
-        result.errors.forEach((error, idx) => {
-          console.log(`  ${idx + 1}. ${error}`);
-        });
-      }
+      logSyncResults(await oddsSyncService.syncAllOdds());
     }
 
   } catch (error) {

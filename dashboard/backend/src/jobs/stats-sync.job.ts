@@ -57,7 +57,6 @@ export function startStatsSyncJob() {
         await syncLiveStats();
       }
     }, {
-      scheduled: true,
       timezone: 'America/New_York',
     });
 
@@ -73,7 +72,6 @@ export function startStatsSyncJob() {
     const cronExpression = `*/${pollMinutes} * * * *`;
     
     const task = cron.schedule(cronExpression, syncLiveStats, {
-      scheduled: true,
       timezone: 'America/New_York',
     });
 

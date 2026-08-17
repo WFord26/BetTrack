@@ -143,7 +143,7 @@ export class LineMovementService {
 
       return createdMovements;
     } catch (error) {
-      console.error(`Error detecting movements for game ${gameId}:`, error);
+      logger.error(`Error detecting movements for game ${gameId}:`, error);
       throw error;
     }
   }

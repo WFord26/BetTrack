@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { arbitrageService, ScanResult } from '../services/arbitrage.service';
 import { onOddsSyncCompleted } from '../events/odds-sync.events';
 import { logger } from '../config/logger';
@@ -117,7 +117,6 @@ export function startArbitrageScanJob() {
   });
 
   const task = cron.schedule(SCAN_CRON, cronPass, {
-    scheduled: true,
     timezone: 'America/New_York',
   });
 
@@ -127,7 +126,7 @@ export function startArbitrageScanJob() {
   return task;
 }
 
-export function stopArbitrageScanJob(task: cron.ScheduledTask | null) {
+export function stopArbitrageScanJob(task: ScheduledTask | null) {
   logger.info('Stopping arbitrage scan job...');
   if (unsubscribe) {
     unsubscribe();

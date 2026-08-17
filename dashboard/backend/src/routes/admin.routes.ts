@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { Prisma, Sport } from '@prisma/client';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { oddsSyncService } from '../services/odds-sync.service';
@@ -12,6 +13,7 @@ import { getFootballHourlySyncStatus } from '../jobs/football-hourly-sync.job';
 import { env } from '../config/env';
 import { requireAdminAccess } from '../middleware/session.auth';
 import { validateBody } from '../middleware/validation.middleware';
+import { getErrorMessage } from '../utils/error-message';
 
 const router = Router();
 const statsSyncService = new StatsSyncService();
@@ -98,7 +100,7 @@ router.post('/init-sports', async (_req: Request, res: Response) => {
   try {
     logger.info('Initializing sports in database via API...');
 
-    const results: any[] = [];
+    const results: Sport[] = [];
     for (const sport of SPORTS) {
       const result = await prisma.sport.upsert({
         where: { key: sport.key },
@@ -119,12 +121,12 @@ router.post('/init-sports', async (_req: Request, res: Response) => {
       message: `Initialized ${results.length} sports`,
       data: results
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to initialize sports:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to initialize sports',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -154,12 +156,12 @@ router.post('/sync-odds', async (req: Request, res: Response) => {
       message: 'Odds sync started in background',
       data: { sportKey: sportKey || 'all' }
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to start odds sync:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to start odds sync',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -183,12 +185,12 @@ router.post('/resolve-outcomes', async (_req: Request, res: Response) => {
       status: 'success',
       message: 'Outcome resolution started in background'
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to start outcome resolution:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to start outcome resolution',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -217,12 +219,12 @@ router.post('/sync-futures', async (req: Request, res: Response) => {
       message: 'Futures sync started in background',
       data: { sportKey: sportKey || 'all' }
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to start futures sync:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to start futures sync',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -247,12 +249,12 @@ router.post('/sync-teams', async (_req: Request, res: Response) => {
       status: 'success',
       message: 'Team sync started in background. Check logs for progress.',
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to start team sync:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to start team sync',
-      error: error.message,
+      error: getErrorMessage(error),
     });
   }
 });
@@ -316,12 +318,12 @@ router.post('/seed-mlb-stats', async (_req: Request, res: Response) => {
         minimumRemainingRequests,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to start MLB season seed:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to start MLB season seed',
-      error: error.message,
+      error: getErrorMessage(error),
     });
   }
 });
@@ -393,12 +395,12 @@ router.post('/sync-mlb-hourly-window', async (_req: Request, res: Response) => {
         hoursForward,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to start MLB hourly window sync:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to start MLB hourly window sync',
-      error: error.message,
+      error: getErrorMessage(error),
     });
   }
 });
@@ -438,12 +440,12 @@ router.get('/mlb-sync-status', async (_req: Request, res: Response) => {
         },
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to get MLB sync status:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to get MLB sync status',
-      error: error.message,
+      error: getErrorMessage(error),
     });
   }
 });
@@ -515,12 +517,12 @@ router.post('/sync-football-hourly-window', async (_req: Request, res: Response)
         hoursForward,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to start football hourly window sync:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to start football hourly window sync',
-      error: error.message,
+      error: getErrorMessage(error),
     });
   }
 });
@@ -559,12 +561,12 @@ router.get('/football-sync-status', async (_req: Request, res: Response) => {
         },
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to get football sync status:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to get football sync status',
-      error: error.message,
+      error: getErrorMessage(error),
     });
   }
 });
@@ -599,12 +601,12 @@ router.get('/sports', async (_req: Request, res: Response) => {
       status: 'success',
       data: sports
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to get sports:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to get sports',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -644,8 +646,8 @@ router.patch('/sports/:sportKey', async (req: Request, res: Response) => {
       message: `Sport ${sport.name} ${isActive ? 'activated' : 'deactivated'} successfully`,
       data: sport
     });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
       return res.status(404).json({
         status: 'error',
         message: 'Sport not found'
@@ -656,7 +658,7 @@ router.patch('/sports/:sportKey', async (req: Request, res: Response) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to update sport',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -714,12 +716,12 @@ router.get('/stats', async (_req: Request, res: Response) => {
         recentGames
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to get admin stats:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to get stats',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -754,12 +756,12 @@ router.get('/health', async (_req: Request, res: Response) => {
         apiRequestsRemaining: requestsRemaining
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Health check failed:', error);
     res.status(503).json({
       status: 'error',
       message: 'Service unhealthy',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -790,12 +792,12 @@ router.get('/site-config', async (_req: Request, res: Response) => {
       status: 'success',
       data: config
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to get site config:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to get site configuration',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -830,12 +832,12 @@ router.put('/site-config', validateBody(siteConfigSchema), async (req: Request, 
       message: 'Site configuration updated successfully',
       data: config
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to update site config:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to update site configuration',
-      error: error.message
+      error: getErrorMessage(error)
     });
   }
 });
@@ -859,9 +861,9 @@ router.get('/settings', async (_req: Request, res: Response) => {
       create: { id: 'singleton' }
     });
     res.json({ status: 'success', data: settings });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to fetch admin settings:', error);
-    res.status(500).json({ status: 'error', error: error.message });
+    res.status(500).json({ status: 'error', error: getErrorMessage(error) });
   }
 });
 
@@ -877,9 +879,9 @@ router.patch('/settings', validateBody(adminSettingsSchema), async (req: Request
       create: { id: 'singleton', ...req.body }
     });
     res.json({ status: 'success', data: settings });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Failed to update admin settings:', error);
-    res.status(500).json({ status: 'error', error: error.message });
+    res.status(500).json({ status: 'error', error: getErrorMessage(error) });
   }
 });
 

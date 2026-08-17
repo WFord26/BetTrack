@@ -13,20 +13,17 @@ async function main() {
     logger.info('Manually resolving outcomes...');
     const result = await outcomeResolverService.resolveOutcomes();
     
-    console.log('\n=== Resolution Results ===');
-    console.log(`Success: ${result.success}`);
-    console.log(`Games Checked: ${result.gamesChecked}`);
-    console.log(`Games Updated: ${result.gamesUpdated}`);
-    console.log(`Legs Settled: ${result.legsSettled}`);
-    console.log(`Bets Settled: ${result.betsSettled}`);
-    console.log(`Errors: ${result.errors.length}`);
-    
-    if (result.errors.length > 0) {
-      console.log('\nErrors:');
-      result.errors.forEach((error, idx) => {
-        console.log(`  ${idx + 1}. ${error}`);
-      });
-    }
+    logger.info('=== Resolution Results ===');
+    logger.info(`Success: ${result.success}`);
+    logger.info(`Games Checked: ${result.gamesChecked}`);
+    logger.info(`Games Updated: ${result.gamesUpdated}`);
+    logger.info(`Legs Settled: ${result.legsSettled}`);
+    logger.info(`Bets Settled: ${result.betsSettled}`);
+    logger.info(`Errors: ${result.errors.length}`);
+
+    result.errors.forEach((error, idx) => {
+      logger.error(`Resolution error ${idx + 1}: ${error}`);
+    });
 
   } catch (error) {
     logger.error('Failed to resolve outcomes:', error);

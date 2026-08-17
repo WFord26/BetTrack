@@ -3,6 +3,7 @@ import GameCard from './GameCard';
 import SportFilter from './SportFilter';
 import api from '../../services/api';
 import { formatDate } from '../../utils/format';
+import { logger } from '../../utils/logger';
 
 interface Game {
   id: string;
@@ -70,9 +71,9 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
         params.bookmaker = selectedBookmaker;
       }
 
-      console.log('[OddsGrid] Fetching games with params:', params);
+      logger.debug('[OddsGrid] Fetching games with params:', params);
       const response = await api.get('/games', { params });
-      console.log('[OddsGrid] API Response structure:', {
+      logger.debug('[OddsGrid] API Response structure:', {
         hasData: !!response.data,
         hasDataData: !!response.data?.data,
         hasDataGames: !!response.data?.games,
@@ -84,12 +85,12 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
       // API returns {status: 'success', data: {games: [...], count: 27}}
       // Axios wraps this, so we need response.data.data.games
       const games = response.data.data?.games || response.data.games || [];
-      console.log('[OddsGrid] Extracted games array length:', games.length);
-      console.log('[OddsGrid] First game sample:', games[0]);
+      logger.debug('[OddsGrid] Extracted games array length:', games.length);
+      logger.debug('[OddsGrid] First game sample:', games[0]);
       setGames(games);
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching games:', err);
+      logger.error('Error fetching games:', err);
       setError(err.response?.data?.message || 'Failed to load games');
     } finally {
       setLoading(false);
@@ -103,11 +104,11 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
 
   // Filter games by search query and group by sport
   useEffect(() => {
-    console.log('[OddsGrid] Filtering games. Total games:', games.length, 'Search query:', searchQuery);
+    logger.debug('[OddsGrid] Filtering games. Total games:', games.length, 'Search query:', searchQuery);
     
     if (!searchQuery.trim()) {
       setFilteredGames(games);
-      console.log('[OddsGrid] No search query, showing all games:', games.length);
+      logger.debug('[OddsGrid] No search query, showing all games:', games.length);
       return;
     }
 
@@ -118,7 +119,7 @@ export default function OddsGrid({ onAddToBetSlip, selectedBets = new Set(), use
         game.homeTeamName.toLowerCase().includes(query) ||
         game.sportName.toLowerCase().includes(query)
     );
-    console.log('[OddsGrid] Filtered games:', filtered.length);
+    logger.debug('[OddsGrid] Filtered games:', filtered.length);
     setFilteredGames(filtered);
   }, [games, searchQuery]);
   

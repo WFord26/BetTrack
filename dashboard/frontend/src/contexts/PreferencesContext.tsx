@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { logger } from '../utils/logger';
 
 export interface UserPreferences {
   oddsFormat: 'american' | 'decimal' | 'fractional';
@@ -36,7 +37,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(saved);
         setPreferences({ ...DEFAULT_PREFERENCES, ...parsed });
       } catch (error) {
-        console.error('Failed to load preferences:', error);
+        logger.error('Failed to load preferences:', error);
       }
     }
   }, []);

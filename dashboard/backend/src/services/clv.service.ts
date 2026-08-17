@@ -2,6 +2,31 @@ import { Prisma } from '@prisma/client';
 import { logger } from '../config/logger';
 import { prisma } from '../config/database';
 
+/** A bet leg loaded with its parent bet and the game's sport, as the CLV queries fetch it. */
+type BetLegWithBetAndGame = Prisma.BetLegGetPayload<{
+  include: { bet: true; game: { include: { sport: true } } };
+}>;
+
+/**
+ * Shape `findMatchingOddsSnapshot` expects: one row per outcome, carrying a
+ * flat `price`/`point`/`timestamp`.
+ *
+ * WARNING: this is NOT the shape of the `OddsSnapshot` model, which stores one
+ * row per bookmaker/market with `homePrice`/`awayPrice`/`homeSpread`/
+ * `totalLine`/`capturedAt` columns and has no `outcome`, `price`, `point` or
+ * `timestamp` field. `captureClosingLine` passes real `OddsSnapshot` rows, so
+ * the selection match below always compares `undefined` and never succeeds.
+ * Typing this file surfaced the mismatch; it is preserved as-is rather than
+ * silently changing settlement behaviour.
+ */
+interface ClosingLineSnapshot {
+  marketType?: string;
+  outcome?: string;
+  point?: number | null;
+  price?: unknown;
+  timestamp?: Date | string;
+}
+
 /**
  * CLV (Closing Line Value) Service
  * 
@@ -45,7 +70,9 @@ export class CLVService {
       for (const leg of betLegs) {
         // Find matching odds snapshot for this selection
         const matchingSnapshot = this.findMatchingOddsSnapshot(
-          game.oddsSnapshots,
+          // See ClosingLineSnapshot: the stored rows do not carry the flat
+          // per-outcome fields this matcher reads.
+          game.oddsSnapshots as unknown as ClosingLineSnapshot[],
           leg.selectionType,
           leg.selection,
           leg.line
@@ -56,7 +83,7 @@ export class CLVService {
           // see prisma/schema.prisma. The defensive cast guards against
           // accidental decimals slipping in from upstream parsing changes;
           // skip rather than persist NaN if the value is non-numeric.
-          const rawPrice = (matchingSnapshot as { price?: unknown }).price;
+          const rawPrice = matchingSnapshot.price;
           const closingOdds = typeof rawPrice === 'number' && Number.isFinite(rawPrice)
             ? Math.trunc(rawPrice)
             : null;
@@ -223,22 +250,19 @@ export class CLVService {
       // NOTE: `clv` lives on BetLeg, not Bet — keep the `clv: { not: null }`
       // filter on the outer (BetLeg) where only. Including it under
       // `where.bet.clv` causes Prisma to throw `Unknown arg 'clv'`.
-      const betWhere: any = {
+      const betWhere: Prisma.BetWhereInput = {
         ...(userId ? { userId } : {}),
         ...(filters?.betType && { betType: filters.betType }),
       };
 
       if (filters?.startDate || filters?.endDate) {
-        betWhere.placedAt = {};
-        if (filters?.startDate) {
-          betWhere.placedAt.gte = filters.startDate;
-        }
-        if (filters?.endDate) {
-          betWhere.placedAt.lte = filters.endDate;
-        }
+        betWhere.placedAt = {
+          ...(filters?.startDate && { gte: filters.startDate }),
+          ...(filters?.endDate && { lte: filters.endDate }),
+        };
       }
 
-      const where: any = {
+      const where: Prisma.BetLegWhereInput = {
         bet: betWhere,
         clv: { not: null }
       };
@@ -295,7 +319,7 @@ export class CLVService {
       const clvWinRate = positiveCLVTotal > 0 ? (positiveCLVWins / positiveCLVTotal) * 100 : 0;
 
       // Group by sport
-      const bySport = this.groupByField(betLegs, 'game.sport.key');
+      const bySport = this.groupByField(betLegs, leg => leg.game.sport.key);
 
       // Group by bookmaker (extract from bet name or use default)
       const byBookmaker = this.groupByBookmaker(betLegs);
@@ -442,11 +466,11 @@ export class CLVService {
    * Find matching odds snapshot for a bet leg
    */
   private findMatchingOddsSnapshot(
-    snapshots: any[],
+    snapshots: ClosingLineSnapshot[],
     selectionType: string,
     selection: string,
     line: Prisma.Decimal | null
-  ): any | null {
+  ): ClosingLineSnapshot | null {
     // Get the most recent snapshot for the matching market and selection
     const matchingSnapshots = snapshots.filter(snapshot => {
       // Match by market type
@@ -461,7 +485,7 @@ export class CLVService {
       const selectionMatch = snapshot.outcome === selection;
 
       // Match by line (for spreads/totals)
-      if (line && snapshot.point !== null) {
+      if (line && snapshot.point !== null && snapshot.point !== undefined) {
         return selectionMatch && Math.abs(snapshot.point - line.toNumber()) < 0.1;
       }
 
@@ -469,19 +493,22 @@ export class CLVService {
     });
 
     // Return the most recent matching snapshot
-    return matchingSnapshots.sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    return matchingSnapshots.sort((a, b) =>
+      new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime()
     )[0] || null;
   }
 
   /**
    * Group bet legs by a field and calculate average CLV
    */
-  private groupByField(betLegs: any[], field: string): Array<{ sportKey: string; averageCLV: number; count: number }> {
+  private groupByField(
+    betLegs: BetLegWithBetAndGame[],
+    selectKey: (leg: BetLegWithBetAndGame) => string | null | undefined
+  ): Array<{ sportKey: string; averageCLV: number; count: number }> {
     const groups = new Map<string, number[]>();
 
     for (const leg of betLegs) {
-      const value = this.getNestedProperty(leg, field) || 'unknown';
+      const value = selectKey(leg) || 'unknown';
       if (!groups.has(value)) {
         groups.set(value, []);
       }
@@ -498,7 +525,7 @@ export class CLVService {
   /**
    * Group bet legs by bookmaker
    */
-  private groupByBookmaker(betLegs: any[]): Array<{ bookmaker: string; averageCLV: number; count: number }> {
+  private groupByBookmaker(betLegs: BetLegWithBetAndGame[]): Array<{ bookmaker: string; averageCLV: number; count: number }> {
     // Extract bookmaker from bet name or use 'unknown'
     const groups = new Map<string, number[]>();
 
@@ -534,7 +561,7 @@ export class CLVService {
   /**
    * Filter bet legs by time period
    */
-  private filterByPeriod(betLegs: any[], period: string): any[] {
+  private filterByPeriod(betLegs: BetLegWithBetAndGame[], period: string): BetLegWithBetAndGame[] {
     const now = new Date();
     let cutoffDate: Date;
 
@@ -560,7 +587,7 @@ export class CLVService {
   /**
    * Calculate statistics for a set of bet legs
    */
-  private calculateStats(betLegs: any[]): {
+  private calculateStats(betLegs: BetLegWithBetAndGame[]): {
     totalBets: number;
     averageCLV: Prisma.Decimal;
     positiveCLVCount: number;
@@ -624,13 +651,6 @@ export class CLVService {
       expectedROI: new Prisma.Decimal(expectedROI.toFixed(2)),
       actualROI: new Prisma.Decimal(actualROI.toFixed(2))
     };
-  }
-
-  /**
-   * Get nested property from object
-   */
-  private getNestedProperty(obj: any, path: string): any {
-    return path.split('.').reduce((current, prop) => current?.[prop], obj);
   }
 }
 

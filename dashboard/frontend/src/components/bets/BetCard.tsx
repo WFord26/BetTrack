@@ -4,6 +4,7 @@ import { Bet } from '../../types/game.types';
 import { formatCurrency, formatOdds, formatRelativeTime } from '../../utils/format';
 import { useDarkMode } from '../../contexts/DarkModeContext';
 import api from '../../services/api';
+import { logger } from '../../utils/logger';
 
 interface BetCardProps {
   bet: Bet;
@@ -66,7 +67,7 @@ export default function BetCard({ bet }: BetCardProps) {
       // Reload the page to show updated bet
       window.location.reload();
     } catch (error) {
-      console.error('Error cashing out bet:', error);
+      logger.error('Error cashing out bet:', error);
       alert('Failed to cash out bet. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -87,7 +88,7 @@ export default function BetCard({ bet }: BetCardProps) {
       await api.post(`/bets/${bet.id}/settle`, payload);
       window.location.reload();
     } catch (error) {
-      console.error('Error settling bet:', error);
+      logger.error('Error settling bet:', error);
       alert('Failed to settle bet. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -102,7 +103,7 @@ export default function BetCard({ bet }: BetCardProps) {
       // Reload the page to remove the deleted bet
       window.location.reload();
     } catch (error) {
-      console.error('Error deleting bet:', error);
+      logger.error('Error deleting bet:', error);
       alert('Failed to delete bet. Please try again.');
     } finally {
       setIsProcessing(false);

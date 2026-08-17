@@ -1,6 +1,8 @@
+import { LineMovement, Prisma, SharpMoneyIndicator } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
+import { getErrorMessage } from '../utils/error-message';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -28,7 +30,46 @@ export interface ContrarianOpportunity {
   maxConfidence: number;
 }
 
+/** One bookmaker's lines as stored in LineMovement.linesBefore / linesAfter. */
+interface BookmakerLine {
+  homePrice?: number;
+  awayPrice?: number;
+  homeSpread?: string | number;
+  awaySpread?: string | number;
+  totalLine?: string | number;
+}
+
+/** Bookmaker key → that book's lines. */
+type BookmakerLines = Record<string, BookmakerLine | undefined>;
+
+/** A sharp indicator loaded with its game, as the read queries fetch it. */
+type SharpIndicatorWithGame = Prisma.SharpMoneyIndicatorGetPayload<{
+  include: {
+    game: {
+      select: {
+        id: true;
+        homeTeamName: true;
+        awayTeamName: true;
+        commenceTime: true;
+        sport: { select: { key: true; name: true } };
+      };
+    };
+  };
+}>;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Narrows a `linesBefore`/`linesAfter` JSON column to a bookmaker map. */
+function toBookmakerLines(value: Prisma.JsonValue): BookmakerLines {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as BookmakerLines)
+    : {};
+}
+
+/** Parses a stored spread/total line, which may arrive as a string or a number. */
+function parseLineValue(value: string | number | undefined): number {
+  return value === undefined ? NaN : parseFloat(String(value));
+}
 
 /** Opposite side mapping for contrarian analysis */
 function oppositeSide(side: SharpSide): SharpSide {
@@ -51,8 +92,8 @@ function oppositeSide(side: SharpSide): SharpSide {
  */
 function inferSteamSide(
   marketType: MarketType,
-  linesBefore: Record<string, any>,
-  linesAfter: Record<string, any>
+  linesBefore: BookmakerLines,
+  linesAfter: BookmakerLines
 ): SharpSide {
   const books = Object.keys(linesAfter);
   if (books.length === 0) return 'none';
@@ -62,12 +103,11 @@ function inferSteamSide(
     let sumAfter = 0;
     let count = 0;
     for (const bk of books) {
-      if (
-        linesBefore[bk]?.homePrice !== undefined &&
-        linesAfter[bk]?.homePrice !== undefined
-      ) {
-        sumBefore += linesBefore[bk].homePrice;
-        sumAfter += linesAfter[bk].homePrice;
+      const before = linesBefore[bk]?.homePrice;
+      const after = linesAfter[bk]?.homePrice;
+      if (before !== undefined && after !== undefined) {
+        sumBefore += before;
+        sumAfter += after;
         count++;
       }
     }
@@ -81,8 +121,8 @@ function inferSteamSide(
     let sumAfter = 0;
     let count = 0;
     for (const bk of books) {
-      const before = parseFloat(linesBefore[bk]?.homeSpread ?? 'NaN');
-      const after = parseFloat(linesAfter[bk]?.homeSpread ?? 'NaN');
+      const before = parseLineValue(linesBefore[bk]?.homeSpread);
+      const after = parseLineValue(linesAfter[bk]?.homeSpread);
       if (!Number.isNaN(before) && !Number.isNaN(after)) {
         sumBefore += before;
         sumAfter += after;
@@ -100,8 +140,8 @@ function inferSteamSide(
   let sumAfter = 0;
   let count = 0;
   for (const bk of books) {
-    const before = parseFloat(linesBefore[bk]?.totalLine ?? 'NaN');
-    const after = parseFloat(linesAfter[bk]?.totalLine ?? 'NaN');
+    const before = parseLineValue(linesBefore[bk]?.totalLine);
+    const after = parseLineValue(linesAfter[bk]?.totalLine);
     if (!Number.isNaN(before) && !Number.isNaN(after)) {
       sumBefore += before;
       sumAfter += after;
@@ -163,8 +203,8 @@ export class SharpIndicatorService {
       for (const mv of primaryMoves) {
         const side = inferSteamSide(
           marketType,
-          mv.linesBefore as Record<string, any>,
-          mv.linesAfter as Record<string, any>
+          toBookmakerLines(mv.linesBefore),
+          toBookmakerLines(mv.linesAfter)
         );
         sideCounts[side]++;
       }
@@ -206,9 +246,9 @@ export class SharpIndicatorService {
    */
   calculateConfidence(params: {
     lineMovement: LineMovementCategory;
-    movements: any[];
-    steamMoves: any[];
-    reverseMoves: any[];
+    movements: LineMovement[];
+    steamMoves: LineMovement[];
+    reverseMoves: LineMovement[];
     sharpSide: SharpSide;
   }): { score: number; contraindicators: string[] } {
     const { lineMovement, movements, steamMoves, reverseMoves, sharpSide } = params;
@@ -236,7 +276,7 @@ export class SharpIndicatorService {
     // Bookmaker consensus: average bookmakerCount across steam moves
     const primaryMoves = steamMoves.length > 0 ? steamMoves : reverseMoves;
     const avgBookmakers = primaryMoves.length > 0
-      ? primaryMoves.reduce((sum: number, m: any) => sum + m.bookmakerCount, 0) / primaryMoves.length
+      ? primaryMoves.reduce((sum, m) => sum + m.bookmakerCount, 0) / primaryMoves.length
       : 0;
 
     if (avgBookmakers >= 5) {
@@ -248,18 +288,18 @@ export class SharpIndicatorService {
 
     // Recent signal boost (steam in last 2 hours)
     const recentCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
-    const recentSteam = steamMoves.filter((m: any) => new Date(m.detectedAt) >= recentCutoff);
+    const recentSteam = steamMoves.filter(m => new Date(m.detectedAt) >= recentCutoff);
     if (recentSteam.length > 0) {
       score += 1;
     }
 
     // Mixed signals — steam moves pointing in different directions
     if (steamMoves.length > 1) {
-      const sides = steamMoves.map((m: any) =>
+      const sides = steamMoves.map(m =>
         inferSteamSide(
           m.marketType as MarketType,
-          m.linesBefore as Record<string, any>,
-          m.linesAfter as Record<string, any>
+          toBookmakerLines(m.linesBefore),
+          toBookmakerLines(m.linesAfter)
         )
       );
       const uniqueSides = new Set(sides.filter(s => s !== 'none'));
@@ -277,7 +317,7 @@ export class SharpIndicatorService {
 
     // Stale data (no movements in last 4 hours)
     const staleCutoff = new Date(Date.now() - 4 * 60 * 60 * 1000);
-    const hasRecentData = movements.some((m: any) => new Date(m.detectedAt) >= staleCutoff);
+    const hasRecentData = movements.some(m => new Date(m.detectedAt) >= staleCutoff);
     if (!hasRecentData) {
       contraindicators.push('stale_data');
       score -= 1;
@@ -349,8 +389,8 @@ export class SharpIndicatorService {
       try {
         await this.calculateAndSaveForGame(game.id);
         gamesProcessed++;
-      } catch (err: any) {
-        errors.push(`Game ${game.id}: ${err.message}`);
+      } catch (err) {
+        errors.push(`Game ${game.id}: ${getErrorMessage(err)}`);
       }
     }
 
@@ -361,7 +401,7 @@ export class SharpIndicatorService {
    * Return the most recent sharp indicator for each active game.
    * One row per game (highest confidence across market types).
    */
-  async getLatestIndicators(limit: number = 20): Promise<any[]> {
+  async getLatestIndicators(limit: number = 20): Promise<SharpIndicatorWithGame[]> {
     const lookback = new Date(Date.now() - 2 * 60 * 60 * 1000);
     const now = new Date();
 
@@ -403,7 +443,7 @@ export class SharpIndicatorService {
     });
 
     // Group by gameId, keep highest-confidence record per game
-    const gameMap = new Map<string, any>();
+    const gameMap = new Map<string, SharpIndicatorWithGame>();
     for (const r of records) {
       const existing = gameMap.get(r.gameId);
       if (!existing || r.sharpConfidence > existing.sharpConfidence) {
@@ -419,7 +459,7 @@ export class SharpIndicatorService {
   /**
    * Return all sharp indicators for a specific game (latest per market type).
    */
-  async getIndicatorsForGame(gameId: string): Promise<any[]> {
+  async getIndicatorsForGame(gameId: string): Promise<SharpMoneyIndicator[]> {
     const lookback = new Date(Date.now() - 12 * 60 * 60 * 1000);
 
     const latestByMarket = await prisma.sharpMoneyIndicator.groupBy({

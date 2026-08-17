@@ -52,11 +52,10 @@ except ImportError:
 mcp = FastMCP("Sports Dashboard")
 
 if not client.configure():
-    print(
-        "ERROR: DASHBOARD_API_KEY environment variable not set.\n"
-        "Set it in your environment or in a .env file next to this script.\n"
-        "Generate a key from the dashboard under Settings -> API Keys.",
-        file=sys.stderr
+    logger.error(
+        "DASHBOARD_API_KEY environment variable not set. "
+        "Set it in your environment or in a .env file next to this script. "
+        "Generate a key from the dashboard under Settings -> API Keys."
     )
     sys.exit(1)
 

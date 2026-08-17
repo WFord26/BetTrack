@@ -47,6 +47,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Decision: odds sync cadence stays at ~10 minutes; freshness is disclosed via `oddsSnapshotAge` rather than paid down with extra Odds API calls (ADR-019, summarised in `dashboard/backend/README.md`)
   - Known gap: load testing for scan performance not yet done; `oddsDrift` is queried per candidate (N+1 in opportunities, not games)
 
+### Changed
+
+- **TypeScript `any` reduction — top 6 offenders** (tech debt, issue #71): Cleared every explicit `any` from `admin.routes.ts`, `stats.routes.ts`, `games.routes.ts`, `clv.service.ts`, `sharp-indicator.service.ts` and `api-sports/soccer.service.ts`; repo-wide annotations dropped from 253 to 178
+  - Backend: New `src/utils/error-message.ts` with `getErrorMessage(error: unknown)`, replacing 23 `catch (error: any)` blocks that existed only to read `error.message`
+  - Backend: Prisma-derived types throughout — `Prisma.*WhereInput` for filter builders, `Prisma.*GetPayload` for query results, and narrowing helpers (`toStatsObject`, `readStatNumber`, `toBookmakerLines`) for the free-form JSON columns on `GameStats` and `LineMovement`
+  - Backend: Local API-Football response interfaces in `soccer.service.ts` passed through `ApiSportsClient.get<T>()`, matching the convention already used by the NBA and MLB services
+  - Backend: `clv.service.ts`'s `groupByField` takes a selector function rather than a dotted path string, retiring the reflective `getNestedProperty` helper
+  - See [dashboard/backend/CHANGELOG.md](backend/CHANGELOG.md) for the per-file breakdown
+
+### Fixed
+
+- **Odds history endpoint was returning 500 for every request**: `GET /api/games/:id/odds/history` filtered on a `timestamp` column that `OddsSnapshot` does not have (it stores `capturedAt`), so Prisma rejected the query as invalid on every call. The `any`-typed where clause hid it from the compiler; found while typing `games.routes.ts` for issue #71
+
 ---
 
 ## [2026-08-15]

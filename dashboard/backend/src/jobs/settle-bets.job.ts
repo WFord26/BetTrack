@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { outcomeResolverService } from '../services/outcome-resolver.service';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
@@ -72,7 +72,6 @@ export function startSettleBetsJob() {
   logger.info(`   Cron expression: ${cronExpression}`);
 
   const task = cron.schedule(cronExpression, executeResolve, {
-    scheduled: true,
     timezone: 'America/New_York' // Adjust to your timezone
   });
 
@@ -86,7 +85,7 @@ export function startSettleBetsJob() {
 /**
  * Stop the scheduled job
  */
-export function stopSettleBetsJob(task: cron.ScheduledTask) {
+export function stopSettleBetsJob(task: ScheduledTask) {
   logger.info('Stopping bet settlement job...');
   task.stop();
 }

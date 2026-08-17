@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 // Build-time: Vite bundles the version from the frontend package.json
 import { version as FRONTEND_VERSION } from '../../package.json';
+import { logger } from '../utils/logger';
 
 export default function Footer() {
   const [apiRequestsRemaining, setApiRequestsRemaining] = useState<number | null>(null);
@@ -20,7 +21,7 @@ export default function Footer() {
           setBackendVersion(data.version);
         }
       } catch (error) {
-        console.error('Failed to fetch health data:', error);
+        logger.error('Failed to fetch health data:', error);
       }
     };
 

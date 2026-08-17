@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **TypeScript `any` reduction — top 6 offenders (issue #71)**: Replaced every explicit `any` annotation in the six heaviest files (63 by the issue's count, 75 by a broader match including `Record<string, any>`); repo-wide annotations dropped from 253 to 178. No behavioural change except the two fixes noted below.
+  - `src/utils/error-message.ts` (new): `getErrorMessage(error: unknown)` helper, so `catch (error: any)` blocks reading `error.message` become `catch (error)` under `strict`'s `unknown` binding. Adopted by `admin.routes.ts` (18 blocks), `games.routes.ts` (4) and `sharp-indicator.service.ts` (1)
+  - `src/routes/admin.routes.ts`: `Sport[]` for the init-sports accumulator; the sport-update P2025 check now narrows via `Prisma.PrismaClientKnownRequestError` instead of reading `.code` off `any`
+  - `src/routes/stats.routes.ts`: `Prisma.GameStatsWhereInput` for the filter builders; new module-level `toStatsObject` / `readStatNumber` helpers read the free-form `GameStats.stats` JSON column defensively (non-numeric values now contribute 0 rather than string-concatenating into the total)
+  - `src/routes/games.routes.ts`: `Prisma.GameWhereInput` / `CurrentOddsWhereInput` / `OddsSnapshotWhereInput` for the filter builders; new `BookmakerOdds` / `OddsMarket` / `OddsOutcome` interfaces describe the bookmaker card shape the frontend consumes
+  - `src/services/clv.service.ts`: `Prisma.BetLegGetPayload` alias for the report queries; `Prisma.BetWhereInput` / `BetLegWhereInput` for the filter builders. `groupByField` now takes a selector function instead of a dotted path string, which removed the reflective `getNestedProperty` helper entirely
+  - `src/services/sharp-indicator.service.ts`: `LineMovement[]` for the confidence-scoring inputs, `Prisma.SharpMoneyIndicatorGetPayload` for the read queries, and a `BookmakerLines` type plus `toBookmakerLines` / `parseLineValue` helpers for the `linesBefore` / `linesAfter` JSON columns
+  - `src/services/api-sports/soccer.service.ts`: Local API-Football response interfaces (`ApiFootballResponse<T>`, `Fixture`, `TeamStatisticsEntry`, `FixturePlayersEntry`, `PlayerStatistics`) passed through `ApiSportsClient.get<T>()`, replacing the `(response as any).response` casts — matching the convention already used by `nba.service.ts` and `mlb.service.ts`
+  - `src/services/stats-sync.service.ts`: `game.fixture?.id` in the soccer live-game loop, now that `getLiveGames()` returns `Fixture[]` rather than `any[]`
+
+- **Dependency Management & Quality (issues #62-#63, #66, #68)**:
+  - npm audit: Reduced vulnerabilities from 23 to 4; key upgrades: vitest 3.2.4→4.1.10, vite 6.4.3→8.2.1, react-router-dom 6.30.4→7.18.2, bcrypt to latest
+  - Coverage thresholds ratchet: Established baseline coverage gates with {branches:34, functions:56, lines:52, statements:51}; configured Jest to enforce ratchet policy (only increase, never decrease)
+  - Node.js runtime: Upgraded Docker images from node:20-alpine to node:22-alpine; updated package.json engines constraint to >=22.0.0
+  - asyncHandler middleware: Created `/src/utils/async-handler.ts` utility for centralized async route error handling; created `/src/schemas/query-params.schema.ts` with Zod validation schemas; documented one-file-per-PR migration strategy in ASYNC-HANDLER-MIGRATION.md (to eliminate 63+ hand-rolled try/catch blocks across 17 route files)
+
+### Added
+
+- **asyncHandler Middleware Infrastructure (issue #68)**:
+  - `/src/utils/async-handler.ts`: Express middleware wrapper for async route handlers; catches errors and passes to Express error middleware
+  - `/src/schemas/query-params.schema.ts`: Reusable Zod schemas for query parameter validation (pagination, date ranges, sorting)
+  - `ASYNC-HANDLER-MIGRATION.md`: Comprehensive migration guide with examples, priority order, and checklist for refactoring existing route handlers
+
+### Fixed
+
+- **`GET /api/games/:id/odds/history` returned 500 on every request** (found while typing `games.routes.ts` for issue #71): The where clause filtered on `timestamp`, a column `OddsSnapshot` does not have — the model stores `capturedAt`. Prisma rejects unknown arguments, so the endpoint threw `PrismaClientValidationError` for all callers. The `any`-typed where clause hid the mismatch from `tsc`. Now filters on `capturedAt`, matching the `orderBy` the query already used.
+
+### Known Issues
+
+- **`tsc --noEmit` does not pass clean**: 18 pre-existing errors across `src/jobs/*` from the node-cron upgrade — `scheduled` and `runOnInit` are no longer members of `TaskOptions`, and the `cron` namespace is no longer importable for return-type annotations. Present before and after the issue #71 typing work; unrelated to it.
+- **CLV closing-line capture never matches** (issue #87): `CLVService.findMatchingOddsSnapshot` reads `outcome` / `price` / `point` / `timestamp` off `OddsSnapshot` rows, none of which exist on that model, so `betLeg.closingOdds` is never populated and CLV is never computed. Surfaced by the issue #71 typing work and documented in a `ClosingLineSnapshot` interface comment; behaviour deliberately left unchanged pending a fix, since correcting the matcher changes settlement data.
+
 ---
 
 ## [0.4.3] - 2026-08-16

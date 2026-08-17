@@ -38,6 +38,14 @@ from sports_api.team_reference import (
     NHL_TEAMS
 )
 
+# Configure logging before anything else emits a message. This server speaks
+# JSON-RPC over stdout, so all diagnostics must go to stderr (logging's default).
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Load environment variables from persistent config directory (survives updates)
 # Check for user-specified config directory (set via manifest.json)
 config_dir_env = os.getenv("SPORTS_MCP_CONFIG_DIR")
@@ -58,30 +66,19 @@ env_example_path = script_dir / ".env.example"
 if not env_path.exists() and env_example_path.exists():
     import shutil
     shutil.copy(env_example_path, env_path)
-    print(f"\n{'='*60}")
-    print(f"First-time setup: Created configuration file")
-    print(f"Location: {env_path}")
-    print(f"")
-    print(f"IMPORTANT: Edit this file and add your ODDS_API_KEY")
-    print(f"Get your API key from: https://the-odds-api.com")
-    print(f"{'='*60}\n")
+    logger.warning("First-time setup: created configuration file at %s", env_path)
+    logger.warning(
+        "IMPORTANT: edit that file and add your ODDS_API_KEY. "
+        "Get your API key from: https://the-odds-api.com"
+    )
 
 if env_path.exists():
     load_dotenv(env_path)
-    logger_temp = logging.getLogger(__name__)
-    logger_temp.info(f"Loaded .env from persistent config: {env_path}")
+    logger.info("Loaded .env from persistent config: %s", env_path)
 else:
     # Fall back to current directory
     load_dotenv()
-    logger_temp = logging.getLogger(__name__)
-    logger_temp.info("Loaded .env from current directory or environment")
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+    logger.info("Loaded .env from current directory or environment")
 
 # Initialize FastMCP server
 mcp = FastMCP(

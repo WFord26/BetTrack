@@ -4,6 +4,7 @@ import BetLegItem from './BetLegItem';
 import TeaserControl from './TeaserControl';
 import ParlayValidator from '../analytics/ParlayValidator';
 import { formatOdds, formatCurrency, americanToDecimal, decimalToAmerican } from '../../utils/format';
+import { logger } from '../../utils/logger';
 
 interface BetSlipProps {
   useDecimalOdds?: boolean;
@@ -164,7 +165,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
     if (oddsBoostPercentage > 0 && import.meta.env.DEV) {
       // Dev-only: keep visibility into the boost math without shipping
       // these logs to production users.
-      console.log(
+      logger.debug(
         `Parlay boost +${oddsBoostPercentage}%: ` +
         `${combinedOdds} → ${oddsToSubmit}, ` +
         `$${potentialPayout.toFixed(2)} → $${boostedPotentialPayout.toFixed(2)}`

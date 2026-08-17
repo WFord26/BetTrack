@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import GameStatsPanel from '../components/stats/GameStatsPanel';
 import { formatTime } from '../utils/format';
+import { logger } from '../utils/logger';
 
 interface Game {
   id: string;
@@ -53,7 +54,7 @@ export default function GameDetail() {
 
         setGame(transformedGame);
       } catch (error) {
-        console.error('Error fetching game:', error);
+        logger.error('Error fetching game:', error);
         setError('Failed to load game details');
       } finally {
         setLoading(false);

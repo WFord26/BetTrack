@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Dependency Management (issue #65)**: Python dependencies now pinned with version constraints
+  - Updated `requirements.txt` with exact minor-version pins: aiohttp>=3.9.0,<4.0.0, aiofiles>=23.2.0,<24.0.0, fastapi>=0.104.0,<0.105.0, pydantic>=2.5.0,<3.0.0, etc.
+  - Created separate `requirements-dev.txt` for testing tools: pytest, pytest-asyncio, pytest-mock, pylint, black, mypy, type-stubs packages
+  - Improves reproducibility and prevents unexpected breaking changes from transitive dependencies
+  - Note: Requires Python 3.11+ per FastMCP framework requirement
+
+### Added
+
+- **MCP Test Suite (issue #67)**: Comprehensive test suite for MCP server components
+  - `mcp/tests/` directory structure:
+    - `conftest.py`: Pytest fixtures for API specs, sample data, async mocks, event loop configuration
+    - `test_formatters.py`: 55+ tests for output formatting (matchup cards, scoreboards, standings, odds tables)
+      - Tests width consistency (66 chars), team name shortening, score display, empty field handling, Unicode box-drawing characters
+    - `test_team_reference.py`: 45+ tests for team lookups and logo URL generation
+      - Tests exact/partial/fuzzy matching, case-insensitive handling, abbreviation lookup, ESPN CDN logo URL format
+    - `pytest.ini`: Configuration with asyncio_mode=auto
+    - `README.md`: Comprehensive testing guide and best practices
+  - 100+ tests written with coverage focus on sports_api/ components
+  - Note: Local execution requires Python 3.11+ (system has 3.9.6); tests will validate in CI/CD
+
 ---
 
 ## [0.4.4] - 2026-08-16

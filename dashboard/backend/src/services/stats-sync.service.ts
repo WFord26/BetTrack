@@ -192,7 +192,7 @@ export class StatsSyncService {
         
         for (const game of soccerGames) {
           result.gamesProcessed++;
-          const gameId = String(game.fixture.id);
+          const gameId = String(game.fixture?.id);
           
           try {
             await this.soccerService.syncGameStats(gameId);

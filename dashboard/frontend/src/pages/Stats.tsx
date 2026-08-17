@@ -5,6 +5,7 @@ import CLVSummaryCard from '../components/stats/CLVSummaryCard';
 import { BetStats } from '../types/game.types';
 import api from '../services/api';
 import { formatCurrency, formatPercentage, getSportDisplayName } from '../utils/format';
+import { logger } from '../utils/logger';
 
 interface SportBreakdown {
   sport: string;
@@ -98,7 +99,7 @@ export default function Stats() {
       
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching stats:', err);
+      logger.error('Error fetching stats:', err);
       setError(err.response?.data?.message || 'Failed to load statistics');
     } finally {
       setLoading(false);
