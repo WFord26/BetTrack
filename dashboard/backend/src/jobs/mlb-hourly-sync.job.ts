@@ -71,7 +71,6 @@ export function startMlbHourlySyncJob() {
   logger.info(`📅 Scheduling MLB hourly sync job: ${env.MLB_SYNC_CRON}`);
 
   const task = cron.schedule(env.MLB_SYNC_CRON, executeMlbHourlySync, {
-    scheduled: true,
     timezone: 'America/New_York',
   });
 

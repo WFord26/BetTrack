@@ -71,7 +71,6 @@ export function startFootballHourlySyncJob() {
   logger.info(`📅 Scheduling football hourly sync job: ${env.FOOTBALL_SYNC_CRON}`);
 
   const task = cron.schedule(env.FOOTBALL_SYNC_CRON, executeFootballHourlySync, {
-    scheduled: true,
     timezone: 'America/New_York',
   });
 

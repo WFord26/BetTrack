@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { oddsSyncService } from '../services/odds-sync.service';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
@@ -90,7 +90,6 @@ export function startOddsSyncJob() {
   logger.info(`   Cron expression: ${cronExpression}`);
 
   const task = cron.schedule(cronExpression, executeSync, {
-    scheduled: true,
     timezone: 'America/New_York' // Adjust to your timezone
   });
 
@@ -104,7 +103,7 @@ export function startOddsSyncJob() {
 /**
  * Stop the scheduled job
  */
-export function stopOddsSyncJob(task: cron.ScheduledTask) {
+export function stopOddsSyncJob(task: ScheduledTask) {
   logger.info('Stopping odds sync job...');
   task.stop();
 }

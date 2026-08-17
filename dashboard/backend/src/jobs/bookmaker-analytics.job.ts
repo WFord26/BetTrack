@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { bookmakerAnalyticsService } from '../services/bookmaker-analytics.service';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
@@ -61,7 +61,6 @@ export async function startBookmakerAnalyticsJob() {
   logger.info(`📅 Scheduling bookmaker analytics job: ${CRON_EXPRESSION}`);
 
   const task = cron.schedule(CRON_EXPRESSION, executeBookmakerAnalytics, {
-    scheduled: true,
     timezone: 'UTC',
   });
 
@@ -86,7 +85,7 @@ export async function startBookmakerAnalyticsJob() {
   return task;
 }
 
-export function stopBookmakerAnalyticsJob(task: cron.ScheduledTask) {
+export function stopBookmakerAnalyticsJob(task: ScheduledTask) {
   logger.info('Stopping bookmaker analytics job...');
   task.stop();
 }

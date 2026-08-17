@@ -151,7 +151,6 @@ export function initializeCleanupJob() {
   // host timezone, which would silently shift the run time on
   // non-UTC servers.
   cron.schedule(CLEANUP_CRON_EXPRESSION, executeCleanup, {
-    runOnInit: false,
     timezone: CLEANUP_TIMEZONE,
   });
 }

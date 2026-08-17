@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { marketConsensusService } from '../services/market-consensus.service';
 import { logger } from '../config/logger';
 
@@ -57,7 +57,6 @@ export function startConsensusCalcJob() {
   logger.info(`📅 Scheduling consensus calculation job: ${CRON_EXPRESSION}`);
 
   const task = cron.schedule(CRON_EXPRESSION, executeConsensusCalc, {
-    scheduled: true,
     timezone: 'America/New_York',
   });
 
@@ -68,7 +67,7 @@ export function startConsensusCalcJob() {
   return task;
 }
 
-export function stopConsensusCalcJob(task: cron.ScheduledTask) {
+export function stopConsensusCalcJob(task: ScheduledTask) {
   logger.info('Stopping consensus calculation job...');
   task.stop();
 }

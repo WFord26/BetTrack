@@ -117,7 +117,6 @@ export function startClosingLineCaptureJob() {
   logger.info(`[CLV Job] Starting closing line capture job (cron: ${CRON_EXPRESSION})`);
   
   const task = cron.schedule(CRON_EXPRESSION, executeCapture, {
-    scheduled: true,
     timezone: 'UTC'
   });
 

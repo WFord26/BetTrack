@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { sharpIndicatorService } from '../services/sharp-indicator.service';
 import { logger } from '../config/logger';
 
@@ -58,7 +58,6 @@ export function startSharpIndicatorJob() {
   logger.info(`📅 Scheduling sharp indicator detection job: ${CRON_EXPRESSION}`);
 
   const task = cron.schedule(CRON_EXPRESSION, executeSharpDetection, {
-    scheduled: true,
     timezone: 'America/New_York',
   });
 
@@ -69,7 +68,7 @@ export function startSharpIndicatorJob() {
   return task;
 }
 
-export function stopSharpIndicatorJob(task: cron.ScheduledTask) {
+export function stopSharpIndicatorJob(task: ScheduledTask) {
   logger.info('Stopping sharp indicator detection job...');
   task.stop();
 }
