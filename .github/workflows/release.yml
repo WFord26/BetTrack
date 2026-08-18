@@ -1,20 +1,85 @@
 name: Release Build
 
+# Triggered by a release tag reaching origin — normally from `npm run release`
+# on a laptop. The scope is read back out of the tag by scripts/release.mjs, so
+# a component tag builds only that component's artifacts.
+#
+# on-demand-release.yml runs the same script in CI and publishes its own
+# artifacts, then pushes its tag here too. The `plan` job below detects that a
+# GitHub Release already exists for the tag and skips, so a manual on-demand run
+# does not build and publish everything a second time.
+
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'           # Matches YYYY.MM.DD
-      - '[0-9]+.[0-9]+.[0-9]+.[0-9]+'    # Matches YYYY.MM.DD.N
+      - '[0-9]+.[0-9]+.[0-9]+'           # YYYY.MM.DD
+      - '[0-9]+.[0-9]+.[0-9]+.[0-9]+'    # YYYY.MM.DD.N
+      - 'mcp-v*'
+      - 'backend-v*'
+      - 'frontend-v*'
+      - 'dashboard-v*'
 
 permissions:
   contents: write
   packages: write
 
 jobs:
+  plan:
+    name: Resolve Release Plan
+    runs-on: ubuntu-latest
+
+    outputs:
+      should_run: ${{ steps.guard.outputs.should_run }}
+      scope: ${{ steps.scope.outputs.scope }}
+      artifacts: ${{ steps.scope.outputs.artifacts }}
+      tag: ${{ steps.scope.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Resolve scope from the tag
+        id: scope
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          node scripts/release.mjs --from-tag "$TAG" --json | tee plan.json
+          {
+            echo "tag=$TAG"
+            echo "scope=$(jq -r .scope plan.json)"
+            echo "artifacts=$(jq -r '.artifacts | join(",")' plan.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      # on-demand-release.yml publishes before it pushes its tag. If a Release
+      # already exists here, that run has done the work — skipping keeps this
+      # workflow from rebuilding it and re-pushing the `latest` images.
+      - name: Skip when the release already exists
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.scope.outputs.tag }}"
+          if gh release view "$TAG" --json tagName >/dev/null 2>&1; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️ Release $TAG already exists — another workflow published it. Skipping."
+            echo "### Skipped — $TAG was already released" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "▶️ No release for $TAG yet — building ${{ steps.scope.outputs.artifacts }}"
+          fi
+
   test:
     name: Run Tests
+    needs: plan
+    if: needs.plan.outputs.should_run == 'true'
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -29,46 +94,49 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: |
-            dashboard/backend/package-lock.json
-            dashboard/frontend/package-lock.json
-      
+          cache-dependency-path: dashboard/package-lock.json
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: mcp/requirements.txt
-      
+
       - name: Install dashboard dependencies
         working-directory: ./dashboard
         run: npm ci
-      
+
       - name: Install Python dependencies
         working-directory: ./mcp
         run: pip install -r requirements.txt
-      
+
+      - name: Run release and bump script tests
+        run: node --test scripts/*.test.mjs
+
       - name: Setup test database
+        if: contains(needs.plan.outputs.artifacts, 'backend')
         working-directory: ./dashboard
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
         run: |
           npm run prisma:deploy --workspace=backend
           npm run prisma:generate --workspace=backend
-      
+
       - name: Run backend tests
+        if: contains(needs.plan.outputs.artifacts, 'backend')
         working-directory: ./dashboard
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
@@ -77,127 +145,164 @@ jobs:
           JWT_SECRET: test-secret
           SESSION_SECRET: test-session-secret
         run: npm run test:ci --workspace=backend
-      
-      - name: Run frontend tests
-        working-directory: ./dashboard
-        run: npm run test:ci --workspace=frontend
-      
+
       - name: Run backend linter
+        if: contains(needs.plan.outputs.artifacts, 'backend')
         working-directory: ./dashboard
         run: npm run lint --workspace=backend
-      
+
+      - name: Run frontend tests
+        if: contains(needs.plan.outputs.artifacts, 'frontend')
+        working-directory: ./dashboard
+        run: npm run test:ci --workspace=frontend
+
       - name: Run frontend linter
+        if: contains(needs.plan.outputs.artifacts, 'frontend')
         working-directory: ./dashboard
         run: npm run lint --workspace=frontend
-      
+
       - name: Validate MCP server
+        if: contains(needs.plan.outputs.artifacts, 'mcpb')
         working-directory: ./mcp
         env:
           ODDS_API_KEY: test-key
-        run: timeout 10s python sports_mcp_server.py || code=$?; if [[ $code -ne 124 && $code -ne 0 ]]; then exit $code; fi
+        shell: bash
+        run: |
+          set +e
+          timeout 10s python sports_mcp_server.py
+          code=$?
+          set -e
+          if [[ $code -ne 124 && $code -ne 0 ]]; then
+            echo "MCP server exited with $code"
+            exit $code
+          fi
 
   release:
     name: Build and Release
-    needs: test
+    needs: [plan, test]
+    if: needs.plan.outputs.should_run == 'true'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: |
-            dashboard/package-lock.json
-            dashboard/backend/package-lock.json
-            dashboard/frontend/package-lock.json
-      
+          cache-dependency-path: dashboard/package-lock.json
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: mcp/requirements.txt
-      
+
       - name: Install Python dependencies
-        run: |
-          cd mcp
-          pip install -r requirements.txt
-      
-      - name: Install Dashboard dependencies
-        run: |
-          cd dashboard
-          npm ci
-      
-      - name: Build MCP Server
-        run: |
-          cd mcp
-          python -m mcpb build
-      
-      - name: Build Dashboard Backend
-        run: |
-          cd dashboard
-          npm run build --workspace=backend
-      
-      - name: Build Dashboard Frontend
-        run: |
-          cd dashboard
-          npm run build --workspace=frontend
-      
-      - name: Create distribution directory
-        run: |
-          mkdir -p dashboard/dist/backend dashboard/dist/frontend
-          cp -r dashboard/backend/dist/* dashboard/dist/backend/
-          cp -r dashboard/backend/package*.json dashboard/dist/backend/
-          cp -r dashboard/backend/prisma dashboard/dist/backend/
-          cp -r dashboard/frontend/dist/* dashboard/dist/frontend/
-          cp dashboard/README.md dashboard/dist/
-          cp dashboard/DEPLOYMENT.md dashboard/dist/
-      
-      - name: Get versions
+        working-directory: ./mcp
+        run: pip install -r requirements.txt
+
+      - name: Install dashboard dependencies
+        working-directory: ./dashboard
+        run: npm ci
+
+      - name: Read released versions
         id: versions
         run: |
-          DASHBOARD_VERSION=$(node -p "require('./dashboard/package.json').version")
-          MCP_VERSION=$(node -p "require('./mcp/package.json').version")
-          echo "dashboard=$DASHBOARD_VERSION" >> $GITHUB_OUTPUT
-          echo "mcp=$MCP_VERSION" >> $GITHUB_OUTPUT
-          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-      
+          node scripts/release.mjs --from-tag "${{ needs.plan.outputs.tag }}" --json > plan.json
+          jq -r '.packages[] | "version_" + (.key | gsub("[^a-zA-Z0-9]+"; "_") | ascii_downcase) + "=" + .nextVersion' plan.json >> "$GITHUB_OUTPUT"
+          {
+            echo "notes<<RELEASE_NOTES_EOF"
+            jq -r .notes plan.json
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      # Build
+      # -----------------------------------------------------------------------
+      - name: Build MCP Server
+        if: contains(needs.plan.outputs.artifacts, 'mcpb')
+        working-directory: ./mcp
+        run: python -m mcpb build
+
+      - name: Build backend
+        if: contains(needs.plan.outputs.artifacts, 'npm-backend')
+        working-directory: ./dashboard
+        run: npm run build --workspace=backend
+
+      - name: Build frontend
+        if: contains(needs.plan.outputs.artifacts, 'npm-frontend')
+        working-directory: ./dashboard
+        run: npm run build --workspace=frontend
+
       - name: Create distribution ZIPs
+        id: zips
+        if: contains(needs.plan.outputs.artifacts, 'zip-')
         run: |
-          cd dashboard/dist
-          zip -r ../../mcp/releases/backend.v${{ steps.versions.outputs.dashboard }}.zip backend/
-          zip -r ../../mcp/releases/frontend.v${{ steps.versions.outputs.dashboard }}.zip frontend/
-      
+          mkdir -p dashboard/dist mcp/releases
+          FILES=""
+
+          if [[ "${{ contains(needs.plan.outputs.artifacts, 'zip-backend') }}" == "true" ]]; then
+            mkdir -p dashboard/dist/backend
+            cp -r dashboard/backend/dist/.  dashboard/dist/backend/
+            cp    dashboard/backend/package.json dashboard/dist/backend/
+            cp -r dashboard/backend/prisma  dashboard/dist/backend/
+            ZIP="mcp/releases/backend.v${{ steps.versions.outputs.version_dashboard_backend }}.zip"
+            (cd dashboard/dist && zip -rq "../../${ZIP}" backend/)
+            FILES="${FILES}${ZIP}"$'\n'
+          fi
+
+          if [[ "${{ contains(needs.plan.outputs.artifacts, 'zip-frontend') }}" == "true" ]]; then
+            mkdir -p dashboard/dist/frontend
+            cp -r dashboard/frontend/dist/. dashboard/dist/frontend/
+            ZIP="mcp/releases/frontend.v${{ steps.versions.outputs.version_dashboard_frontend }}.zip"
+            (cd dashboard/dist && zip -rq "../../${ZIP}" frontend/)
+            FILES="${FILES}${ZIP}"$'\n'
+          fi
+
+          {
+            echo "files<<ZIP_FILES_EOF"
+            printf '%s' "$FILES"
+            echo "ZIP_FILES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      # Docker
+      # -----------------------------------------------------------------------
       - name: Set lowercase registry owner
         id: registry
-        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        if: contains(needs.plan.outputs.artifacts, 'docker-')
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
+        if: contains(needs.plan.outputs.artifacts, 'docker-')
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Log in to GitHub Container Registry
+        if: contains(needs.plan.outputs.artifacts, 'docker-')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Extract metadata for backend
         id: meta-backend
+        if: contains(needs.plan.outputs.artifacts, 'docker-backend')
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/backend
           tags: |
-            type=raw,value=${{ steps.versions.outputs.tag }}
+            type=raw,value=${{ needs.plan.outputs.tag }}
             type=raw,value=latest
-      
+
       - name: Build and push backend image
+        if: contains(needs.plan.outputs.artifacts, 'docker-backend')
         uses: docker/build-push-action@v5
         with:
           context: ./dashboard
@@ -208,17 +313,19 @@ jobs:
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
       - name: Extract metadata for frontend
         id: meta-frontend
+        if: contains(needs.plan.outputs.artifacts, 'docker-frontend')
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/frontend
           tags: |
-            type=raw,value=${{ steps.versions.outputs.tag }}
+            type=raw,value=${{ needs.plan.outputs.tag }}
             type=raw,value=latest
-      
+
       - name: Build and push frontend image
+        if: contains(needs.plan.outputs.artifacts, 'docker-frontend')
         uses: docker/build-push-action@v5
         with:
           context: ./dashboard
@@ -229,49 +336,34 @@ jobs:
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
+      # -----------------------------------------------------------------------
+      # GitHub Release
+      # -----------------------------------------------------------------------
       - name: Find MCPB package
         id: mcpb
+        if: contains(needs.plan.outputs.artifacts, 'mcpb')
         run: |
-          MCPB_FILE=$(ls mcp/releases/*.mcpb | head -n 1)
-          echo "path=$MCPB_FILE" >> $GITHUB_OUTPUT
-      
+          MCPB_FILE=$(ls mcp/releases/*.mcpb 2>/dev/null | head -n 1 || true)
+          echo "path=$MCPB_FILE" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ steps.versions.outputs.tag }}
-          body: |
-            # Release ${{ steps.versions.outputs.tag }}
-            
-            ## Components
-            
-            - **MCP Server**: v${{ steps.versions.outputs.mcp }}
-            - **Dashboard**: v${{ steps.versions.outputs.dashboard }}
-            
-            ## Docker Images
-            
-            ```bash
-            # Backend
-            docker pull ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/backend:${{ steps.versions.outputs.tag }}
-            docker pull ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/backend:latest
-            
-            # Frontend
-            docker pull ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/frontend:${{ steps.versions.outputs.tag }}
-            docker pull ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/frontend:latest
-            ```
-            
-            ## Installation
-            
-            ### MCP Server (Claude Desktop)
-            1. Download the `.mcpb` file
-            2. Install via Claude Desktop settings
-            
-            ### Dashboard
-            - **Docker**: Use the images above with docker-compose
-            - **Manual**: Download backend and frontend ZIPs
+          name: Release ${{ needs.plan.outputs.tag }}
+          body: ${{ steps.versions.outputs.notes }}
           files: |
             ${{ steps.mcpb.outputs.path }}
-            mcp/releases/backend.v${{ steps.versions.outputs.dashboard }}.zip
-            mcp/releases/frontend.v${{ steps.versions.outputs.dashboard }}.zip
+            ${{ steps.zips.outputs.files }}
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
+
+      - name: Summary
+        run: |
+          {
+            echo "### Released ${{ needs.plan.outputs.tag }}"
+            echo
+            echo "- **Scope:** ${{ needs.plan.outputs.scope }}"
+            echo "- **Artifacts:** ${{ needs.plan.outputs.artifacts }}"
+          } >> "$GITHUB_STEP_SUMMARY"

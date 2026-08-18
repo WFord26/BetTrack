@@ -3,7 +3,8 @@
 Four independently versioned packages, each bumpable on its own schedule, with
 the bump level derived from the package's own changelog.
 
-Quick reference: [BUMP-QUICK-START.md](./BUMP-QUICK-START.md)
+Quick reference: [BUMP-QUICK-START.md](./BUMP-QUICK-START.md)  
+Releasing: [RELEASE-SYSTEM.md](./RELEASE-SYSTEM.md)
 
 ## Packages
 
@@ -200,7 +201,8 @@ a separate namespace and do not trigger that workflow.
 
 ```bash
 npm run test:bump              # from dashboard/
-node --test scripts/bump-version.test.mjs
+npm run test:scripts           # bump + release together
+node --test scripts/*.test.mjs
 ```
 
 65 tests, no dependencies beyond `node:test`. Unit tests cover level inference,
@@ -211,7 +213,7 @@ subprocess — so version writes, changelog rewrites, hash baselining, and git
 tagging are all exercised for real.
 
 CI runs both the suite and a `--dry-run` against the real manifests (the
-`Version Bump Script` job in `.github/workflows/test.yml`), which catches a
+`Release & Bump Scripts` job in `.github/workflows/test.yml`), which catches a
 manifest that has drifted off semver or a changelog the parser cannot read.
 
 ## Extending

@@ -1,7 +1,7 @@
 /**
  * Tests for the version bump script.
  *
- * Run with: npm run test:bump  (from dashboard/), or `node --test scripts/`.
+ * Run with: npm run test:bump  (from dashboard/), or `node --test scripts/*.test.mjs`.
  * Uses only node:test — the script has no dependencies and neither does this.
  *
  * Unit tests import the script's exported pure functions. The end-to-end tests

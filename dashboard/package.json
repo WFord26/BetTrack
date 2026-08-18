@@ -23,7 +23,13 @@
     "bump:ci": "npm run bump -- --no-input",
     "bump:dry": "npm run bump -- --no-input --dry-run",
     "bump:tag": "npm run bump -- --tag",
-    "test:bump": "node --test ../scripts/bump-version.test.mjs"
+    "test:bump": "node --test ../scripts/bump-version.test.mjs",
+    "release": "node ../scripts/release.mjs",
+    "release:dry": "npm run release -- --dry-run",
+    "release:mcp": "npm run release -- mcp",
+    "release:dashboard": "npm run release -- dashboard",
+    "test:release": "node --test ../scripts/release.test.mjs",
+    "test:scripts": "node --test ../scripts/*.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

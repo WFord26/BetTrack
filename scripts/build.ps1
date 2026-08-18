@@ -201,58 +201,9 @@ function Get-VersionFromFile {
     return $content.version
 }
 
-# Bump a version number
-function Get-BumpedVersion {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$CurrentVersion,
-        [Parameter(Mandatory=$true)]
-        [string]$BumpType
-    )
-    
-    # Parse version (strip beta suffix if present)
-    $baseVersion = $CurrentVersion -replace '-beta\.\d+$', '' -replace '-beta\.[a-f0-9]+$', ''
-    
-    if ($baseVersion -match '^(\d+)\.(\d+)\.(\d+)$') {
-        $major = [int]$matches[1]
-        $minor = [int]$matches[2]
-        $patch = [int]$matches[3]
-    } else {
-        Write-ColorOutput "Invalid version format: $baseVersion" -Type Error
-        return $null
-    }
-    
-    # Bump version
-    switch ($BumpType) {
-        'major' { $major++; $minor = 0; $patch = 0 }
-        'minor' { $minor++; $patch = 0 }
-        'patch' { $patch++ }
-    }
-    
-    return "$major.$minor.$patch"
-}
-
-# Update a specific package file with new version
-function Update-PackageVersion {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$FilePath,
-        [Parameter(Mandatory=$true)]
-        [string]$NewVersion,
-        [Parameter(Mandatory=$true)]
-        [string]$ComponentName
-    )
-    
-    if (-not (Test-Path $FilePath)) {
-        Write-ColorOutput "$ComponentName not found, skipping" -Type Warning
-        return
-    }
-    
-    $content = Get-Content $FilePath -Raw | ConvertFrom-Json
-    $content.version = $NewVersion
-    $content | ConvertTo-Json -Depth 10 | Set-Content $FilePath -Encoding UTF8
-    Write-ColorOutput "Updated $ComponentName to $NewVersion" -Type Success
-}
+# Semver arithmetic and manifest writing live in scripts/bump-version.mjs -
+# Get-BumpedVersion and Update-PackageVersion were removed so there is no second
+# implementation to drift out of sync with it.
 
 # Get calendar-based version (YYYY.MM.DD or YYYY.MM.DD.N)
 function Get-CalendarVersion {
@@ -377,7 +328,11 @@ function New-DistributionZip {
     return $zipPaths
 }
 
-# Handle version bumping for specified components
+# Handle version bumping for specified components.
+# Delegates to scripts/bump-version.mjs so there is one versioning path: it owns
+# semver arithmetic, mcp/manifest.json sync, the CHANGELOG rollover, internal
+# dependency specifiers, and .bump-hashes.json. Editing the manifests directly
+# here would skip all of that.
 function Update-ComponentVersions {
     param(
         [string]$BumpType,
@@ -387,81 +342,66 @@ function Update-ComponentVersions {
         [bool]$BumpBackend,
         [bool]$BumpFrontend
     )
-    
+
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        Write-ColorOutput "Node.js not found - required for npm run bump" -Type Error
+        exit 1
+    }
+
+    # Map the -Bump* switches onto bump-version.mjs package targets so only the
+    # requested components move. With no switches, bump whatever changed.
+    $targets = @()
+    if ($BumpMCP)       { $targets += "mcp" }
+    if ($BumpBackend)   { $targets += "backend" }
+    if ($BumpFrontend)  { $targets += "frontend" }
+    if ($BumpDashboard) { $targets += "dashboard" }
+
+    $bumpArgs = @()
+    if ($targets.Count -gt 0) {
+        # "<pkg>:<level>" when a level was named, bare "<pkg>" to let each
+        # package's CHANGELOG decide.
+        foreach ($target in $targets) {
+            if ($BumpType) { $bumpArgs += "${target}:${BumpType}" } else { $bumpArgs += $target }
+        }
+    } else {
+        $bumpArgs += "--no-input"
+        if ($BumpType) { $bumpArgs += @("--force", $BumpType) }
+    }
+
+    Write-ColorOutput "Running npm run bump -- $($bumpArgs -join ' ') ..." -Type Info
+
+    Push-Location $DashboardRoot
+    try {
+        & npm run bump -- @bumpArgs
+        if ($LASTEXITCODE -ne 0) {
+            Write-ColorOutput "Version bump failed" -Type Error
+            exit 1
+        }
+    } finally {
+        Pop-Location
+    }
+
+    # Read back what bump-version.mjs actually wrote.
     $versions = @{
-        MCP = $null
-        Dashboard = $null
-        Backend = $null
-        Frontend = $null
+        MCP       = Get-VersionFromFile -FilePath (Join-Path $MCPRoot "manifest.json") -FileType "manifest"
+        Dashboard = Get-VersionFromFile -FilePath (Join-Path $DashboardRoot "package.json") -FileType "package"
+        Backend   = Get-VersionFromFile -FilePath (Join-Path $DashboardRoot "backend\package.json") -FileType "package"
+        Frontend  = Get-VersionFromFile -FilePath (Join-Path $DashboardRoot "frontend\package.json") -FileType "package"
     }
-    
-    # Bump MCP version if requested
-    if ($BumpMCP) {
-        $manifestPath = Join-Path $MCPRoot "manifest.json"
-        $currentVersion = Get-VersionFromFile -FilePath $manifestPath -FileType "manifest"
-        
-        if ($currentVersion) {
-            Write-ColorOutput "MCP current version: $currentVersion" -Type Info
-            $newBaseVersion = Get-BumpedVersion -CurrentVersion $currentVersion -BumpType $BumpType
-            
-            if ($IsBeta) {
-                $versions.MCP = Get-NextBetaVersion -BaseVersion $newBaseVersion
-                Write-ColorOutput "MCP new beta version: $($versions.MCP)" -Type Success
-            } else {
-                $versions.MCP = $newBaseVersion
-                Write-ColorOutput "MCP new version: $($versions.MCP)" -Type Success
-            }
-            
-            # Update manifest and MCP package.json
-            Update-PackageVersion -FilePath $manifestPath -NewVersion $newBaseVersion -ComponentName "mcp/manifest.json"
-            
-            $mcpPackagePath = Join-Path $MCPRoot "package.json"
-            Update-PackageVersion -FilePath $mcpPackagePath -NewVersion $newBaseVersion -ComponentName "mcp/package.json"
-        }
+
+    Write-ColorOutput "Versions after bump:" -Type Success
+    Write-ColorOutput "  MCP      : $($versions.MCP)" -Type Info
+    Write-ColorOutput "  Dashboard: $($versions.Dashboard)" -Type Info
+    Write-ColorOutput "  Backend  : $($versions.Backend)" -Type Info
+    Write-ColorOutput "  Frontend : $($versions.Frontend)" -Type Info
+
+    # Beta suffix is in-memory only - it names the MCPB file, it is not written
+    # back into any manifest.
+    if ($IsBeta -and $versions.MCP) {
+        $versions.MCP = Get-NextBetaVersion -BaseVersion $versions.MCP
+        Write-ColorOutput "  MCP beta : $($versions.MCP)" -Type Info
     }
-    
-    # Bump Dashboard root version if requested
-    if ($BumpDashboard) {
-        $dashboardPackagePath = Join-Path $DashboardRoot "package.json"
-        $currentVersion = Get-VersionFromFile -FilePath $dashboardPackagePath -FileType "package"
-        
-        if ($currentVersion) {
-            Write-ColorOutput "Dashboard current version: $currentVersion" -Type Info
-            $versions.Dashboard = Get-BumpedVersion -CurrentVersion $currentVersion -BumpType $BumpType
-            Write-ColorOutput "Dashboard new version: $($versions.Dashboard)" -Type Success
-            
-            Update-PackageVersion -FilePath $dashboardPackagePath -NewVersion $versions.Dashboard -ComponentName "dashboard/package.json"
-        }
-    }
-    
-    # Bump Backend version if requested
-    if ($BumpBackend) {
-        $backendPackagePath = Join-Path $DashboardRoot "backend\package.json"
-        $currentVersion = Get-VersionFromFile -FilePath $backendPackagePath -FileType "package"
-        
-        if ($currentVersion) {
-            Write-ColorOutput "Backend current version: $currentVersion" -Type Info
-            $versions.Backend = Get-BumpedVersion -CurrentVersion $currentVersion -BumpType $BumpType
-            Write-ColorOutput "Backend new version: $($versions.Backend)" -Type Success
-            
-            Update-PackageVersion -FilePath $backendPackagePath -NewVersion $versions.Backend -ComponentName "dashboard/backend/package.json"
-        }
-    }
-    
-    # Bump Frontend version if requested
-    if ($BumpFrontend) {
-        $frontendPackagePath = Join-Path $DashboardRoot "frontend\package.json"
-        $currentVersion = Get-VersionFromFile -FilePath $frontendPackagePath -FileType "package"
-        
-        if ($currentVersion) {
-            Write-ColorOutput "Frontend current version: $currentVersion" -Type Info
-            $versions.Frontend = Get-BumpedVersion -CurrentVersion $currentVersion -BumpType $BumpType
-            Write-ColorOutput "Frontend new version: $($versions.Frontend)" -Type Success
-            
-            Update-PackageVersion -FilePath $frontendPackagePath -NewVersion $versions.Frontend -ComponentName "dashboard/frontend/package.json"
-        }
-    }
-    
+
     return $versions
 }
 

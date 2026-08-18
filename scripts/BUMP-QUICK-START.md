@@ -1,6 +1,6 @@
 # Bump Script Quick Reference
 
-Full reference: [BUMP-SYSTEM.md](./BUMP-SYSTEM.md)
+Full reference: [BUMP-SYSTEM.md](./BUMP-SYSTEM.md) · Releasing: [RELEASE-SYSTEM.md](./RELEASE-SYSTEM.md)
 
 ## Quick Start
 
@@ -142,5 +142,6 @@ Restrict it to specific packages the same way: `npm run bump:tag -- mcp`.
 ## Tests
 
 ```bash
-npm run test:bump
+npm run test:bump      # bump script only
+npm run test:scripts   # bump + release
 ```

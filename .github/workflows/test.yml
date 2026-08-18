@@ -257,33 +257,45 @@ jobs:
             exit $code
           fi
 
-  bump-script-tests:
-    name: Version Bump Script
+  release-script-tests:
+    name: Release & Bump Scripts
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      # The script and its tests are dependency-free (node:test only), so there
-      # is nothing to install.
-      - name: Run bump script tests
-        run: node --test scripts/bump-version.test.mjs
+      # Both scripts and their tests are dependency-free (node:test only), so
+      # there is nothing to install.
+      - name: Run script tests
+        run: node --test scripts/*.test.mjs
 
       # Catches a manifest that has drifted off semver, a missing package.json,
       # or a changelog the level inference cannot read.
       - name: Validate bump plan against the real manifests
         run: node scripts/bump-version.mjs --no-input --dry-run
 
+      # Catches a release scope whose packages no longer resolve, and proves the
+      # notes aggregation runs against the real changelogs.
+      - name: Validate release plan for every scope
+        run: |
+          for scope in all mcp dashboard backend frontend; do
+            echo "--- $scope"
+            node scripts/release.mjs "$scope" --json > /dev/null
+          done
+          echo "✅ every release scope resolves"
+
   build-validation:
     name: Build Validation
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests, mcp-validation, bump-script-tests]
+    needs: [backend-tests, frontend-tests, mcp-validation, release-script-tests]
     
     steps:
       - name: Checkout code

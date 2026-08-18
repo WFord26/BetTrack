@@ -125,49 +125,10 @@ get_version() {
 }
 
 # ---------------------------------------------------------------------------
-# Helper: bump a semver string  (strips -beta.* suffix first)
+# Semver arithmetic and manifest writing live in scripts/bump-version.mjs —
+# bump_version() and update_version() were removed so there is no second
+# implementation to drift out of sync with it.
 # ---------------------------------------------------------------------------
-bump_version() {
-    local current="$1"
-    local bump_type="$2"
-    "$PYTHON" - "$current" "$bump_type" <<'PY'
-import sys, re
-ver, bump = sys.argv[1], sys.argv[2]
-base = re.sub(r'-beta\.\S+$', '', ver)
-m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', base)
-if not m:
-    print(f"Invalid version: {base}", file=sys.stderr); sys.exit(1)
-major, minor, patch = int(m[1]), int(m[2]), int(m[3])
-if bump == 'major':  major += 1; minor = 0; patch = 0
-elif bump == 'minor': minor += 1; patch = 0
-elif bump == 'patch': patch += 1
-print(f"{major}.{minor}.{patch}")
-PY
-}
-
-# ---------------------------------------------------------------------------
-# Helper: write new version into a JSON file (preserves formatting via python)
-# ---------------------------------------------------------------------------
-update_version() {
-    local file="$1"
-    local new_ver="$2"
-    local label="$3"
-    if [[ ! -f "$file" ]]; then
-        log_warn "$label not found, skipping"
-        return
-    fi
-    "$PYTHON" - "$file" "$new_ver" <<'PY'
-import json, sys
-path, ver = sys.argv[1], sys.argv[2]
-with open(path) as f:
-    data = json.load(f)
-data['version'] = ver
-with open(path, 'w') as f:
-    json.dump(data, f, indent=2)
-    f.write('\n')
-PY
-    log_ok "Updated $label to $new_ver"
-}
 
 # ---------------------------------------------------------------------------
 # Helper: get short git hash (fallback: timestamp)
@@ -268,9 +229,35 @@ bump_component_versions() {
         exit 1
     fi
 
-    log_info "Running npm run bump -- --force $bump_type ..."
+    # Map the --bump-* flags onto bump-version.mjs package targets so only the
+    # requested components move. With no flags, fall back to bumping everything
+    # that changed, which is what the bare script does.
+    local targets=()
+    [[ "$OPT_BUMP_MCP"       -eq 1 ]] && targets+=("mcp")
+    [[ "$OPT_BUMP_BACKEND"   -eq 1 ]] && targets+=("backend")
+    [[ "$OPT_BUMP_FRONTEND"  -eq 1 ]] && targets+=("frontend")
+    [[ "$OPT_BUMP_DASHBOARD" -eq 1 ]] && targets+=("dashboard")
+
+    local bump_args=()
+    if [[ ${#targets[@]} -gt 0 ]]; then
+        # <pkg>:<level> when a level was named, bare <pkg> to let each package's
+        # CHANGELOG decide.
+        local target
+        for target in "${targets[@]}"; do
+            if [[ -n "$bump_type" ]]; then
+                bump_args+=("${target}:${bump_type}")
+            else
+                bump_args+=("$target")
+            fi
+        done
+    else
+        bump_args+=("--no-input")
+        [[ -n "$bump_type" ]] && bump_args+=("--force" "$bump_type")
+    fi
+
+    log_info "Running npm run bump -- ${bump_args[*]} ..."
     pushd "$DASHBOARD_ROOT" > /dev/null
-    npm run bump -- --force "$bump_type"
+    npm run bump -- "${bump_args[@]}"
     popd > /dev/null
 
     # Read the new versions written by bump-version.mjs

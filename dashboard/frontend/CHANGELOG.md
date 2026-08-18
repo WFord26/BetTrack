@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Page component test coverage was 5 pages, not "untested page components" cleared (issue #69 follow-up)**: closing #69 had not been re-verified against the actual page list — 13 of 19 pages (`ApiKeysSettings`, `BetHistory`, `BookmakerPerformance`, `CorrelationDashboard`, `Futures`, `GameDetail`, `Home`, `LineMovementAnalytics`, `Notifications`, `Preferences`, `Stats`, `TeamDetail`, `ValueOpportunities`) still had zero tests, and the 0.6.0 entry below describes a "simplified rendering approach (no API mocking)" that verified component structure rather than behavior. All 19 pages now have real behavioral tests: `services/api`/`apiClient` calls mocked per-page, Redux-backed pages (`BookmakerPerformance`, `CorrelationDashboard`, `LineMovementAnalytics`, `Notifications`, `Futures`) driven through a real store with only the underlying service module mocked (matching the `ArbitrageDashboard.test.tsx` convention), route-param pages (`GameDetail`, `TeamDetail`) rendered inside a `MemoryRouter`, and fixture builders in `src/test/fixtures.ts` reused instead of duplicated. Frontend suite: 45 test files, 501 tests passing.
+- **`test.yml` `build-validation` job still pinned Node 20 (issue #66 follow-up)**: the four Dockerfiles, both `package.json` `engines` fields, and the `backend-tests`/`frontend-tests` CI matrices were upgraded to Node 22, but the separate `build-validation` job's `Setup Node.js` step was missed and still requested `node-version: '20'`. Now `'22'`, matching everywhere else.
+- **Coverage thresholds recalibrated after #69's new tests changed the real numbers**: the 0.6.0 entry below set gates at `{lines:13, functions:13, branches:13, statements:13}`, and a later, undocumented bump to `{lines:37, functions:65, branches:74, statements:37}` was already failing CI (measured branches sat at 72.36%, 1.6 points under gate) because it was calibrated against a coverage snapshot that didn't match what actually landed. Re-ratcheted to just under the current measured numbers (59.1 / 75.4 / 72.4 / 59.1) — `{lines:57, functions:73, branches:70, statements:57}` — following the same "just under, not above" policy the threshold comment documents. `src/pages` itself sits at 98.6% statement coverage; the remaining branch gap is pre-existing and outside #69's scope (`Header.tsx`, `Footer.tsx`, `BetCard.tsx`, `OddsGrid.tsx` and other shared/chart components have no tests at all).
+
 ---
 
 ## [0.6.0] - 2026-08-16

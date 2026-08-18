@@ -48,13 +48,17 @@ export default defineConfig({
         '**/mockData',
         'dist/'
       ],
-      // Set just under the measured numbers (38.7 / 67.3 / 76.1 / 38.7) so an
+      // Set just under the measured numbers (59.1 / 75.4 / 72.4 / 59.1) so an
       // unrelated change cannot fail CI on rounding, while any real drop does.
+      // Re-ratcheted after #69 added coverage for the 13 previously-untested
+      // page components; branches is now the tightest margin because most of
+      // the remaining gap sits in already-mocked-out chart/layout components
+      // (Header, Footer, BetCard, OddsGrid) rather than in pages.
       thresholds: {
-        lines: 37,
-        functions: 65,
-        branches: 74,
-        statements: 37
+        lines: 57,
+        functions: 73,
+        branches: 70,
+        statements: 57
       }
     },
     // maxForks:1 runs one file at a time, each in its own fresh fork process,

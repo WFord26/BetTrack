@@ -122,6 +122,7 @@ Levels:
 Options:
   --dry-run           Report what would change, write nothing
   --no-input          Never prompt (implied when stdin is not a TTY)
+  --json              Emit the resolved plan as JSON and exit (implies --no-input)
   --force <level>     Apply this level to every selected package
   --since <git-ref>   Detect changes against a git ref instead of the hash state
   --tag               Tag mode: create <pkg>-v<version> tags at HEAD, no version writes
@@ -217,6 +218,7 @@ export function parseArgs(args) {
     since: null,
     dryRun: false,
     noInput: false,
+    json: false,
     tagMode: false,
     allowDirty: false,
   };
@@ -252,6 +254,12 @@ export function parseArgs(args) {
     }
 
     if (flag === "--no-input" || flag === "--yes" || flag === "-y") {
+      parsed.noInput = true;
+      continue;
+    }
+
+    if (flag === "--json") {
+      parsed.json = true;
       parsed.noInput = true;
       continue;
     }
@@ -1129,6 +1137,35 @@ async function main() {
   });
 
   const hasExplicitTargets = args.targets.size > 0;
+
+  // Machine-readable plan for scripts/release.mjs, so level resolution lives in
+  // exactly one place. Emitted before any human output and never writes.
+  if (args.json) {
+    const selected = rows.filter((row) => row.selected);
+    console.log(
+      JSON.stringify(
+        {
+          changed: [...changedKeys],
+          packages: rows.map((row) => ({
+            key: row.key,
+            name: row.pkg.name,
+            manifestPath: row.pkg.manifestPath,
+            currentVersion: row.currentVersion,
+            nextVersion: row.selected ? bumpSemver(row.currentVersion, row.level) : row.currentVersion,
+            level: row.level,
+            levelSource: row.levelSource,
+            changed: row.changed,
+            selected: row.selected,
+            tag: row.selected ? tagNameFor(row.key, bumpSemver(row.currentVersion, row.level)) : null,
+          })),
+          selected: selected.map((row) => row.key),
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
 
   if (!hasExplicitTargets && changedKeys.size === 0 && !args.force) {
     console.log("✅ No changes detected.");
