@@ -788,6 +788,17 @@ describe("bump CLI tag mode (end to end)", () => {
     assert.match(output, /already exists/);
   });
 
+  it("previews in dry-run mode despite a dirty tree, without creating tags", () => {
+    const root = createFixtureRepo();
+    runBump(root, ["mcp:minor"]); // leaves the bump uncommitted
+
+    const output = runBump(root, ["--tag", "mcp", "--dry-run"]);
+
+    assert.match(output, /dirty/i, "still warns about the dirty tree");
+    assert.match(output, /would create mcp-v0\.5\.0/, "but does not withhold the preview");
+    assert.equal(execFileSync("git", ["tag"], { cwd: root, encoding: "utf8" }).trim(), "");
+  });
+
   it("creates no tags in dry-run mode", () => {
     const root = createFixtureRepo();
     runBump(root, ["mcp:minor"]);

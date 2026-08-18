@@ -1,324 +1,233 @@
 # BetTrack Version Bump System
 
-A script-based versioning system that automatically detects changes and bumps semantic versions for BetTrack's components.
+Four independently versioned packages, each bumpable on its own schedule, with
+the bump level derived from the package's own changelog.
 
-## Components Tracked
+Quick reference: [BUMP-QUICK-START.md](./BUMP-QUICK-START.md)
 
-The bump system manages versions for three independent packages:
+## Packages
 
-1. **MCP Server** (`mcp/`)
-   - Location: `mcp/package.json`
-   - Current version: `0.2.1`
-   - Scope: Sports API handlers, formatters, server code
+| Key | CLI aliases | Manifest | Scope |
+|-----|-------------|----------|-------|
+| `mcp` | `server` | `mcp/package.json` | FastMCP server, sports API handlers, formatters |
+| `dashboard/backend` | `backend`, `be`, `api` | `dashboard/backend/package.json` | Express API, Prisma, services, jobs |
+| `dashboard/frontend` | `frontend`, `fe`, `ui` | `dashboard/frontend/package.json` | React components, Redux store, UI |
+| `dashboard` | `monorepo`, `workspace` | `dashboard/package.json` | The npm workspace wrapper |
 
-2. **Dashboard Backend** (`dashboard/backend/`)
-   - Location: `dashboard/backend/package.json`
-   - Current version: `0.2.4`
-   - Scope: Express API, Prisma ORM, services, database
+Current versions live in those manifests — this document deliberately does not
+duplicate them.
 
-3. **Dashboard Frontend** (`dashboard/frontend/`)
-   - Location: `dashboard/frontend/package.json`
-   - Current version: `0.3.4`
-   - Scope: React components, Redux store, UI
+`mcp/manifest.json` is a mirror, not a package: Claude Desktop reads it, and the
+script keeps its `version` in sync with `mcp/package.json` on every mcp bump.
 
-## How It Works
+`dashboard` is an **aggregate**. It owns no sources of its own (every file under
+`dashboard/` already belongs to backend or frontend), so it is never hashed. It
+rolls forward whenever one of its workspaces does.
 
-The bump system uses **file hashing** to detect changes:
+## Command Line
 
-1. **Snapshots** - Creates SHA256 hashes of all tracked files for each package
-2. **Storage** - Stores snapshots in `.bump-hashes.json` at the root
-3. **Detection** - Compares new snapshots to stored snapshots to find changes
-4. **Versioning** - Auto-bumps semantic versions (`major.minor.patch`) for changed packages
-5. **Dependencies** - Updates internal dependencies when referenced packages are bumped
-
-## Usage
-
-### From Dashboard Directory
+All commands run from `dashboard/`. Anything after `--` goes to the script.
 
 ```bash
-cd dashboard
-
-# Auto-detect changes and bump changed packages
-npm run bump
-
-# Force bump with specific type
-npm run bump:patch
-npm run bump:minor
-npm run bump:major
-
-# Preview changes (dry-run)
-npm run bump -- --dry-run
-
-# Bump only since a git ref
-npm run bump -- --since origin/main
+npm run bump                                  # interactive checklist
+npm run bump -- mcp:minor frontend:patch      # explicit packages, explicit levels
+npm run bump -- backend                       # explicit package, inferred level
+npm run bump:ci                               # every changed package, no prompt
+npm run bump:dry                              # same, but writes nothing
+npm run bump -- --force minor                 # override the level everywhere
+npm run bump -- --since origin/main           # detect changes against a git ref
+npm run bump:tag                              # tag current versions at HEAD
+npm run bump -- --help
 ```
 
-### From Root Directory
+### Options
 
-If you create a root `package.json`, you can run:
+| Option | Effect |
+|--------|--------|
+| `<pkg>[:<level>]` | Target a package. Repeatable. A bare name uses the inferred level |
+| `--force <level>` | Apply this level to every selected package (a bare `patch`/`minor`/`major` is the legacy spelling) |
+| `--dry-run` | Report the plan, write nothing |
+| `--no-input` | Never prompt. Implied automatically when stdin is not a TTY |
+| `--since <ref>` | Detect changes via `git diff <ref>...HEAD` instead of the stored hashes |
+| `--tag` | Tag mode: create per-package tags at HEAD, no version writes |
+| `--allow-dirty` | Tag mode only: tag despite a dirty working tree |
+
+## Level Inference
+
+The level for each package comes from its own `CHANGELOG.md`, reading only the
+`[Unreleased]` section — everything from the `## [Unreleased]` heading down to
+the next `##` heading or a `---` separator.
+
+| Signal | Level |
+|--------|-------|
+| A `### Removed` section with at least one entry | `major` |
+| The text `BREAKING CHANGE` (or `**BREAKING`, `BREAKING:`) anywhere in the section | `major` |
+| An `### Added` section with at least one entry | `minor` |
+| Only `Changed` / `Fixed` / `Security` / `Deprecated` / `Performance` | `patch` |
+| Bullets with no `###` headings at all | `patch` |
+| Section empty, or no changelog file | no signal → `patch` |
+
+Two details worth knowing:
+
+- **Empty headings do not count.** A `### Added` with nothing under it is
+  ignored, so a scaffolded changelog template will not silently produce minors.
+- **Released sections are never read.** Only `[Unreleased]` is parsed, so the
+  `### Added` belonging to last month's release cannot leak into today's level.
+
+### Precedence
+
+For each package, first match wins:
+
+1. An explicit `pkg:level` argument → `requested`
+2. `--force <level>` → `--force`
+3. The changelog inference above → the matched reason
+4. *(aggregate only)* the highest level any of its workspaces took this run
+5. `patch`
+
+The reason is printed next to every planned bump, so a surprising level is
+always traceable:
+
+```
+🚀 Planned bumps:
+   mcp                  1.0.0 → 1.1.0  (minor — [Unreleased] has an Added section)
+   dashboard/frontend   0.6.0 → 0.6.1  (patch — [Unreleased] has only changed, fixed)
+   dashboard            0.3.0 → 0.3.1  (patch — highest of its workspaces (patch))
+```
+
+## Change Detection
+
+Detection decides what is **preselected**, never what is *permitted* — naming a
+package always bumps it, changed or not.
+
+1. Every tracked file under each hashed package is SHA-256'd
+2. The per-file digests are folded into one package digest
+3. That digest is compared against `.bump-hashes.json` at the repo root
+4. A package with no stored digest, or a differing one, counts as changed
+
+Not hashed: `package.json`, `CHANGELOG.md`, `*.tsbuildinfo`, and anything under
+`dist/`, `node_modules/`, `.git/`, `coverage/`, `__pycache__/`, `.pytest_cache/`.
+Excluding `package.json` and `CHANGELOG.md` is what stops a bump from being
+self-triggering.
+
+With `--since <ref>`, git decides instead: the union of `git diff <ref>...HEAD`,
+uncommitted changes, and untracked files, mapped back onto package directories.
+
+### Baselining
+
+Only the packages actually bumped are re-baselined, and they are re-hashed
+*after* the writes land. Both halves matter:
+
+- Re-baselining just the bumped packages means a package you deliberately
+  skipped still shows as changed on the next run, instead of being silently
+  absorbed.
+- Re-hashing after the write is required because the bump edits a hashed file:
+  `mcp/manifest.json`. Storing the pre-write snapshot would leave mcp reporting
+  as changed forever.
+
+## Interactive Mode
+
+Bare `npm run bump` with a TTY opens a checklist of every package, preselecting
+the changed ones at their inferred level:
+
+```
+Select packages to bump:
+  ↑/↓ move · space toggle · ←/→ level · a all · n none · enter confirm · q cancel
+
+❯ [x] mcp                 1.0.0 → 1.1.0  (minor)
+  [ ] dashboard/backend   0.5.0  (skip) · no source changes detected
+  [x] dashboard/frontend  0.6.0 → 0.6.1  (patch)
+  [x] dashboard           0.3.0 → 0.3.1  (patch)
+```
+
+`←`/`→` cycles the level on the highlighted row (and selects it). `q`, `esc`, or
+`ctrl-c` exits without writing anything.
+
+Providing explicit targets skips the prompt entirely, as does `--no-input` and
+any non-TTY stdin — CI cannot hang here.
+
+## What a Bump Writes
+
+For each selected package:
+
+1. `version` in its `package.json`
+2. `version` in any mirror file (`mcp/manifest.json`)
+3. `CHANGELOG.md`: the `[Unreleased]` entries move down under a new
+   `## [x.y.z] - YYYY-MM-DD` header, and an empty `[Unreleased]` stays at the
+   top for the next cycle
+4. Internal dependency specifiers on *other* packages that depend on it,
+   preserving the range operator (`^0.5.0`, `~0.5.0`, `workspace:^0.5.0`,
+   exact). Specifiers it cannot safely rewrite — `file:`, ranges, `*` — are left
+   alone
+5. `.bump-hashes.json`
+
+Nothing is committed, staged, or pushed.
+
+## Tagging
+
+Tags must point at the commit that carries the new version, and that commit does
+not exist until you make it — so tagging is a separate step:
 
 ```bash
-npm run bump
-npm run bump:patch
-npm run bump:minor
-npm run bump:major
+npm run bump -- mcp:minor
+git add -A && git commit -m "chore: bump mcp"
+npm run bump:tag
+git push origin main --follow-tags
 ```
 
-## Examples
+`bump:tag` reads the current manifest versions and creates one annotated tag per
+package, named from the last path segment so nothing collides:
 
-### Example 1: Auto-detect MCP server changes
+| Package | Tag |
+|---------|-----|
+| `mcp` | `mcp-v1.1.0` |
+| `dashboard/backend` | `backend-v0.5.0` |
+| `dashboard/frontend` | `frontend-v0.6.0` |
+| `dashboard` | `dashboard-v0.3.0` |
+
+Behavior:
+
+- Refuses on a dirty working tree, listing what is uncommitted. `--allow-dirty`
+  overrides; `--dry-run` warns but still shows the preview
+- Skips tags that already exist rather than failing, so re-running is safe
+- Never pushes — it prints the exact `git push` command
+- Honors `--dry-run` and package filters: `npm run bump:tag -- mcp backend`
+
+Note that the repo also carries date-shaped release tags (`2026.05.14`,
+`2026.08.16`) consumed by `.github/workflows/release.yml`. Per-package tags are
+a separate namespace and do not trigger that workflow.
+
+## Tests
 
 ```bash
-cd dashboard
-npm run bump
-
-# Output:
-# 📦 Loading package manifests...
-# ✅ Loaded 3 packages
-#    - mcp: sports-data-mcp (0.2.1)
-#    - dashboard/backend: @wford26/bettrack-backend (0.2.4)
-#    - dashboard/frontend: @wford26/bettrack-frontend (0.3.4)
-#
-# 🔍 Computing package snapshots...
-#
-# 📝 Changed packages:
-#    - mcp
-#
-# 🚀 Bumping with type: patch
-#    mcp: 0.2.1 → 0.2.2
-#
-# ✅ Updated .bump-hashes.json
-# ✅ Updated package.json versions
-#
-# 💡 Tip: Run 'git diff' to review changes before committing.
+npm run test:bump              # from dashboard/
+node --test scripts/bump-version.test.mjs
 ```
 
-### Example 2: Force minor bump on frontend
+65 tests, no dependencies beyond `node:test`. Unit tests cover level inference,
+argument parsing, semver arithmetic, dependency specifier rewriting, changelog
+rewriting, and plan construction. The end-to-end tests build a throwaway repo in
+a temp directory, copy the real script into it, and drive the actual CLI as a
+subprocess — so version writes, changelog rewrites, hash baselining, and git
+tagging are all exercised for real.
 
-```bash
-npm run bump:minor
+CI runs both the suite and a `--dry-run` against the real manifests (the
+`Version Bump Script` job in `.github/workflows/test.yml`), which catches a
+manifest that has drifted off semver or a changelog the parser cannot read.
 
-# All unchanged packages skip the bump. Only outputs:
-# 🚀 Bumping with type: minor
-#    dashboard/frontend: 0.3.4 → 0.4.0
-```
+## Extending
 
-### Example 3: Dry-run preview
+To track another package, add an entry to `PACKAGE_CONFIGS` in
+[bump-version.mjs](./bump-version.mjs):
 
-```bash
-npm run bump -- --dry-run
-
-# Shows what *would* change without writing files
-```
-
-## Configuration
-
-### Tracked Directories
-
-Edit `scripts/bump-version.mjs` to modify which files are tracked:
-
-```javascript
-const PACKAGE_CONFIGS = [
-  {
-    key: "mcp",
-    manifestPath: "mcp/package.json",
-    trackedDirs: ["mcp"],  // ← Change this
-  },
-  // ...
-];
-```
-
-### Ignored Paths
-
-Files matching these patterns are always ignored:
-
-- `*.tsbuildinfo`
-- `/dist/` directories
-- `/node_modules/` directories
-- `/coverage/` directories
-- `/__pycache__/` directories
-- `.pytest_cache/`
-
-## Workflow
-
-### 1. Develop & Commit
-
-Make changes to any package (MCP, backend, frontend):
-
-```bash
-git add .
-git commit -m "feat: add new feature"
-```
-
-### 2. Bump Versions
-
-Auto-detect and bump:
-
-```bash
-cd dashboard
-npm run bump
-```
-
-### 3. Review & Verify
-
-Check the changes:
-
-```bash
-git diff
-git diff mcp/package.json
-git diff dashboard/backend/package.json
-git diff dashboard/frontend/package.json
-```
-
-### 4. Commit Version Bump
-
-```bash
-git add .bump-hashes.json mcp/package.json dashboard/*/package.json
-git commit -m "chore: bump versions"
-```
-
-### 5. Create Release Tag
-
-```bash
-git tag v0.2.2-dashboard-0.2.4-frontend-0.3.5
-git push origin --tags
-```
-
-## What Gets Updated
-
-When you run `npm run bump`, these files are modified:
-
-- `.bump-hashes.json` - Latest file hashes and package snapshots
-- `mcp/package.json` - If MCP files changed
-- `dashboard/backend/package.json` - If backend files changed
-- `dashboard/frontend/package.json` - If frontend files changed
-
-## Internal Dependencies
-
-If Dashboard Frontend depends on Dashboard Backend, bumping the backend **automatically updates frontend's dependency version**:
-
-```json
-// Before bump
+```js
 {
-  "dependencies": {
-    "@wford26/bettrack-backend": "^0.2.4"
-  }
-}
-
-// After backend bumps to 0.2.5
-{
-  "dependencies": {
-    "@wford26/bettrack-backend": "^0.2.5"
-  }
-}
-```
-
-## When to Use Each Flag
-
-| Scenario | Command |
-|----------|---------|
-| Normal workflow (auto-detect) | `npm run bump` |
-| Need exact control | `npm run bump:patch\|minor\|major` |
-| Multiple changes same day | `npm run bump` (auto-increments) |
-| Reviewing before commit | `npm run bump -- --dry-run` |
-| Since specific commit | `npm run bump -- --since origin/main` |
-| Get help | `npm run bump -- --help` |
-
-## Troubleshooting
-
-### "No changes detected. Run with --force to bump anyway."
-
-All files match previous snapshots. Use `--force` if you need to bump anyway:
-
-```bash
-npm run bump -- --force patch
-```
-
-### "must use semantic versioning"
-
-A `package.json` has an invalid version. Fix it to be `major.minor.patch`:
-
-```json
-// ❌ Wrong
-"version": "1.2"
-
-// ✅ Correct
-"version": "1.2.0"
-```
-
-### Hashes don't match expectations
-
-The `.bump-hashes.json` file may be out of sync. Regenerate:
-
-```bash
-npm run bump -- --dry-run
-rm .bump-hashes.json
-npm run bump
-```
-
-## Integration with CI/CD
-
-For automated releases, add to GitHub Actions:
-
-```yaml
-- name: Bump versions
-  run: |
-    cd dashboard
-    npm run bump
-    
-- name: Commit version bump
-  run: |
-    git config user.email "bot@example.com"
-    git config user.name "Version Bot"
-    git add .bump-hashes.json mcp/package.json dashboard/*/package.json
-    git commit -m "chore: bump versions" || true
-    git push
-```
-
-## File Format: .bump-hashes.json
-
-```json
-{
-  "schemaVersion": 1,
-  "packages": {
-    "mcp": {
-      "name": "sports-data-mcp",
-      "hash": "abc123def456...",
-      "files": {
-        "mcp/package.json": "file_hash_1",
-        "mcp/sports_mcp_server.py": "file_hash_2",
-        "..."  : "..."
-      }
-    },
-    "dashboard/backend": { /* ... */ },
-    "dashboard/frontend": { /* ... */ }
-  }
+  key: "tools/cli",
+  aliases: ["cli"],
+  manifestPath: "tools/cli/package.json",
+  trackedDirs: ["tools/cli"],
+  extraVersionFiles: [],   // optional version mirrors
 }
 ```
 
-The `hash` field is computed from all `files` hashes. If any file changes, both that file's hash and the package's overall hash change, triggering a version bump.
-
-## Best Practices
-
-✅ **Do:**
-- Run bump after finalizing features
-- Review `git diff` before committing version bumps
-- Use meaningful git messages for version commits
-- Tag releases with clear version identifiers
-- Run `npm run bump -- --dry-run` first if unsure
-
-❌ **Don't:**
-- Manually edit `.bump-hashes.json` (let the script manage it)
-- Manually increment versions - let auto-detection handle it
-- Commit version bumps in the same commit as code changes
-- Force bump without good reason (trust the auto-detection)
-
-## Semantic Versioning Guide
-
-For your components, use this for choosing bump types:
-
-- **MAJOR** (1.0.0 → 2.0.0): Breaking changes, incompatible API changes
-- **MINOR** (1.2.0 → 1.3.0): New features, backward compatible
-- **PATCH** (1.2.3 → 1.2.4): Bug fixes, refactoring, documentation
-
-Since this system auto-detects on ANY change, defaults to PATCH. Use `--force minor` or `--force major` when you know the nature of your changes.
+`AGGREGATE_CONFIGS` takes the same shape minus `trackedDirs`, plus a `members`
+array of the keys it follows.

@@ -1034,16 +1034,25 @@ function runTagMode(packages, args) {
 
   const dirty = runGit(["status", "--porcelain"], { allowFailure: true });
 
+  // A dry run writes nothing, so report the dirt and carry on rather than
+  // withholding the preview the caller asked for.
   if (dirty && !args.allowDirty) {
-    console.error("❌ Working tree is dirty. Tags would point at the previous commit.");
-    console.error("   Commit the version bump first, or pass --allow-dirty if you know better.");
-    console.error("\nUncommitted:");
+    const log = args.dryRun ? console.log : console.error;
+    const lead = args.dryRun ? "⚠️  Working tree is dirty" : "❌ Working tree is dirty";
+
+    log(`${lead}. Tags would point at the previous commit.`);
+    log("   Commit the version bump first, or pass --allow-dirty if you know better.");
+    log("\nUncommitted:");
     dirty
       .split(/\r?\n/)
       .slice(0, 10)
-      .forEach((line) => console.error(`   ${line}`));
-    process.exitCode = 1;
-    return;
+      .forEach((line) => log(`   ${line}`));
+    log("");
+
+    if (!args.dryRun) {
+      process.exitCode = 1;
+      return;
+    }
   }
 
   const selected = args.targets.size > 0 ? packages.filter((pkg) => args.targets.has(pkg.key)) : packages;
