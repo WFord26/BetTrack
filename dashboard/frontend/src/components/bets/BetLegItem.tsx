@@ -193,7 +193,7 @@ export default function BetLegItem({
                 step="0.5"
                 value={editLine}
                 onChange={(e) => setEditLine(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm bg-dusk shadow-[0_0_0_2px_#43306a_inset] focus:outline-none focus:shadow-[0_0_0_2px_#fcc63a_inset] text-cream"
+                className="w-full px-3 py-1.5 text-sm bg-dusk shadow-ds-ring focus:outline-none focus:shadow-ds-ring-focus text-cream"
               />
             </div>
           )}
@@ -237,7 +237,7 @@ export default function BetLegItem({
                     setEditOddsDisplay(useDecimalOdds ? americanToDecimal(parseInt(editOdds) || 0).toFixed(2) : editOdds);
                   }
                 }}
-                className="flex-1 px-3 py-1.5 text-sm bg-dusk shadow-[0_0_0_2px_#43306a_inset] focus:outline-none focus:shadow-[0_0_0_2px_#fcc63a_inset] text-cream [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="flex-1 px-3 py-1.5 text-sm bg-dusk shadow-ds-ring focus:outline-none focus:shadow-ds-ring-focus text-cream [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
               <button
                 onClick={() => adjustOdds(1)}

@@ -277,7 +277,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
       <div className="flex-1 overflow-y-auto">
         {/* Success Message */}
         {showSuccess && (
-          <div className="mx-[18px] mt-3 bg-dusk-panel2 shadow-[0_0_0_2px_#6cbf67_inset] px-3 py-2.5">
+          <div className="mx-[18px] mt-3 bg-dusk-panel2 shadow-ds-ring-win px-3 py-2.5">
             <p className="font-body text-sm text-cream font-medium">
               ✅ Bet placed successfully!
             </p>
@@ -286,7 +286,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
 
         {/* Error Message */}
         {submitError && (
-          <div className="mx-[18px] mt-3 bg-dusk-panel2 shadow-[0_0_0_2px_#ef5350_inset] px-3 py-2.5">
+          <div className="mx-[18px] mt-3 bg-dusk-panel2 shadow-ds-ring-loss px-3 py-2.5">
             <p className="font-body text-sm text-coral">{submitError}</p>
           </div>
         )}
@@ -300,7 +300,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               flex-1 text-center font-display text-[7px] py-2.5 transition-all
               ${
                 betType === 'single'
-                  ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                  ? 'bg-gold text-dusk shadow-ds-press'
                   : 'bg-dusk-panel2 text-cream-muted'
               }
               ${legs.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}
@@ -315,7 +315,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               flex-1 text-center font-display text-[7px] py-2.5 transition-all
               ${
                 betType === 'parlay'
-                  ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                  ? 'bg-gold text-dusk shadow-ds-press'
                   : 'bg-dusk-panel2 text-cream-muted'
               }
               ${legs.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
@@ -330,7 +330,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               flex-1 text-center font-display text-[7px] py-2.5 transition-all
               ${
                 betType === 'teaser'
-                  ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                  ? 'bg-gold text-dusk shadow-ds-press'
                   : 'bg-dusk-panel2 text-cream-muted'
               }
               ${legs.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}
@@ -421,7 +421,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               const editValue = sgpOddsEdits.get(gameId) || defaultEditValue;
 
               return (
-                <div key={`sgp-${gameId}`} className="bg-dusk-panel2 shadow-[0_0_0_2px_#6d4a9e_inset] p-3.5">
+                <div key={`sgp-${gameId}`} className="bg-dusk-panel2 shadow-ds-ring-plum p-3.5">
                   {/* SGP Header with Combined Odds */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex-1">
@@ -450,7 +450,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                               newMap.set(gameId, e.target.value);
                               setSgpOddsEdits(newMap);
                             }}
-                            className="w-20 px-2 py-1.5 font-display text-[10px] bg-dusk shadow-[0_0_0_2px_#6d4a9e_inset] focus:outline-none focus:shadow-[0_0_0_2px_#fcc63a_inset] text-cream text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-20 px-2 py-1.5 font-display text-[10px] bg-dusk shadow-ds-ring-plum focus:outline-none focus:shadow-ds-ring-focus text-cream text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             placeholder={useDecimalOdds ? "2.00" : "-110"}
                           />
                           <button
@@ -637,7 +637,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                   return (
                     <div
                       key={futureLeg.futureId}
-                      className="bg-dusk-panel2 shadow-[0_0_0_2px_#43306a_inset] p-3 mb-2"
+                      className="bg-dusk-panel2 shadow-ds-ring p-3 mb-2"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
@@ -728,7 +728,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
                                     setEditFutureOdds(value);
                                   }
                                 }}
-                                className="flex-1 px-3 py-1.5 text-sm bg-dusk shadow-[0_0_0_2px_#43306a_inset] focus:outline-none focus:shadow-[0_0_0_2px_#fcc63a_inset] text-cream"
+                                className="flex-1 px-3 py-1.5 text-sm bg-dusk shadow-ds-ring focus:outline-none focus:shadow-ds-ring-focus text-cream"
                               />
                               <button
                                 onClick={() => adjustFutureOdds(1)}
@@ -768,12 +768,12 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               onChange={(e) => setBetName(e.target.value)}
               placeholder="e.g., Sunday Parlay"
               maxLength={100}
-              className="w-full px-3 py-2 bg-dusk shadow-[0_0_0_2px_#43306a_inset] font-body text-sm text-cream placeholder:text-cream-faint focus:outline-none focus:shadow-[0_0_0_2px_#fcc63a_inset] transition-shadow"
+              className="w-full px-3 py-2 bg-dusk shadow-ds-ring font-body text-sm text-cream placeholder:text-cream-faint focus:outline-none focus:shadow-ds-ring-focus transition-shadow"
             />
           </div>
 
           {/* Odds Boost Slider */}
-          <div className="bg-dusk-panel2 shadow-[0_0_0_2px_#8a5a10_inset] p-4">
+          <div className="bg-dusk-panel2 shadow-ds-ring-gold p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-lg">⚡</span>
@@ -791,11 +791,9 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               max="100"
               value={oddsBoostPercentage}
               onChange={(e) => setOddsBoostPercentage(parseInt(e.target.value))}
-              className="w-full h-2 bg-dusk rounded-lg appearance-none cursor-pointer accent-gold"
+              className="ds-range-fill w-full h-2 bg-dusk rounded-lg appearance-none cursor-pointer accent-gold"
               aria-label="Odds boost percentage"
-              style={{
-                background: `linear-gradient(to right, #fcc63a 0%, #fcc63a ${oddsBoostPercentage}%, #1d1130 ${oddsBoostPercentage}%, #1d1130 100%)`
-              }}
+              style={{ '--ds-fill': `${oddsBoostPercentage}%` } as React.CSSProperties}
             />
             <div className="flex justify-between font-body text-[10px] text-cream-faint mt-1">
               <span>0%</span>
@@ -840,7 +838,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
 
         {/* Stake / To Win */}
         <div className="flex gap-2.5 mt-1.5">
-          <div className="flex-1 bg-dusk px-3 py-2.5 shadow-[0_0_0_2px_#43306a_inset]">
+          <div className="flex-1 bg-dusk px-3 py-2.5 shadow-ds-ring">
             <label className="block font-display text-[6px] text-cream-faint tracking-[.1em]">STAKE</label>
             <div className="relative mt-1 flex items-baseline">
               <span className="font-body text-[18px] font-bold text-cream-faint">$</span>
@@ -868,7 +866,7 @@ export default function BetSlip({ useDecimalOdds = false, onClear, onRemoveLeg }
               />
             </div>
           </div>
-          <div className="flex-1 bg-dusk px-3 py-2.5 shadow-[0_0_0_2px_#8a5a10_inset]">
+          <div className="flex-1 bg-dusk px-3 py-2.5 shadow-ds-ring-gold">
             <label className="block font-display text-[6px] text-gold tracking-[.1em]">TO WIN</label>
             <div className="font-display text-[15px] text-gold mt-1.5">
               {stake > 0 ? formatCurrency(oddsBoostPercentage > 0 ? boostedPotentialPayout : potentialPayout) : '$0.00'}

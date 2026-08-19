@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import GameFilters from '../components/filters/GameFilters';
 import EnhancedGameCard from '../components/odds/EnhancedGameCard';
 import BetSlip from '../components/bets/BetSlip';
-import { useDarkMode } from '../contexts/DarkModeContext';
 import api from '../services/api';
 import { logger } from '../utils/logger';
 
@@ -21,7 +20,6 @@ interface Game {
 }
 
 export default function EnhancedDashboard() {
-  const { isDarkMode } = useDarkMode();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -164,27 +162,7 @@ export default function EnhancedDashboard() {
   return (
     <div className="flex h-full bg-gray-50 dark:bg-gray-900 relative" style={{ imageRendering: 'pixelated' }}>
       {/* 8-bit Pixel Grid Background */}
-      <div 
-        className="absolute inset-0 opacity-5 pointer-events-none"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            0deg,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
-            transparent 2px,
-            transparent 4px,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
-          ),
-          repeating-linear-gradient(
-            90deg,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 0px,
-            transparent 2px,
-            transparent 4px,
-            ${isDarkMode ? '#dc2626' : '#b91c1c'} 4px
-          )`,
-          backgroundSize: '4px 4px',
-          imageRendering: 'pixelated'
-        }}
-      />
+      <div className="ds-pixel-grid absolute inset-0 opacity-5 pointer-events-none" />
       
       {/* Mobile Menu Button */}
       <button

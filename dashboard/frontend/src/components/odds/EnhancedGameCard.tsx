@@ -274,12 +274,9 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
     <div className="relative group">
       {/* 8-bit Scoreboard */}
       <div
-        className="pixel-card"
+        className="pixel-card border-4 bg-scoreboard-bg-light text-scoreboard-text-light border-scoreboard-bezel-light dark:bg-scoreboard-bg dark:text-scoreboard-text dark:border-scoreboard-bezel"
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          backgroundColor: isDarkMode ? '#020617' : '#f8fafc',
-          color: isDarkMode ? '#e5e7eb' : '#1e293b',
-          border: `4px solid ${isDarkMode ? '#e5e7eb' : '#cbd5e1'}`,
           padding: '12px',
           boxShadow: isDarkMode ? '0 0 0 2px rgba(229,231,235,0.12) inset, 0 8px 16px rgba(0,0,0,0.4)' : '0 0 0 2px rgba(203,213,225,0.3) inset, 0 8px 16px rgba(0,0,0,0.1)',
           imageRendering: 'pixelated',
@@ -353,12 +350,12 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
         <div className="flex justify-between items-center my-4 relative z-10 gap-2">
           {/* Away Team */}
           <div className="text-center flex-1">
-            <div className="text-[32px] font-bold tracking-wider mb-1" style={{ color: '#38bdf8' }}>
+            <div className="text-[32px] font-bold tracking-wider mb-1 text-scoreboard-away">
               {game.awayScore ?? '--'}
             </div>
             <Link 
               to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.awayTeamName)}`} 
-              className="text-[9px] font-bold tracking-wide hover:text-[#38bdf8] transition-colors block px-1 leading-tight"
+              className="text-[9px] font-bold tracking-wide hover:text-scoreboard-away transition-colors block px-1 leading-tight"
               style={{ minHeight: '28px' }}
             >
               {game.awayTeamName}
@@ -408,12 +405,12 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
           
           {/* Home Team */}
           <div className="text-center flex-1">
-            <div className="text-[32px] font-bold tracking-wider mb-1" style={{ color: '#f97316' }}>
+            <div className="text-[32px] font-bold tracking-wider mb-1 text-scoreboard-home">
               {game.homeScore ?? '--'}
             </div>
             <Link 
               to={`/teams/${encodeURIComponent(game.sportKey)}/${encodeURIComponent(game.homeTeamName)}`} 
-              className="text-[9px] font-bold tracking-wide hover:text-[#f97316] transition-colors block px-1 leading-tight"
+              className="text-[9px] font-bold tracking-wide hover:text-scoreboard-home transition-colors block px-1 leading-tight"
               style={{ minHeight: '28px' }}
             >
               {game.homeTeamName}
@@ -430,7 +427,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               <button
                 onClick={() => awayML && handleAddToBetSlip('moneyline', 'away', awayML.price)}
                 disabled={!awayML}
-                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#38bdf8] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-scoreboard-away px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {awayML ? formatOddsValue(awayML.price, oddsFormat) : '--'}
               </button>
@@ -440,7 +437,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               <button
                 onClick={() => homeML && handleAddToBetSlip('moneyline', 'home', homeML.price)}
                 disabled={!homeML}
-                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#f97316] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-scoreboard-home px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {homeML ? formatOddsValue(homeML.price, oddsFormat) : '--'}
               </button>
@@ -451,7 +448,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               <button
                 onClick={() => awaySpread && handleAddToBetSlip('spread', 'away', awaySpread.price, awaySpread.point)}
                 disabled={!awaySpread}
-                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#38bdf8] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-scoreboard-away px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {awaySpread ? (
                   <>
@@ -465,7 +462,7 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
               <button
                 onClick={() => homeSpread && handleAddToBetSlip('spread', 'home', homeSpread.price, homeSpread.point)}
                 disabled={!homeSpread}
-                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-[#f97316] px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
+                className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 hover:border-scoreboard-home px-2 py-1.5 rounded transition-colors text-center disabled:opacity-30 disabled:cursor-not-allowed min-h-[28px]"
               >
                 {homeSpread ? (
                   <>
@@ -511,10 +508,9 @@ export default function EnhancedGameCard({ game, oddsFormat = 'american' }: Enha
       {/* View Details Button */}
       <Link
         to={`/game/${game.id}`}
-        className="block mt-2 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-center font-bold text-[10px] tracking-wider transition-all transform hover:scale-[1.02]"
+        className="block mt-2 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-center font-bold text-[10px] tracking-wider transition-all transform hover:scale-[1.02] border-2 border-brand-600"
         style={{
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          border: '2px solid #dc2626',
           boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
         }}
       >

@@ -90,7 +90,7 @@ export default function ParlayValidator({ legs, useDecimalOdds = false }: Props)
   if (gameLegs.length < 2) return null;
   if (analyzing && !analysis) {
     return (
-      <div className="bg-dusk-panel2 shadow-[0_0_0_2px_#43306a_inset] p-3 font-body text-xs text-cream-faint">
+      <div className="bg-dusk-panel2 shadow-ds-ring p-3 font-body text-xs text-cream-faint">
         Checking for correlation…
       </div>
     );
@@ -99,13 +99,15 @@ export default function ParlayValidator({ legs, useDecimalOdds = false }: Props)
 
   const isBlocked = analysis.recommendation === 'reject';
   const isWarning = analysis.recommendation === 'warning';
-  const insetColor = isBlocked ? '#ef5350' : isWarning ? '#fcc63a' : '#6cbf67';
+  // The inset hairline carries the verdict: loss red / gold warning / win green.
+  const insetClass = isBlocked
+    ? 'shadow-ds-ring-loss'
+    : isWarning
+      ? 'shadow-ds-ring-focus'
+      : 'shadow-ds-ring-win';
 
   return (
-    <div
-      className="bg-dusk-panel2 p-3.5 space-y-2"
-      style={{ boxShadow: `0 0 0 2px ${insetColor} inset` }}
-    >
+    <div className={`bg-dusk-panel2 p-3.5 space-y-2 ${insetClass}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-base">{riskIcon(analysis.recommendation, analysis.riskLevel)}</span>

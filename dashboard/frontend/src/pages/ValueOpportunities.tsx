@@ -99,8 +99,7 @@ export default function ValueOpportunities() {
           SALOON FINDS
         </p>
         <h1
-          className={`font-display text-[19px] mb-2 ${isDarkMode ? 'text-cream' : 'text-ink'}`}
-          style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '4px 4px 0 #e0a512' }}
+          className={`ds-headline font-display text-[19px] mb-2 ${isDarkMode ? 'text-cream' : 'text-ink'}`}
         >
           VALUE OPPORTUNITIES
         </h1>
@@ -182,7 +181,7 @@ export default function ValueOpportunities() {
 
         {/* Error state */}
         {!loading && error && (
-          <div className={`p-4 ${isDarkMode ? 'bg-coral-chip border border-coral text-coral' : 'bg-[#fceaea] border-2 border-[#c0392b] text-[#c0392b]'}`}>
+          <div className={`p-4 ${isDarkMode ? 'bg-coral-chip border border-coral text-coral' : 'bg-sunloss-wash border-2 border-sunloss-light text-sunloss-light'}`}>
             <p className="font-body text-sm">{error}</p>
           </div>
         )}

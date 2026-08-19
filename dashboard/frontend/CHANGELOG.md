@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **155 inline hex colors replaced with design tokens (issue #75)**: every BetTrack color literal is now gone from `src/**/*.tsx` — retinting or re-theming the app is a `tailwind.config.js` edit rather than a sweep through 22 component files. Three kinds of replacement:
+  - **Arbitrary utilities → named tokens.** `shadow-[0_3px_0_#8a5a10]` → `shadow-ds-press`, `shadow-[0_0_0_2px_#43306a_inset]` → `shadow-ds-ring`, `bg-[#fceaea]` → `bg-sunloss-wash`, and so on. 17 Desert Sunset `boxShadow` tokens (`ds-press-*`, `ds-drop-*`, `ds-card-sand*`, `ds-ring-*`) and the missing colors they referenced (`sunwin.chip/wash`, `sunloss.chip/wash`, `sunpending.chip/wash/ink`, `terra.hover/shadow`, `coral-edge`, `cream-warm`, `sand-perf/meter/bronze/dot`, and a `scoreboard.*` group for the 8-bit game card) were added to the config.
+  - **Inline `style` objects → CSS recipes.** The repeated `style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '4px 4px 0 #e0a512' }}` page-headline pattern became `.ds-headline` / `.ds-headline-sm` / `.ds-headline-banner` in `index.css`, which flip on the `dark` class instead of a JS ternary. Same for `.ds-hero-scrim`, `.ds-band-sunset`, `.ds-pixel-grid`, `.ds-range-fill`, `.ds-btn-press-hero`, `.ds-btn-press-coral`, and `.ds-btn-ghost-plum`. `EnhancedDashboard` and `Futures` no longer consume `useDarkMode` at all — their theming is now entirely CSS.
+  - **Recharts props → `src/theme/chartTokens.ts`.** Recharts styles axes, grids, tooltips, and series through JS props, so those colors cannot be utility classes. `chartTokens.ts` is the single place they may be literal, and `chartTokens.test.ts` reads `tailwind.config.js` and fails if any of them drifts from its source token.
+
+  `index.css` was swept the same way — its own hard-coded hexes are now `theme()` references, so the config really is the only place a BetTrack color is written down. Verified by diffing the compiled stylesheet before and after: every removed arbitrary-hex utility has a byte-identical named-token replacement, and the new recipes compile to the exact declarations the inline styles produced.
+
+  Deliberately **not** tokenized: the eight `fill` values in the Microsoft and Google OAuth logos on `Login.tsx`. Those are third-party brand marks that must not shift with our theme; they are commented as exempt so a future audit doesn't re-flag them.
+
+  One incidental fix: `CLVAnalytics.tsx` used `box-shadow-[0_6px_0_#120a22]`, which is not a Tailwind prefix and so rendered nothing. It is now `shadow-ds-drop`, which does apply — the top/bottom CLV bet cards gain the drop shadow they were always meant to have.
+
 ### Fixed
 
 - **Page component test coverage was 5 pages, not "untested page components" cleared (issue #69 follow-up)**: closing #69 had not been re-verified against the actual page list — 13 of 19 pages (`ApiKeysSettings`, `BetHistory`, `BookmakerPerformance`, `CorrelationDashboard`, `Futures`, `GameDetail`, `Home`, `LineMovementAnalytics`, `Notifications`, `Preferences`, `Stats`, `TeamDetail`, `ValueOpportunities`) still had zero tests, and the 0.6.0 entry below describes a "simplified rendering approach (no API mocking)" that verified component structure rather than behavior. All 19 pages now have real behavioral tests: `services/api`/`apiClient` calls mocked per-page, Redux-backed pages (`BookmakerPerformance`, `CorrelationDashboard`, `LineMovementAnalytics`, `Notifications`, `Futures`) driven through a real store with only the underlying service module mocked (matching the `ArbitrageDashboard.test.tsx` convention), route-param pages (`GameDetail`, `TeamDetail`) rendered inside a `MemoryRouter`, and fixture builders in `src/test/fixtures.ts` reused instead of duplicated. Frontend suite: 45 test files, 501 tests passing.

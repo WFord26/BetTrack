@@ -65,15 +65,14 @@ export default function LineMovementAnalytics() {
   return (
     <div className={pageCls}>
       {/* Header */}
-      <div className={isDarkMode ? 'bg-dusk-chrome' : 'bg-terra shadow-[0_4px_0_#3a2413]'}>
+      <div className={isDarkMode ? 'bg-dusk-chrome' : 'bg-terra shadow-ds-press-ink-lg'}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="mb-4">
             <p className={`font-display text-[8px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-ember' : 'text-terra-text opacity-80'}`}>
               THE WIRE
             </p>
             <h1
-              className={`font-display text-[19px] ${isDarkMode ? 'text-cream' : 'text-terra-text'}`}
-              style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '3px 3px 0 #3a2413' }}
+              className={`ds-headline-banner font-display text-[19px] ${isDarkMode ? 'text-cream' : 'text-terra-text'}`}
             >
               LINE MOVEMENT
             </h1>
@@ -138,7 +137,7 @@ export default function LineMovementAnalytics() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className={`mb-6 p-4 border-l-4 ${isDarkMode ? 'bg-coral-chip border-coral text-coral' : 'bg-[#fceaea] border-[#c0392b] text-[#c0392b]'}`}>
+          <div className={`mb-6 p-4 border-l-4 ${isDarkMode ? 'bg-coral-chip border-coral text-coral' : 'bg-sunloss-wash border-sunloss-light text-sunloss-light'}`}>
             <p className="font-display text-[8px] tracking-[.06em] mb-1">ERROR LOADING MOVEMENTS</p>
             <p className="font-body text-sm">{error}</p>
           </div>
@@ -175,12 +174,12 @@ export default function LineMovementAnalytics() {
               </h3>
               <div className="space-y-2">
                 {[
-                  { color: '#ef5350', label: 'Critical', desc: '5+ books, 2.5+ pts' },
-                  { color: '#f97b2c', label: 'High', desc: '4+ books, 2+ pts' },
-                  { color: '#fcc63a', label: 'Medium', desc: '3+ books, 1.5+ pts' },
-                ].map(({ color, label, desc }) => (
+                  { swatch: 'bg-coral', label: 'Critical', desc: '5+ books, 2.5+ pts' },
+                  { swatch: 'bg-ember', label: 'High', desc: '4+ books, 2+ pts' },
+                  { swatch: 'bg-gold', label: 'Medium', desc: '3+ books, 1.5+ pts' },
+                ].map(({ swatch, label, desc }) => (
                   <div key={label} className="flex items-center gap-2">
-                    <div className="w-3 h-3 flex-shrink-0" style={{ background: color }} />
+                    <div className={`w-3 h-3 flex-shrink-0 ${swatch}`} />
                     <span className={`font-body text-sm ${isDarkMode ? 'text-cream-secondary' : 'text-ink-secondary'}`}>
                       <strong className={isDarkMode ? 'text-cream' : 'text-ink'}>{label}:</strong> {desc}
                     </span>

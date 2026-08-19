@@ -11,7 +11,8 @@ interface StatCardProps {
   note?: string;
   // meter: a genuine 0-1 ratio to render as a 10-block fill meter. Omit for
   // cards with no natural cap (raw dollar totals, uncapped percentages).
-  meter?: { ratio: number; color: string };
+  // colorClass is a Tailwind background token (e.g. 'bg-plum'), not a raw color.
+  meter?: { ratio: number; colorClass: string };
 }
 
 const outcomeValueClass: Record<NonNullable<StatCardProps['outcome']>, string> = {
@@ -47,8 +48,7 @@ function StatCard({ label, value, format = 'number', outcome, note, meter }: Sta
           {Array.from({ length: 10 }).map((_, i) => (
             <div
               key={i}
-              className="w-[10px] h-[10px]"
-              style={{ backgroundColor: i < filledBlocks ? meter.color : '#e4d2ae' }}
+              className={`w-[10px] h-[10px] ${i < filledBlocks ? meter.colorClass : 'bg-sand-meter'}`}
             />
           ))}
         </div>
@@ -84,7 +84,7 @@ export default function StatsOverview({ stats }: StatsOverviewProps) {
         label="Win Rate"
         value={stats.winRate}
         format="percentage"
-        meter={{ ratio: stats.winRate / 100, color: '#6d4a9e' }}
+        meter={{ ratio: stats.winRate / 100, colorClass: 'bg-plum' }}
       />
 
       <StatCard

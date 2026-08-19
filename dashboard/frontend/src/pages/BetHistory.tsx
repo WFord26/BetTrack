@@ -123,8 +123,7 @@ export default function BetHistory() {
             THE LEDGER
           </p>
           <h1
-            className={`font-display text-[17px] md:text-[19px] tracking-wide ${isDarkMode ? 'text-cream' : 'text-ink'}`}
-            style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '4px 4px 0 #e0a512' }}
+            className={`ds-headline font-display text-[17px] md:text-[19px] tracking-wide ${isDarkMode ? 'text-cream' : 'text-ink'}`}
           >
             BET HISTORY
           </h1>
@@ -270,13 +269,11 @@ export default function BetHistory() {
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="ds-sand-bg animate-pulse"
-                style={{
-                  height: '110px',
-                  ...(isDarkMode
-                    ? { boxShadow: '0 8px 0 #120a22' }
-                    : { border: '3px solid #3a2413', boxShadow: '6px 6px 0 #d8c19a' })
-                }}
+                className={`ds-sand-bg animate-pulse h-[110px] ${
+                  isDarkMode
+                    ? 'shadow-ds-drop-lg'
+                    : 'border-[3px] border-ink shadow-ds-card-sand-lg'
+                }`}
               />
             ))}
           </div>
@@ -333,8 +330,7 @@ export default function BetHistory() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <h3
-              className={`font-display text-[13px] tracking-wide mb-3 ${isDarkMode ? 'text-cream' : 'text-ink'}`}
-              style={{ textShadow: isDarkMode ? '3px 3px 0 #c14d21' : '3px 3px 0 #e0a512' }}
+              className={`ds-headline-sm font-display text-[13px] tracking-wide mb-3 ${isDarkMode ? 'text-cream' : 'text-ink'}`}
             >
               NO BETS FOUND
             </h3>

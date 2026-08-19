@@ -63,7 +63,7 @@ export default function PnLChart({ data }: PnLChartProps) {
                 {formatCurrency(value)}
               </span>
               <div
-                className={`w-[26px] shadow-[3px_0_0_#d8c19a_inset] ${positive ? 'bg-sunwin-light' : 'bg-sunloss-light'}`}
+                className={`w-[26px] shadow-ds-meter-sand ${positive ? 'bg-sunwin-light' : 'bg-sunloss-light'}`}
                 style={{ height: `${barHeight}px` }}
               />
             </div>

@@ -211,7 +211,7 @@ export default function GameFilters({
                   onClick={() => toggleSportDropdown(baseKey)}
                   className={`w-[42px] h-[42px] flex items-center justify-center transition-all border-2 ${
                     isActive
-                      ? 'bg-terra border-ink shadow-[0_3px_0_#3a2413] dark:bg-gold dark:border-0 dark:shadow-[0_3px_0_#8a5a10]'
+                      ? 'bg-terra border-ink shadow-ds-press-ink dark:bg-gold dark:border-0 dark:shadow-ds-press'
                       : 'bg-sand-panel border-ink dark:bg-dusk-panel2 dark:border-0'
                   }`}
                   title={baseKey}

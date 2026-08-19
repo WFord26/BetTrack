@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { usePreferences } from '../contexts/PreferencesContext';
-import { useDarkMode } from '../contexts/DarkModeContext';
 import { formatOdds } from '../utils/format';
 import { addFutureLeg } from '../store/betSlipSlice';
 import apiClient from '../services/api';
@@ -30,7 +29,6 @@ interface Future {
 
 export default function Futures() {
   const { useDecimalOdds } = usePreferences();
-  const { isDarkMode } = useDarkMode();
   const dispatch = useDispatch();
   const [futures, setFutures] = useState<Future[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,8 +109,7 @@ export default function Futures() {
               <div>
                 <p className="font-display text-[8px] text-ember tracking-[.1em] mb-3">LONG RIDES</p>
                 <h1
-                  className="font-display text-[19px] text-ink dark:text-cream"
-                  style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '4px 4px 0 #e0a512' }}
+                  className="ds-headline font-display text-[19px] text-ink dark:text-cream"
                 >
                   FUTURES
                 </h1>
@@ -140,7 +137,7 @@ export default function Futures() {
                 onClick={() => setSelectedSport(sport)}
                 className={`font-display text-[7.5px] px-[13px] py-2.5 tracking-[.05em] transition-transform ${
                   selectedSport === sport
-                    ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                    ? 'bg-gold text-dusk shadow-ds-press'
                     : 'bg-dusk-panel text-cream-muted hover:opacity-90'
                 }`}
               >
@@ -175,13 +172,8 @@ export default function Futures() {
           {futures.map((future) => (
             <div key={future.id} className="ds-panel-lg rounded-lg overflow-hidden">
               {/* Future Header */}
-              <div
-                style={{ padding: '16px 20px', background: 'linear-gradient(90deg,#c14d21,#6d4a9e)' }}
-              >
-                <h2
-                  className="font-display text-[12px] text-terra-text"
-                  style={{ textShadow: '2px 2px 0 #120a22' }}
-                >
+              <div className="ds-band-sunset px-5 py-4">
+                <h2 className="font-display text-[12px] text-terra-text text-shadow-ds-dusk-sm">
                   {future.title}
                 </h2>
                 <p className="font-body text-[13px] text-terra-muted mt-1.5">
@@ -201,10 +193,7 @@ export default function Futures() {
                         {outcome.outcome}
                       </h3>
                       <div className="text-right">
-                        <div
-                          className="font-display text-[14px] text-gold"
-                          style={{ textShadow: '2px 2px 0 #120a22' }}
-                        >
+                        <div className="font-display text-[14px] text-gold text-shadow-ds-dusk-sm">
                           {formatOdds(outcome.bestOdds, useDecimalOdds)}
                         </div>
                         <div className="font-display text-[5.5px] text-cream-faint tracking-[.1em] mt-1.5">
