@@ -1,5 +1,5 @@
 import { ApiSportsResponse } from './client';
-import { BaseStatsService } from './base-stats.service';
+import { BasketballStatsService } from './basketball.service';
 import { logger } from '../../config/logger';
 
 interface NBATeamScore {
@@ -34,12 +34,11 @@ interface NBAGame {
   };
 }
 
-export class NBAStatsService extends BaseStatsService<NBAGame> {
+export class NBAStatsService extends BasketballStatsService<NBAGame> {
   constructor() {
     super({
       label: 'NBA',
       sportKey: 'basketball_nba',
-      apiSport: 'basketball',
       leagueId: 12,
     });
   }
@@ -51,11 +50,6 @@ export class NBAStatsService extends BaseStatsService<NBAGame> {
   protected liveGameParams(): Record<string, unknown> {
     const year = new Date().getFullYear();
     return { league: this.leagueId, season: `${year}-${year + 1}` };
-  }
-
-  protected defaultTeamSeason(): string {
-    const year = new Date().getFullYear();
-    return `${year - 1}-${year}`;
   }
 
   async syncGameStats(apiSportsGameId: string): Promise<void> {

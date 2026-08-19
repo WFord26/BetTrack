@@ -1,5 +1,5 @@
 import { ApiSportsResponse } from './client';
-import { BaseStatsService } from './base-stats.service';
+import { BasketballStatsService } from './basketball.service';
 import { logger } from '../../config/logger';
 
 /** A `/games` entry from the basketball host. */
@@ -11,23 +11,17 @@ interface NCAABGame {
  * NCAA Basketball (NCAAB) stats service.
  * League ID: 127 for NCAA Basketball
  */
-export class NCAABService extends BaseStatsService<NCAABGame> {
+export class NCAABService extends BasketballStatsService<NCAABGame> {
   constructor() {
     super({
       label: 'NCAAB',
       sportKey: 'basketball_ncaab',
-      apiSport: 'basketball',
       leagueId: 127,
     });
   }
 
   extractGameId(game: NCAABGame): string {
     return String(game.id);
-  }
-
-  protected defaultTeamSeason(): string {
-    const year = new Date().getFullYear();
-    return `${year - 1}-${year}`;
   }
 
   async syncGameStats(externalGameId: string): Promise<void> {

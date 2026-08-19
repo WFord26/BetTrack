@@ -1,5 +1,5 @@
 import { ApiSportsResponse } from './client';
-import { BaseStatsService } from './base-stats.service';
+import { BaseStatsService, TeamSeasonStats, toStatNumber } from './base-stats.service';
 import { prisma } from '../../config/database';
 import { logger } from '../../config/logger';
 
@@ -59,6 +59,58 @@ interface FixturePlayersEntry {
 }
 
 /**
+ * Internal `Sport.key` → API-Football league id, for the leagues this service
+ * covers. It is the only mapping between the two id spaces, so both the
+ * live-games fan-out and the per-league team stats sync read it.
+ */
+const LEAGUE_IDS_BY_SPORT_KEY: Record<string, number> = {
+  soccer_epl: 39,
+  soccer_spain_la_liga: 140,
+  soccer_italy_serie_a: 135,
+  soccer_germany_bundesliga: 78,
+  soccer_france_ligue_one: 61,
+  soccer_usa_mls: 253,
+  soccer_uefa_champs_league: 2,
+};
+
+/** A `{ home, away, total }` count block from API-Football. */
+interface FixtureSplit {
+  home?: number | null;
+  away?: number | null;
+  total?: number | null;
+}
+
+/** As `FixtureSplit`, but averages arrive as strings ("1.8"). */
+interface FixtureAverages {
+  home?: number | string | null;
+  away?: number | string | null;
+  total?: number | string | null;
+}
+
+/** The `/teams/statistics` payload from API-Football. */
+interface SoccerTeamStatistics {
+  /** Recent results as a string of W/D/L, most recent last. */
+  form?: string | null;
+  fixtures?: {
+    played?: FixtureSplit;
+    wins?: FixtureSplit;
+    draws?: FixtureSplit;
+    /** API-Football spells it "loses". */
+    loses?: FixtureSplit;
+  };
+  goals?: {
+    for?: { total?: FixtureSplit; average?: FixtureAverages };
+    against?: { total?: FixtureSplit; average?: FixtureAverages };
+  };
+  clean_sheet?: FixtureSplit;
+  failed_to_score?: FixtureSplit;
+  penalty?: {
+    scored?: { total?: number | null; percentage?: number | string | null };
+    missed?: { total?: number | null; percentage?: number | string | null };
+  };
+}
+
+/**
  * Soccer stats service, covering several leagues (EPL, MLS, UEFA, ...) at
  * once.
  *
@@ -68,19 +120,13 @@ interface FixturePlayersEntry {
  * across its league list.
  */
 export class SoccerService extends BaseStatsService<Fixture> {
-  // Common soccer league IDs from API-Sports
-  private leagueIds = {
-    EPL: 39,        // English Premier League
-    LaLiga: 140,    // Spanish La Liga
-    SerieA: 135,    // Italian Serie A
-    Bundesliga: 78, // German Bundesliga
-    Ligue1: 61,     // French Ligue 1
-    MLS: 253,       // Major League Soccer
-    UCL: 2,         // UEFA Champions League
-  };
-
   constructor() {
     super({ label: 'Soccer', apiSport: 'football' });
+  }
+
+  /** Whether an internal sport key falls to this service. */
+  static supportsSportKey(sportKey: string): boolean {
+    return sportKey in LEAGUE_IDS_BY_SPORT_KEY;
   }
 
   protected get gamesEndpoint(): string {
@@ -91,12 +137,84 @@ export class SoccerService extends BaseStatsService<Fixture> {
     return String(fixture.fixture?.id);
   }
 
+  protected get teamStatsIdParam(): string {
+    return 'team';
+  }
+
+  /**
+   * Soccer teams are not synced through `/teams`, so they carry no
+   * `apiSportsTeamId` — match on the odds-sourced external id instead, the
+   * same way `syncPlayerStats` does.
+   */
+  protected findTeamForStats(apiSportsTeamId: number) {
+    return prisma.team.findFirst({ where: { externalId: String(apiSportsTeamId) } });
+  }
+
+  /**
+   * Season totals for one league.
+   *
+   * The inherited `syncTeamStats` cannot serve this: it derives both the
+   * league param and the stored `sportKey` from the service, and this service
+   * has neither. The caller names the league it wants via the internal sport
+   * key instead.
+   */
+  async syncTeamStatsForLeague(sportKey: string, apiSportsTeamId: number, season: number): Promise<void> {
+    const leagueId = LEAGUE_IDS_BY_SPORT_KEY[sportKey];
+
+    if (leagueId === undefined) {
+      logger.warn(`No API-Football league mapped for sport key ${sportKey}`);
+      return;
+    }
+
+    await this.runTeamStatsSync({
+      apiSportsTeamId,
+      season,
+      sportKey,
+      params: { league: leagueId },
+    });
+  }
+
+  protected mapTeamSeasonStats(teamData: SoccerTeamStatistics): TeamSeasonStats {
+    const fixtures = teamData.fixtures || {};
+    const goals = teamData.goals || {};
+
+    return {
+      offense: {
+        goals: toStatNumber(goals.for?.total?.total),
+        goalsPerGame: toStatNumber(goals.for?.average?.total),
+        goalsHome: toStatNumber(goals.for?.total?.home),
+        goalsAway: toStatNumber(goals.for?.total?.away),
+        failedToScore: toStatNumber(teamData.failed_to_score?.total),
+        penaltiesScored: toStatNumber(teamData.penalty?.scored?.total),
+        penaltiesMissed: toStatNumber(teamData.penalty?.missed?.total),
+      },
+      defense: {
+        goalsAgainst: toStatNumber(goals.against?.total?.total),
+        goalsAgainstPerGame: toStatNumber(goals.against?.average?.total),
+        goalsAgainstHome: toStatNumber(goals.against?.total?.home),
+        goalsAgainstAway: toStatNumber(goals.against?.total?.away),
+        cleanSheets: toStatNumber(teamData.clean_sheet?.total),
+      },
+      standings: {
+        wins: toStatNumber(fixtures.wins?.total),
+        losses: toStatNumber(fixtures.loses?.total),
+        // Draws are a routine soccer result rather than the rarity the other
+        // sports store in this column.
+        ties: toStatNumber(fixtures.draws?.total),
+        homeWins: toStatNumber(fixtures.wins?.home),
+        awayWins: toStatNumber(fixtures.wins?.away),
+        form: teamData.form || null,
+      },
+      gamesPlayed: toStatNumber(fixtures.played?.total),
+    };
+  }
+
   /** One live query per configured league — API-Football has no all-league filter. */
   async getLiveGames(): Promise<Fixture[]> {
     try {
       const allGames: Fixture[] = [];
 
-      for (const leagueId of Object.values(this.leagueIds)) {
+      for (const leagueId of Object.values(LEAGUE_IDS_BY_SPORT_KEY)) {
         const response = await this.client.get<ApiSportsResponse<Fixture>>(this.gamesEndpoint, {
           league: leagueId,
           live: 'all',
