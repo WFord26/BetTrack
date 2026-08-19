@@ -225,10 +225,14 @@ jobs:
       # -----------------------------------------------------------------------
       # Build
       # -----------------------------------------------------------------------
-      - name: Build MCP Server
+      # Was `python -m mcpb build`, but `mcpb` is in neither requirements.txt nor
+      # requirements-dev.txt, so this step failed and took the whole job — and
+      # therefore the GitHub Release — down with it. scripts/build-mcpb.mjs owns
+      # the payload and needs no Python packaging tooling.
+      - name: Build MCPB package
+        id: mcpb
         if: contains(needs.plan.outputs.artifacts, 'mcpb')
-        working-directory: ./mcp
-        run: python -m mcpb build
+        run: node scripts/build-mcpb.mjs
 
       - name: Build backend
         if: contains(needs.plan.outputs.artifacts, 'npm-backend')
@@ -340,13 +344,6 @@ jobs:
       # -----------------------------------------------------------------------
       # GitHub Release
       # -----------------------------------------------------------------------
-      - name: Find MCPB package
-        id: mcpb
-        if: contains(needs.plan.outputs.artifacts, 'mcpb')
-        run: |
-          MCPB_FILE=$(ls mcp/releases/*.mcpb 2>/dev/null | head -n 1 || true)
-          echo "path=$MCPB_FILE" >> "$GITHUB_OUTPUT"
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
