@@ -2295,6 +2295,30 @@ Get the current status of the football hourly sync job.
 
 **Response:** `{"status": "success", "data": {"running": false, "lastRun": "...", "lastResult": {...}}}`
 
+#### `POST /api/admin/sync-team-stats`
+Sync season totals (`/teams/statistics`) into `team_stats` for every team of a
+sport. Runs in the background and costs one API-Sports request per team, pausing
+when the remaining quota drops below `API_SPORTS_MIN_REMAINING`.
+
+**Body (optional):**
+```json
+{
+  "sportKey": "basketball_nba",
+  "season": 2024
+}
+```
+
+- `sportKey` — omit to sync every supported sport (NFL, NCAAF, NBA, NCAAB, NHL
+  and the seven soccer leagues).
+- `season` — omit to sync whichever season is in progress.
+
+**Response:** `{"status": "success", "message": "Team season stats sync started in background. Check logs for progress.", "data": {"sportKey": "basketball_nba", "season": 2024, "minimumRemainingRequests": 500}}`
+
+#### `GET /api/admin/team-stats-sync-status`
+Get the status of the last manual run and of the daily team stats job.
+
+**Response:** `{"status": "success", "data": {"manualRun": {...}, "dailyJob": {"status": "idle", "cronExpression": "30 5 * * *", "lastRunTime": "...", "summary": {"sports": [...], "teamsUpdated": 61, "pausedDueToQuota": false, "errors": 0}}}}`
+
 
 Get current odds for a specific game.
 

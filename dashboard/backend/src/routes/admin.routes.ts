@@ -6,10 +6,11 @@ import { logger } from '../config/logger';
 import { oddsSyncService } from '../services/odds-sync.service';
 import { futuresSyncService } from '../services/futures-sync.service';
 import { outcomeResolverService } from '../services/outcome-resolver.service';
-import { StatsSyncService } from '../services/stats-sync.service';
+import { StatsSyncService, TeamStatsSyncResult } from '../services/stats-sync.service';
 import { getOddsSyncStatus } from '../jobs/sync-odds.job';
 import { getMlbHourlySyncStatus } from '../jobs/mlb-hourly-sync.job';
 import { getFootballHourlySyncStatus } from '../jobs/football-hourly-sync.job';
+import { getTeamStatsSyncStatus } from '../jobs/team-stats-sync.job';
 import { env } from '../config/env';
 import { requireAdminAccess } from '../middleware/session.auth';
 import { validateBody } from '../middleware/validation.middleware';
@@ -54,9 +55,77 @@ type FootballSyncUiState = MlbSyncUiState;
 const initialFootballUiState: FootballSyncUiState = { ...initialMlbUiState };
 let footballManualWindowUiState: FootballSyncUiState = { ...initialFootballUiState };
 
+// Team season stats sync reports per sport rather than per date, so it keeps
+// its own UI state shape.
+interface TeamStatsSyncUiState {
+  status: SyncRunStatus;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationMs: number | null;
+  sportKey: string | null;
+  summary: {
+    sports: Array<{
+      sportKey: string;
+      season: number;
+      teamsProcessed: number;
+      teamsUpdated: number;
+      teamsSkipped: number;
+      pausedDueToQuota: boolean;
+      errors: number;
+    }>;
+    teamsUpdated: number;
+    requestsRemaining?: number;
+    pausedDueToQuota: boolean;
+    errors: number;
+  } | null;
+  error: string | null;
+}
+
+const initialTeamStatsUiState: TeamStatsSyncUiState = {
+  status: 'idle',
+  startedAt: null,
+  endedAt: null,
+  durationMs: null,
+  sportKey: null,
+  summary: null,
+  error: null,
+};
+
+let teamStatsManualUiState: TeamStatsSyncUiState = { ...initialTeamStatsUiState };
+
+/** Collapse the per-sport results into the shape the admin UI polls for. */
+function summarizeTeamStatsResults(results: TeamStatsSyncResult[]): NonNullable<TeamStatsSyncUiState['summary']> {
+  const remaining = results
+    .map(result => result.requestsRemaining)
+    .filter((value): value is number => value !== undefined);
+
+  return {
+    sports: results.map(result => ({
+      sportKey: result.sportKey,
+      season: result.season,
+      teamsProcessed: result.teamsProcessed,
+      teamsUpdated: result.teamsUpdated,
+      teamsSkipped: result.teamsSkipped,
+      pausedDueToQuota: result.pausedDueToQuota,
+      errors: result.errors.length,
+    })),
+    teamsUpdated: results.reduce((sum, result) => sum + result.teamsUpdated, 0),
+    requestsRemaining: remaining.length > 0 ? Math.min(...remaining) : undefined,
+    pausedDueToQuota: results.some(result => result.pausedDueToQuota),
+    errors: results.reduce((sum, result) => sum + result.errors.length, 0),
+  };
+}
+
 // ============================================================================
 // VALIDATION SCHEMAS
 // ============================================================================
+
+const teamStatsSyncSchema = z.object({
+  // Omitted means "every supported sport".
+  sportKey: z.string().min(1).max(50).optional(),
+  // Omitted means "the season in progress"; the service resolves it per sport.
+  season: z.coerce.number().int().min(2000).max(2100).optional(),
+});
 
 const siteConfigSchema = z.object({
   siteName: z.string().max(100, 'Site name must be 100 characters or less').optional(),
@@ -566,6 +635,119 @@ router.get('/football-sync-status', async (_req: Request, res: Response) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to get football sync status',
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+/**
+ * POST /api/admin/sync-team-stats
+ * Sync season totals (`/teams/statistics`) for every team of a sport, or of
+ * every supported sport when no sportKey is given.
+ * Runs in the background — responds immediately.
+ */
+router.post('/sync-team-stats', validateBody(teamStatsSyncSchema), async (req: Request, res: Response) => {
+  try {
+    const { sportKey, season } = req.body as { sportKey?: string; season?: number };
+    const minimumRemainingRequests = parseInt(env.API_SPORTS_MIN_REMAINING, 10) || 500;
+    const delayMs = parseInt(env.TEAM_STATS_SYNC_DELAY_MS, 10) || 250;
+    const startedAt = new Date();
+
+    logger.info(
+      sportKey
+        ? `Manually triggering team season stats sync for ${sportKey}...`
+        : 'Manually triggering team season stats sync for all supported sports...'
+    );
+
+    teamStatsManualUiState = {
+      ...initialTeamStatsUiState,
+      status: 'running',
+      startedAt: startedAt.toISOString(),
+      sportKey: sportKey || null,
+    };
+
+    const options = { season, minimumRemainingRequests, delayMs };
+    const syncPromise = sportKey
+      ? statsSyncService.syncTeamSeasonStatsForSport(sportKey, options).then(result => [result])
+      : statsSyncService.syncAllTeamSeasonStats(options);
+
+    syncPromise.then((results) => {
+      const endedAt = new Date();
+      const summary = summarizeTeamStatsResults(results);
+      const firstError = results.flatMap(result => result.errors)[0] ?? null;
+
+      teamStatsManualUiState = {
+        status: summary.errors > 0 ? 'failed' : 'completed',
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        sportKey: sportKey || null,
+        summary,
+        error: firstError,
+      };
+
+      logger.info(`Background team season stats sync complete: ${summary.teamsUpdated} teams updated`);
+    }).catch(error => {
+      const endedAt = new Date();
+      teamStatsManualUiState = {
+        status: 'failed',
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        sportKey: sportKey || null,
+        summary: null,
+        error: String(error),
+      };
+      logger.error('Background team season stats sync failed:', error);
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Team season stats sync started in background. Check logs for progress.',
+      data: {
+        sportKey: sportKey || 'all',
+        season: season ?? null,
+        minimumRemainingRequests,
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to start team season stats sync:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to start team season stats sync',
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+/**
+ * GET /api/admin/team-stats-sync-status
+ * Lightweight sync status object for UI polling.
+ */
+router.get('/team-stats-sync-status', async (_req: Request, res: Response) => {
+  try {
+    const dailyStatus = getTeamStatsSyncStatus();
+    const dailyLastRun = dailyStatus.lastRunTime instanceof Date
+      ? dailyStatus.lastRunTime.toISOString()
+      : null;
+
+    res.json({
+      status: 'success',
+      data: {
+        manualRun: teamStatsManualUiState,
+        dailyJob: {
+          status: dailyStatus.isRunning ? 'running' : 'idle',
+          cronExpression: dailyStatus.cronExpression,
+          lastRunTime: dailyLastRun,
+          summary: dailyStatus.lastResults ? summarizeTeamStatsResults(dailyStatus.lastResults) : null,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to get team stats sync status:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get team stats sync status',
       error: getErrorMessage(error),
     });
   }

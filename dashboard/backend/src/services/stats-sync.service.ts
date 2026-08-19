@@ -6,6 +6,7 @@ import { NCAAFService } from './api-sports/ncaaf.service';
 import { SoccerService } from './api-sports/soccer.service';
 import { MLBStatsService } from './api-sports/mlb.service';
 import { BaseStatsService } from './api-sports/base-stats.service';
+import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 
@@ -41,9 +42,52 @@ export interface FootballBackfillResult extends StatsSyncResult {
   pausedDueToQuota: boolean;
 }
 
+export interface TeamStatsSyncOptions {
+  /** Season to sync. Defaults to `resolveCurrentTeamStatsSeason(sportKey)`. */
+  season?: number;
+  minimumRemainingRequests?: number;
+  /** Pause between per-team requests, to stay under the rate limit. */
+  delayMs?: number;
+}
+
+export interface TeamStatsSyncResult {
+  sportKey: string;
+  season: number;
+  /** Teams an upstream request was made for. */
+  teamsProcessed: number;
+  /** Teams whose stats were written. */
+  teamsUpdated: number;
+  /** Teams left alone — no usable API-Sports id, or the run paused first. */
+  teamsSkipped: number;
+  requestsRemaining?: number;
+  pausedDueToQuota: boolean;
+  errors: string[];
+}
+
+/**
+ * The season `/teams/statistics` should be queried for right now.
+ *
+ * Every league the team stats sync covers except MLS labels a season by the
+ * calendar year it starts in and plays into the next one, so the first half of
+ * a calendar year still belongs to the previous season. MLS runs inside a
+ * single calendar year.
+ *
+ * This is only the default: an operator whose API-Sports plan covers a
+ * different range passes an explicit season instead.
+ */
+export function resolveCurrentTeamStatsSeason(sportKey: string, now: Date = new Date()): number {
+  if (sportKey === 'soccer_usa_mls') {
+    return now.getFullYear();
+  }
+
+  return now.getMonth() < 6 ? now.getFullYear() - 1 : now.getFullYear();
+}
+
 export class StatsSyncService {
   private static mlbRangeSyncRunning = false;
   private static footballRangeSyncRunning = false;
+  /** Sport keys with a team season stats sync in flight, one entry per sport. */
+  private static teamStatsSyncsRunning = new Set<string>();
   private nflService?: NFLStatsService;
   private nbaService?: NBAStatsService;
   private nhlService?: NHLStatsService;
@@ -179,6 +223,156 @@ export class StatsSyncService {
       logger.error(`Failed to sync team stats: ${error}`);
       throw error;
     }
+  }
+
+  /** The service that owns a sport key for team stats, if one does. */
+  private serviceForTeamStats(sportKey: string): BaseStatsService<any> | undefined {
+    if (SoccerService.supportsSportKey(sportKey)) {
+      return this.soccerService;
+    }
+
+    return this.teamStatsServicesBySportKey[sportKey];
+  }
+
+  /** Every sport key `syncTeamSeasonStats` can dispatch, in sync order. */
+  get teamStatsSportKeys(): string[] {
+    return [...Object.keys(this.teamStatsServicesBySportKey), ...SoccerService.sportKeys];
+  }
+
+  /**
+   * Sync season totals for every team of one sport.
+   *
+   * One upstream request per team, so a full run costs as many requests as the
+   * sport has teams — hence the quota floor and the pause between calls.
+   */
+  async syncTeamSeasonStatsForSport(
+    sportKey: string,
+    options?: TeamStatsSyncOptions
+  ): Promise<TeamStatsSyncResult> {
+    const season = options?.season ?? resolveCurrentTeamStatsSeason(sportKey);
+    const result: TeamStatsSyncResult = {
+      sportKey,
+      season,
+      teamsProcessed: 0,
+      teamsUpdated: 0,
+      teamsSkipped: 0,
+      pausedDueToQuota: false,
+      errors: [],
+    };
+
+    if (!env.API_SPORTS_KEY) {
+      result.errors.push('API_SPORTS_KEY not set');
+      return result;
+    }
+
+    const service = this.serviceForTeamStats(sportKey);
+
+    if (!service) {
+      result.errors.push(`Team stats sync not supported for sport: ${sportKey}`);
+      logger.warn(`Team stats sync not supported for sport: ${sportKey}`);
+      return result;
+    }
+
+    if (StatsSyncService.teamStatsSyncsRunning.has(sportKey)) {
+      result.errors.push(`Team stats sync for ${sportKey} already in progress`);
+      logger.warn(`Skipping ${sportKey} team stats sync because another run is active`);
+      return result;
+    }
+
+    const minimumRemainingRequests = options?.minimumRemainingRequests ?? 500;
+    const delayMs = options?.delayMs ?? 250;
+    // Soccer teams never come through `/teams`, so they carry no
+    // `apiSportsTeamId` — their upstream id is the odds-sourced `externalId`.
+    const usesExternalId = SoccerService.supportsSportKey(sportKey);
+
+    StatsSyncService.teamStatsSyncsRunning.add(sportKey);
+
+    try {
+      const teams = await prisma.team.findMany({
+        where: { sport: { key: sportKey } },
+        select: { id: true, name: true, apiSportsTeamId: true, externalId: true },
+        orderBy: { id: 'asc' },
+      });
+
+      logger.info(
+        `Starting ${sportKey} team season stats sync: ${teams.length} teams, season ${season}, min remaining=${minimumRemainingRequests}`
+      );
+
+      for (const team of teams) {
+        const apiSportsTeamId = usesExternalId
+          ? Number(team.externalId)
+          : team.apiSportsTeamId;
+
+        if (apiSportsTeamId === null || apiSportsTeamId === undefined || !Number.isFinite(apiSportsTeamId)) {
+          logger.debug(`Skipping ${sportKey} team ${team.name} — no API-Sports id`);
+          continue;
+        }
+
+        if (!service.hasSufficientQuota(minimumRemainingRequests)) {
+          result.pausedDueToQuota = true;
+          logger.warn(
+            `Pausing ${sportKey} team stats sync due to low API quota. Remaining=${service.getRequestsRemaining()}, required>=${minimumRemainingRequests}`
+          );
+          break;
+        }
+
+        result.teamsProcessed++;
+
+        try {
+          await this.syncTeamSeasonStats(sportKey, apiSportsTeamId, season);
+          result.teamsUpdated++;
+        } catch (error) {
+          const errorMsg = `Failed to sync ${sportKey} team stats for ${team.name} (${apiSportsTeamId}): ${error}`;
+          logger.error(errorMsg);
+          result.errors.push(errorMsg);
+        }
+
+        if (delayMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+
+      result.teamsSkipped = teams.length - result.teamsProcessed;
+      result.requestsRemaining = service.getRequestsRemaining();
+    } catch (error) {
+      const errorMsg = `${sportKey} team stats sync failed: ${error}`;
+      logger.error(errorMsg);
+      result.errors.push(errorMsg);
+    } finally {
+      StatsSyncService.teamStatsSyncsRunning.delete(sportKey);
+    }
+
+    logger.info(
+      `${sportKey} team stats sync complete: updated=${result.teamsUpdated}/${result.teamsProcessed}, skipped=${result.teamsSkipped}, paused=${result.pausedDueToQuota}`
+    );
+
+    return result;
+  }
+
+  /**
+   * Sync season totals for every team of every sport the dispatch supports.
+   *
+   * Sports with no teams stored cost nothing — the per-sport run makes no
+   * upstream request until it has a team to ask about.
+   */
+  async syncAllTeamSeasonStats(options?: TeamStatsSyncOptions): Promise<TeamStatsSyncResult[]> {
+    if (!env.API_SPORTS_KEY) {
+      logger.warn('API_SPORTS_KEY not set — skipping team season stats sync');
+      return [];
+    }
+
+    const results: TeamStatsSyncResult[] = [];
+
+    for (const sportKey of this.teamStatsSportKeys) {
+      results.push(await this.syncTeamSeasonStatsForSport(sportKey, options));
+    }
+
+    const totalUpdated = results.reduce((sum, r) => sum + r.teamsUpdated, 0);
+    logger.info(
+      `Team season stats sync complete: ${totalUpdated} teams across ${results.length} sports`
+    );
+
+    return results;
   }
 
   async syncAllTeams(): Promise<Record<string, number>> {

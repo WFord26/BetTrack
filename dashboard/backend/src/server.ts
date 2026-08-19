@@ -15,6 +15,7 @@ import { startBookmakerAnalyticsJob } from './jobs/bookmaker-analytics.job';
 import { startArbitrageScanJob } from './jobs/arbitrage-scan.job';
 import { startMlbHourlySyncJob } from './jobs/mlb-hourly-sync.job';
 import { startFootballHourlySyncJob } from './jobs/football-hourly-sync.job';
+import { startTeamStatsSyncJob } from './jobs/team-stats-sync.job';
 
 const PORT = parseInt(env.PORT, 10);
 
@@ -48,6 +49,7 @@ async function startServer() {
       startArbitrageScanJob();
       startMlbHourlySyncJob();
       startFootballHourlySyncJob();
+      startTeamStatsSyncJob();
       logger.info('✅ Scheduled jobs started');
     } catch (error) {
       logger.error('Failed to start scheduled jobs:', error);
