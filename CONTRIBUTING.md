@@ -52,12 +52,21 @@ cd scripts
 
 ## Submitting Pull Requests
 
+`main` is protected — it only moves through a pull request with CI green. See
+[BRANCH-PROTECTION.md](docs/BRANCH-PROTECTION.md) for the exact rules.
+
 1. Create a feature branch from `main` or `dev`
 2. Make your changes and commit with clear messages
 3. Run tests and build verification locally
 4. Ensure coverage does not decrease
 5. Submit a PR with a clear description
 6. Address review feedback promptly
+
+Install the local hooks once per clone so a stray push to `main` fails fast:
+
+```bash
+./scripts/install-git-hooks.sh
+```
 
 ## Code Quality
 

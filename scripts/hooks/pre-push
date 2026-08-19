@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# BetTrack pre-push hook: refuse direct pushes to main.
+# Install with: ./scripts/install-git-hooks.sh
+# Bypass once (use sparingly): BETTRACK_ALLOW_MAIN_PUSH=1 git push ...
+#
+# This mirrors the server-side ruleset in .github/rulesets/main-protection.json.
+# The server rejects these pushes anyway; the hook just fails faster and says why.
+
+set -uo pipefail
+
+protected="refs/heads/main"
+zero="0000000000000000000000000000000000000000"
+
+[ "${BETTRACK_ALLOW_MAIN_PUSH:-0}" = "1" ] && exit 0
+
+fail=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = "$protected" ] || continue
+
+  if [ "$local_sha" = "$zero" ]; then
+    echo "BLOCKED: refusing to delete main."
+  else
+    echo "BLOCKED: refusing to push directly to main."
+  fi
+  fail=1
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo
+  echo "main only moves through a reviewed pull request:"
+  echo "  git switch -c <type>/<issue>-<slug>"
+  echo "  git push -u origin HEAD"
+  echo "  gh pr create --base main"
+  echo
+  echo "Releasing? Use the On-Demand Release workflow rather than pushing a"
+  echo "release commit from your laptop. See docs/BRANCH-PROTECTION.md."
+  exit 1
+fi
+
+exit 0
