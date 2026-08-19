@@ -284,73 +284,17 @@ bump_component_versions() {
 # ---------------------------------------------------------------------------
 build_mcpb() {
     local version="$1"
+    # Payload definition, validation and zipping live in scripts/build-mcpb.mjs
+    # so the workflows, build.sh and the release script all ship the same bundle.
     log_info "Building MCPB package for version $version..."
 
-    mkdir -p "$BUILD_DIR"
-
-    # Validate dependencies (non-fatal; packages are bundled via requirements.txt for end-users)
-    log_info "Checking Python dependencies..."
-    if "$PYTHON" -m pip install --dry-run -r "$MCP_ROOT/requirements.txt" -q \
-           --break-system-packages 2>/dev/null; then
-        log_ok "Dependencies satisfied"
-    else
-        log_warn "Could not verify dependencies (may be an externally-managed env) — continuing"
+    if ! command -v node &>/dev/null; then
+        log_error "Node.js not found — required to build the MCPB"
+        exit 1
     fi
 
-    # Stage files
-    local pkg_dir="$BUILD_DIR/sports-data-mcp"
-    rm -rf "$pkg_dir"
-    mkdir -p "$pkg_dir"
-
-    local files=(
-        "sports_mcp_server.py"
-        "dashboard_mcp_server.py"
-        "manifest.json"
-        "requirements.txt"
-        "mcpb_bootstrap.py"
-        "setup.py"
-        "LICENSE"
-        ".env.example"
-        "INSTALL_INSTRUCTIONS.md"
-    )
-    for f in "${files[@]}"; do
-        local src="$MCP_ROOT/$f"
-        if [[ -f "$src" ]]; then
-            cp "$src" "$pkg_dir/"
-            log_info "  copied: $f"
-        fi
-    done
-
-    # Copy Python packages (no __pycache__ / .pyc)
-    # dashboard_api ships unconditionally: sports_mcp_server.py imports it and
-    # registers the dashboard tools at runtime only when DASHBOARD_API_KEY is
-    # set, so omitting it here would break the optional dashboard integration.
-    local packages=(
-        "sports_api"
-        "dashboard_api"
-    )
-    for pkg in "${packages[@]}"; do
-        if [[ -d "$MCP_ROOT/$pkg" ]]; then
-            cp -r "$MCP_ROOT/$pkg" "$pkg_dir/$pkg"
-            find "$pkg_dir/$pkg" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-            find "$pkg_dir/$pkg" -name "*.pyc" -delete 2>/dev/null || true
-            log_info "  copied: $pkg/"
-        else
-            log_warn "  MISSING package: $pkg/ (package will be incomplete)"
-        fi
-    done
-
-    # Create .mcpb (ZIP)
-    mkdir -p "$RELEASES_DIR"
-    local mcpb_path="$RELEASES_DIR/sports-data-mcp-v${version}.mcpb"
-    rm -f "$mcpb_path"
-
-    (cd "$pkg_dir" && zip -r -9 "$mcpb_path" . -x "*/__pycache__/*" -x "*.pyc" > /dev/null)
-
-    local size_kb
-    size_kb=$(du -k "$mcpb_path" | cut -f1)
-    log_ok "MCPB package created: $mcpb_path (${size_kb} KB)"
-    MCPB_PATH="$mcpb_path"
+    node "$SCRIPT_DIR/build-mcpb.mjs" --version "$version"
+    MCPB_PATH="$RELEASES_DIR/sports-data-mcp-v${version}.mcpb"
 }
 
 # ---------------------------------------------------------------------------

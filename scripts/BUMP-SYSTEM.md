@@ -201,7 +201,7 @@ a separate namespace and do not trigger that workflow.
 
 ```bash
 npm run test:bump              # from dashboard/
-npm run test:scripts           # bump + release together
+npm run test:scripts           # every script suite
 node --test scripts/*.test.mjs
 ```
 

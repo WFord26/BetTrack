@@ -162,7 +162,7 @@ in sync by hand. The PowerShell shim translates `-Backend` style switches to
 
 ```bash
 npm run test:docker      # docker script only
-npm run test:scripts     # bump + release + docker
+npm run test:scripts     # every script suite (213 tests)
 ```
 
 There are no end-to-end tests — building an image needs a daemon and minutes per

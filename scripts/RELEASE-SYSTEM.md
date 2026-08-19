@@ -128,6 +128,50 @@ describe repo-wide work, so `npm run release -- mcp` records itself in the root
 changelog but leaves the pending project notes in place for the next full
 release.
 
+## The MCPB Bundle
+
+The MCP server ships as an `.mcpb` — a zip of its runtime payload that Claude
+Desktop installs. [build-mcpb.mjs](./build-mcpb.mjs) is the only thing that
+knows what goes in it, and `release.mjs` calls it after the bump, so the bundle
+always carries the version that was just written into `manifest.json`.
+
+```bash
+npm run mcpb              # package the current version
+npm run mcpb:dry          # list the payload, write nothing
+```
+
+Output: `mcp/releases/sports-data-mcp-v<version>.mcpb` (gitignored).
+
+### What it replaced
+
+Three implementations had drifted apart:
+
+- `release.yml` ran `python -m mcpb build`, but `mcpb` is in neither
+  `requirements.txt` nor `requirements-dev.txt`. The step failed, and because it
+  ran before `Create GitHub Release`, **the whole release job died and no
+  Release was ever created** — the tag appeared and nothing else did.
+- `on-demand-release.yml` zipped an inline file list that omitted
+  `dashboard_api/`, which `sports_mcp_server.py` imports at module load. Bundles
+  built that way were missing a package the server needs to start.
+- `build.sh` had the correct list and was the only one that was right. It now
+  delegates like everything else.
+
+Every bundle shipped so far also declared `"icon": "icon.png"` in its manifest
+without including the file. The payload now carries it.
+
+### Validation
+
+A bundle is checked before it is written, and all problems are reported at once:
+
+- `manifest.json`'s version matches `package.json` — a desync means something
+  wrote one without the other, and Claude Desktop reports the manifest's
+- the declared `server.entry_point` is in the payload
+- every asset the manifest references (the icon) is in the payload
+- required files and both Python packages are present
+- the finished archive is read back and must have `manifest.json` at its root
+
+`__pycache__/` and `*.pyc` never ship.
+
 ## Workflows
 
 Two entry points, one script:
@@ -217,7 +261,8 @@ npm run release -- --push
 
 ```bash
 npm run test:release            # release script only
-npm run test:scripts            # release + bump, 127 tests
+npm run test:mcpb               # MCPB packaging only
+npm run test:scripts            # every script suite, 213 tests
 ```
 
 Unit tests cover scope and argument parsing, tag resolution and its inverse,

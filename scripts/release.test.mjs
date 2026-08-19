@@ -9,7 +9,7 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
@@ -443,7 +443,6 @@ function createFixtureRepo({ changelogs = {}, rootChangelog } = {}) {
 
   const manifests = {
     "mcp/package.json": { name: "sports-data-mcp", version: "1.0.0" },
-    "mcp/manifest.json": { name: "sports-data-mcp", version: "1.0.0" },
     "dashboard/package.json": { name: "sports-betting-dashboard", version: "0.3.0" },
     "dashboard/backend/package.json": { name: "@wford26/bettrack-backend", version: "0.5.0" },
     "dashboard/frontend/package.json": { name: "@wford26/bettrack-frontend", version: "0.6.0" },
@@ -458,12 +457,26 @@ function createFixtureRepo({ changelogs = {}, rootChangelog } = {}) {
   }
 
   write("CHANGELOG.md", rootChangelog ?? changelog("\n- A project-wide note\n"));
-  write("mcp/server.py", "print('mcp')\n");
+
+  // The MCPB payload, so a release whose scope includes mcp really packages one.
+  write("mcp/manifest.json", JSON.stringify({
+    name: "sports-data-mcp",
+    version: "1.0.0",
+    icon: "icon.png",
+    server: { entry_point: "sports_mcp_server.py" },
+  }, null, 2));
+  for (const name of ["sports_mcp_server.py", "dashboard_mcp_server.py", "mcpb_bootstrap.py", "setup.py"]) {
+    write(`mcp/${name}`, `# ${name}\n`);
+  }
+  write("mcp/requirements.txt", "aiohttp>=3.9.0\n");
+  write("mcp/icon.png", "png\n");
+  write("mcp/sports_api/__init__.py", "");
+  write("mcp/dashboard_api/__init__.py", "");
   write("dashboard/backend/src/index.ts", "export const backend = 1;\n");
   write("dashboard/frontend/src/main.tsx", "export const frontend = 1;\n");
 
   mkdirSync(path.join(root, "scripts"), { recursive: true });
-  for (const file of ["bump-version.mjs", "release.mjs"]) {
+  for (const file of ["bump-version.mjs", "release.mjs", "build-mcpb.mjs"]) {
     cpSync(path.join(SCRIPTS_DIR, file), path.join(root, "scripts", file));
   }
 
@@ -580,6 +593,28 @@ describe("release CLI (end to end)", () => {
     const message = execFileSync("git", ["log", "-1", "--pretty=%B"], { cwd: root, encoding: "utf8" });
     assert.match(message, /chore\(release\)/);
     assert.match(message, /mcp: v1\.1\.0/);
+  });
+
+  it("packages the MCPB as part of a release that ships one", () => {
+    const root = createFixtureRepo();
+    const output = runRelease(root, ["mcp", "--skip-preflight"]);
+
+    // The bundle must carry the *bumped* version, which means it is built after
+    // the bump rather than from whatever the manifest said beforehand.
+    const bundle = path.join(root, "mcp/releases/sports-data-mcp-v1.0.1.mcpb");
+    assert.ok(existsSync(bundle), "the .mcpb exists");
+    assert.match(output, /Packaging the MCPB/);
+
+    const entries = execFileSync("unzip", ["-Z1", bundle], { encoding: "utf8" }).split("\n").filter(Boolean);
+    assert.ok(entries.includes("manifest.json"));
+    assert.ok(entries.some((e) => e.startsWith("dashboard_api/")), "dashboard_api ships");
+  });
+
+  it("does not package an MCPB for a dashboard-only release", () => {
+    const root = createFixtureRepo();
+    runRelease(root, ["backend", "--skip-preflight"]);
+
+    assert.ok(!existsSync(path.join(root, "mcp/releases")), "no bundle for a scope without mcpb");
   });
 
   it("does not push unless asked", () => {

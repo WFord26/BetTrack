@@ -33,7 +33,10 @@
     "docker:build": "node ../scripts/docker-build.mjs",
     "docker:dry": "npm run docker:build -- all --dry-run",
     "docker:push": "npm run docker:build -- all --push",
-    "test:docker": "node --test ../scripts/docker-build.test.mjs"
+    "test:docker": "node --test ../scripts/docker-build.test.mjs",
+    "mcpb": "node ../scripts/build-mcpb.mjs",
+    "mcpb:dry": "npm run mcpb -- --dry-run",
+    "test:mcpb": "node --test ../scripts/build-mcpb.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

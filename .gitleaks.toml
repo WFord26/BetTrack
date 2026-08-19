@@ -17,6 +17,10 @@ tags = ["key", "odds-api"]
 description = "Templates, docs, and fixtures that carry placeholder values only"
 
 paths = [
+  # scripts/bump-version.mjs stores a SHA-256 per tracked file here. A file of
+  # 64-char hex digests reads as high-entropy secrets to the default ruleset, so
+  # every version bump commit would fail the scan. It contains only digests.
+  '''(^|/)\.bump-hashes\.json$''',
   '''\.env\.example$''',
   '''\.env\.production\.example$''',
   '''\.env\.prod\.example$''',

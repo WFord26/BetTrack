@@ -211,26 +211,13 @@ jobs:
         working-directory: ./dashboard
         run: npm run build:frontend
 
+      # scripts/build-mcpb.mjs owns the payload. The inline list this replaced
+      # omitted dashboard_api/, which sports_mcp_server.py imports at load time,
+      # so bundles built here were missing a package the server needs.
       - name: Build MCPB package
         id: mcpb
         if: '!inputs.dry_run && contains(steps.release.outputs.artifacts, ''mcpb'')'
-        run: |
-          MCP_VERSION="${{ steps.release.outputs.version_mcp }}"
-          BUILD_DIR="mcp/build/sports-data-mcp"
-          mkdir -p "$BUILD_DIR" mcp/releases
-
-          for f in sports_mcp_server.py dashboard_mcp_server.py manifest.json \
-                    requirements.txt mcpb_bootstrap.py setup.py .env.example \
-                    INSTALL_INSTRUCTIONS.md; do
-            [[ -f "mcp/$f" ]] && cp "mcp/$f" "$BUILD_DIR/"
-          done
-
-          cp -r mcp/sports_api "$BUILD_DIR/"
-          find "$BUILD_DIR" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-
-          MCPB_PATH="mcp/releases/sports-data-mcp-v${MCP_VERSION}.mcpb"
-          (cd "$BUILD_DIR" && zip -r "../../../${MCPB_PATH}" . -x "*.pyc")
-          echo "path=${MCPB_PATH}" >> "$GITHUB_OUTPUT"
+        run: node scripts/build-mcpb.mjs
 
       - name: Create distribution ZIPs
         id: zips

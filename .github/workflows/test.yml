@@ -297,6 +297,11 @@ jobs:
       - name: Validate docker build plan
         run: node scripts/docker-build.mjs all --dry-run
 
+      # Builds the real bundle and validates it. This is the check that would
+      # have caught the release job dying on `python -m mcpb build`.
+      - name: Build and validate the MCPB package
+        run: node scripts/build-mcpb.mjs
+
   build-validation:
     name: Build Validation
     runs-on: ubuntu-latest

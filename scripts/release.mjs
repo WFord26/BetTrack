@@ -32,6 +32,7 @@ import { extractUnreleasedSection, getTodayDate } from "./bump-version.mjs";
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(SCRIPT_DIR, "..");
 const BUMP_SCRIPT = path.join(SCRIPT_DIR, "bump-version.mjs");
+const MCPB_SCRIPT = path.join(SCRIPT_DIR, "build-mcpb.mjs");
 const ROOT_CHANGELOG = path.join(ROOT_DIR, "CHANGELOG.md");
 
 const DEFAULT_BRANCH = "main";
@@ -650,6 +651,28 @@ function applyBump(packageKeys, level) {
   runNode([BUMP_SCRIPT, ...targets, "--no-input"], { capture: false });
 }
 
+/**
+ * The MCPB is a zip of the MCP server payload — no registry, no credentials —
+ * so a release that ships one can build it right here, after the bump has put
+ * the new version into manifest.json. CI attaches the file this returns rather
+ * than rebuilding it with its own file list.
+ */
+function buildMcpb(plan) {
+  if (!plan.artifacts.includes("mcpb")) {
+    return null;
+  }
+
+  const output = runNode([MCPB_SCRIPT, "--json"]);
+
+  try {
+    // --json still prints the human report first; the JSON object is last.
+    const start = output.lastIndexOf("{");
+    return JSON.parse(output.slice(start));
+  } catch {
+    fail(`Could not read the MCPB build result:\n${output}`);
+  }
+}
+
 function writeRootChangelog(plan) {
   if (!existsSync(ROOT_CHANGELOG)) {
     return false;
@@ -698,7 +721,7 @@ function commitAndTag(plan, { allowDirty = false } = {}) {
   runGit(["tag", "-a", plan.tag, "-m", `Release ${plan.tag}`]);
 }
 
-function emitCiOutputs(plan) {
+function emitCiOutputs(plan, mcpb) {
   const outputPath = process.env.GITHUB_OUTPUT;
 
   if (!outputPath) {
@@ -718,6 +741,11 @@ function emitCiOutputs(plan) {
 
   for (const artifact of plan.artifacts) {
     lines.push(`build_${artifact.replace(/-/g, "_")}=true`);
+  }
+
+  if (mcpb) {
+    lines.push(`mcpb_path=${mcpb.path}`);
+    lines.push(`mcpb_version=${mcpb.version}`);
   }
 
   const notes = renderReleaseNotes({ tag: plan.tag, entries: plan.entries, projectNotes: plan.projectNotes });
@@ -782,6 +810,10 @@ async function main() {
   }
 
   if (args.dryRun) {
+    if (plan.artifacts.includes("mcpb")) {
+      console.log("\n   Would package: mcp/releases/sports-data-mcp-v<new version>.mcpb");
+    }
+
     console.log("\n📋 Dry run — nothing written. Release notes would be:\n");
     console.log(
       renderReleaseNotes({ tag: plan.tag, entries: plan.entries, projectNotes: plan.projectNotes })
@@ -803,6 +835,14 @@ async function main() {
   console.log("\n📦 Bumping versions...");
   applyBump(plan.scope.packages, args.bump);
 
+  let mcpb = null;
+
+  if (plan.artifacts.includes("mcpb")) {
+    console.log("\n📦 Packaging the MCPB...");
+    mcpb = buildMcpb(plan);
+    console.log(`   ✅ ${mcpb.path} (${mcpb.sizeKb} KB)`);
+  }
+
   console.log("\n📝 Updating root CHANGELOG.md...");
   console.log(writeRootChangelog(plan) ? "   ✅ Updated" : "   ⏭️  Skipped (no [Unreleased] section)");
 
@@ -810,7 +850,7 @@ async function main() {
   commitAndTag(plan, { allowDirty: args.allowDirty });
   console.log(`   ✅ ${plan.tag}`);
 
-  emitCiOutputs(plan);
+  emitCiOutputs(plan, mcpb);
 
   if (!args.push) {
     console.log("\n💡 Push when ready:");

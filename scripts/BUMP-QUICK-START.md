@@ -143,5 +143,5 @@ Restrict it to specific packages the same way: `npm run bump:tag -- mcp`.
 
 ```bash
 npm run test:bump      # bump script only
-npm run test:scripts   # bump + release
+npm run test:scripts   # every script suite
 ```
