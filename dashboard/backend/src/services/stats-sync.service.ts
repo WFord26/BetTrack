@@ -129,52 +129,40 @@ export class StatsSyncService {
     return result;
   }
 
-  /**
-   * Services keyed by the internal sport key they own. Soccer is absent: it
-   * spans several sport keys and is dispatched separately below.
-   */
-  private get teamStatsServicesBySportKey(): Record<string, BaseStatsService<any> | undefined> {
-    return {
-      americanfootball_nfl: this.nflService,
-      americanfootball_ncaaf: this.ncaafService,
-      basketball_nba: this.nbaService,
-      basketball_ncaab: this.ncaabService,
-      icehockey_nhl: this.nhlService,
-    };
-  }
-
-  /**
-   * Sync one team's season totals.
-   *
-   * `teamId` is the API-Sports team id, not our own `Team.id` — it is what
-   * `/teams/statistics` is queried by, and what the services resolve back to a
-   * local team.
-   */
   async syncTeamSeasonStats(sportKey: string, teamId: number, season: number): Promise<void> {
     try {
-      if (SoccerService.supportsSportKey(sportKey)) {
-        if (!this.soccerService) {
-          logger.warn(`Soccer stats service unavailable — skipping team stats for ${sportKey}`);
-          return;
-        }
-
-        await this.soccerService.syncTeamStatsForLeague(sportKey, teamId, season);
-        return;
+      switch (sportKey) {
+        case 'americanfootball_nfl':
+          if (this.nflService) {
+            await this.nflService.syncTeamStats(teamId, season);
+          }
+          break;
+        case 'basketball_nba':
+          // TODO: Implement NBA team stats sync
+          logger.warn('NBA team stats sync not yet implemented');
+          break;
+        case 'basketball_ncaab':
+          // TODO: Implement NCAAB team stats sync
+          logger.warn('NCAAB team stats sync not yet implemented');
+          break;
+        case 'americanfootball_ncaaf':
+          if (this.ncaafService) {
+            await this.ncaafService.syncTeamStats(teamId, season);
+          }
+          break;
+        case 'icehockey_nhl':
+          // TODO: Implement NHL team stats sync
+          logger.warn('NHL team stats sync not yet implemented');
+          break;
+        case 'soccer_epl':
+        case 'soccer_spain_la_liga':
+        case 'soccer_usa_mls':
+          // TODO: Implement Soccer team stats sync
+          logger.warn('Soccer team stats sync not yet implemented');
+          break;
+        default:
+          logger.warn(`Team stats sync not implemented for sport: ${sportKey}`);
       }
-
-      if (!(sportKey in this.teamStatsServicesBySportKey)) {
-        logger.warn(`Team stats sync not implemented for sport: ${sportKey}`);
-        return;
-      }
-
-      const service = this.teamStatsServicesBySportKey[sportKey];
-
-      if (!service) {
-        logger.warn(`Stats service unavailable — skipping team stats for ${sportKey}`);
-        return;
-      }
-
-      await service.syncTeamStats(teamId, season);
     } catch (error) {
       logger.error(`Failed to sync team stats: ${error}`);
       throw error;

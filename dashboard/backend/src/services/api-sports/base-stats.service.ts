@@ -26,47 +26,6 @@ export interface TeamRecordUpdate {
   logoUrl: string | null;
 }
 
-/** The `TeamStats` columns a `/teams/statistics` sync is allowed to write. */
-export interface TeamSeasonStats {
-  offense: Prisma.InputJsonValue;
-  defense: Prisma.InputJsonValue;
-  standings: Prisma.InputJsonValue;
-  gamesPlayed: number;
-}
-
-/**
- * API-Sports reports counts as numbers but percentages and averages as
- * strings ("0.585", "112.4"), and omits blocks entirely for a team that has
- * not played yet. Coerce to a number so a missing or unparseable value stores
- * 0 rather than null or NaN.
- */
-export function toStatNumber(value: unknown): number {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : 0;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = parseFloat(value);
-    return Number.isNaN(parsed) ? 0 : parsed;
-  }
-
-  return 0;
-}
-
-/**
- * `/teams/statistics` breaks the usual envelope: most hosts return a single
- * object where every other endpoint returns an array. Accept either.
- */
-function unwrapTeamStatsPayload(response: { response?: unknown } | undefined): any | null {
-  const payload = response?.response;
-
-  if (Array.isArray(payload)) {
-    return payload[0] ?? null;
-  }
-
-  return payload && typeof payload === 'object' ? payload : null;
-}
-
 export interface DateSyncResult {
   processed: number;
   updated: number;
@@ -191,49 +150,6 @@ export abstract class BaseStatsService<TGame> {
     };
   }
 
-  /**
-   * Query param naming the team on `/teams/statistics`. The american-football
-   * and baseball hosts call it `id`; basketball, hockey and API-Football all
-   * call it `team`.
-   */
-  protected get teamStatsIdParam(): string {
-    return 'id';
-  }
-
-  /**
-   * The season as `/teams/statistics` wants it. Basketball overrides this —
-   * its seasons are labelled by the pair of years they span.
-   */
-  protected formatStatsSeason(season: number): string | number {
-    return season.toString();
-  }
-
-  /**
-   * Map a `/teams/statistics` payload onto the TeamStats columns. The default
-   * reads the american-football shape; the other hosts report their own.
-   */
-  protected mapTeamSeasonStats(teamData: any): TeamSeasonStats {
-    return {
-      offense: teamData.offense || {},
-      defense: teamData.defense || {},
-      standings: {
-        wins: teamData.wins || 0,
-        losses: teamData.losses || 0,
-        ties: teamData.ties || 0,
-      },
-      gamesPlayed: teamData.games_played || 0,
-    };
-  }
-
-  /**
-   * Locate the internal Team row a `/teams/statistics` payload belongs to.
-   * Sports whose teams come from `/teams` key on the upstream id; soccer,
-   * whose teams are never synced that way, overrides.
-   */
-  protected findTeamForStats(apiSportsTeamId: number) {
-    return this.findTeamByApiId(apiSportsTeamId);
-  }
-
   // ─── Quota ──────────────────────────────────────────────────────────────
 
   getRequestsRemaining(): number | undefined {
@@ -334,53 +250,40 @@ export abstract class BaseStatsService<TGame> {
    */
   async syncTeamStats(apiSportsTeamId: number, season: number): Promise<void> {
     if (!this.sportKey) {
-      logger.warn(`${this.label} spans multiple leagues — team stats sync needs an explicit league`);
+      logger.warn(`${this.label} spans multiple leagues — team stats sync is not supported`);
       return;
     }
 
-    await this.runTeamStatsSync({
-      apiSportsTeamId,
-      season,
-      sportKey: this.sportKey,
-      params: this.teamStatsParams(),
-    });
-  }
-
-  /**
-   * The body of a `/teams/statistics` sync, with the target sport key and
-   * league params supplied by the caller so a multi-league service can pick
-   * one league per call.
-   */
-  protected async runTeamStatsSync(input: {
-    apiSportsTeamId: number;
-    season: number;
-    sportKey: string;
-    params: Record<string, unknown>;
-  }): Promise<void> {
-    const { apiSportsTeamId, season, sportKey } = input;
-
     try {
       const response = await this.client.get<ApiSportsResponse<any>>('/teams/statistics', {
-        [this.teamStatsIdParam]: apiSportsTeamId,
-        season: this.formatStatsSeason(season),
-        ...input.params,
+        id: apiSportsTeamId,
+        season: season.toString(),
+        ...this.teamStatsParams(),
       });
 
-      const teamData = unwrapTeamStatsPayload(response);
-
-      if (!teamData) {
+      if (!response.response?.length) {
         logger.warn(`No team stats found for ${this.label} team ${apiSportsTeamId}`);
         return;
       }
 
-      const team = await this.findTeamForStats(apiSportsTeamId);
+      const teamData = response.response[0];
+      const team = await this.findTeamByApiId(apiSportsTeamId);
 
       if (!team) {
         logger.warn(`Team not found: ${apiSportsTeamId}`);
         return;
       }
 
-      const stats = this.mapTeamSeasonStats(teamData);
+      const stats = {
+        offense: teamData.offense || {},
+        defense: teamData.defense || {},
+        standings: {
+          wins: teamData.wins || 0,
+          losses: teamData.losses || 0,
+          ties: teamData.ties || 0,
+        },
+        gamesPlayed: teamData.games_played || 0,
+      };
 
       await prisma.teamStats.upsert({
         where: {
@@ -388,7 +291,7 @@ export abstract class BaseStatsService<TGame> {
         },
         create: {
           teamId: team.id,
-          sportKey,
+          sportKey: this.sportKey,
           season,
           seasonType: 'regular',
           ...stats,
