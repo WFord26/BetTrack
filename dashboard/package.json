@@ -29,7 +29,11 @@
     "release:mcp": "npm run release -- mcp",
     "release:dashboard": "npm run release -- dashboard",
     "test:release": "node --test ../scripts/release.test.mjs",
-    "test:scripts": "node --test ../scripts/*.test.mjs"
+    "test:scripts": "node --test ../scripts/*.test.mjs",
+    "docker:build": "node ../scripts/docker-build.mjs",
+    "docker:dry": "npm run docker:build -- all --dry-run",
+    "docker:push": "npm run docker:build -- all --push",
+    "test:docker": "node --test ../scripts/docker-build.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

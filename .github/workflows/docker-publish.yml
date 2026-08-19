@@ -1,5 +1,19 @@
 name: Docker Publish
 
+# Continuous images for the tip of main. These are NOT release images:
+#
+#   :edge          always the newest green main
+#   :main-<sha>    an immutable handle on one commit
+#
+#   :latest        the newest *release* — moved only by release.yml and
+#                  on-demand-release.yml, never from here
+#   :<version>     a released version — same
+#
+# Previously this workflow pushed :<version> and :latest on every main push, so
+# a release commit was built and published twice: once here and once by
+# release.yml for the tag, with both racing to move :latest. The guard below
+# skips this workflow entirely when the commit already carries a release tag.
+
 on:
   push:
     branches:
@@ -7,17 +21,60 @@ on:
     paths:
       - 'dashboard/backend/**'
       - 'dashboard/frontend/**'
-      - 'dashboard/backend/Dockerfile'
-      - 'dashboard/frontend/Dockerfile'
 
 permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-push:
-    name: Build & Push Docker Images
+  guard:
+    name: Check for a release tag
     runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # A release pushes its commit and its tag. If a release tag points at this
+      # commit, release.yml is building the real images — building edge images
+      # for the same commit is wasted work and a second push of the same layers.
+      - name: Skip when this commit is a release
+        id: check
+        run: |
+          TAGS=$(git tag --points-at HEAD)
+          RELEASE_TAG=$(echo "$TAGS" | grep -E '^([0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?|(mcp|backend|frontend|dashboard)-v)' || true)
+
+          if [[ -n "$RELEASE_TAG" ]]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️ Commit carries release tag(s): $RELEASE_TAG — release.yml owns this build."
+            echo "### Skipped — release commit, handled by release.yml" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "▶️ Ordinary main commit — publishing edge images."
+          fi
+
+  build-and-push:
+    name: Build & Push Edge Images
+    needs: guard
+    if: needs.guard.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            title: BetTrack Backend
+          - component: frontend
+            title: BetTrack Frontend
 
     steps:
       - name: Checkout code
@@ -25,7 +82,7 @@ jobs:
 
       - name: Set lowercase registry owner
         id: registry
-        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -37,60 +94,44 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read backend version
-        id: backend-ver
-        run: echo "version=$(node -p "require('./dashboard/backend/package.json').version")" >> $GITHUB_OUTPUT
+      - name: Read ${{ matrix.component }} version
+        id: version
+        run: echo "value=$(node -p "require('./dashboard/${{ matrix.component }}/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Read frontend version
-        id: frontend-ver
-        run: echo "version=$(node -p "require('./dashboard/frontend/package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: Extract metadata for backend
-        id: meta-backend
+      - name: Extract metadata
+        id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/backend
+          images: ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/${{ matrix.component }}
+          # Deliberately no `latest` and no bare version — those mark releases.
           tags: |
-            type=raw,value=${{ steps.backend-ver.outputs.version }}
-            type=raw,value=latest
+            type=raw,value=edge
+            type=raw,value=main-{{sha}}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.version=${{ steps.backend-ver.outputs.version }}
-            org.opencontainers.image.title=BetTrack Backend
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}-edge
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=${{ matrix.title }}
 
-      - name: Build and push backend
+      - name: Build and push ${{ matrix.component }}
         uses: docker/build-push-action@v6
         with:
           context: ./dashboard
-          file: ./dashboard/backend/Dockerfile
+          file: ./dashboard/${{ matrix.component }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,scope=backend,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,scope=${{ matrix.component }},mode=max
 
-      - name: Extract metadata for frontend
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ steps.registry.outputs.owner }}/bettrack/frontend
-          tags: |
-            type=raw,value=${{ steps.frontend-ver.outputs.version }}
-            type=raw,value=latest
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.version=${{ steps.frontend-ver.outputs.version }}
-            org.opencontainers.image.title=BetTrack Frontend
-
-      - name: Build and push frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./dashboard
-          file: ./dashboard/frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,scope=frontend,mode=max
+      - name: Summary
+        run: |
+          {
+            echo "### ${{ matrix.title }} — edge"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

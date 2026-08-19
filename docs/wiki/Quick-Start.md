@@ -361,8 +361,8 @@ docker-compose exec backend npm run sync:odds
 
 ```bash
 # Pull images from GitHub Container Registry
-docker pull ghcr.io/WFord26/bettrack-backend:latest
-docker pull ghcr.io/WFord26/bettrack-frontend:latest
+docker pull ghcr.io/wford26/bettrack/backend:latest
+docker pull ghcr.io/wford26/bettrack/frontend:latest
 
 # Run with docker-compose
 cd dashboard

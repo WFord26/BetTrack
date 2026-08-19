@@ -486,8 +486,8 @@ The bash script automatically selects Python 3.10+ from Homebrew or the system P
 ```
 
 **Builds:**
-- `ghcr.io/wford26/bettrack-backend:<version>`
-- `ghcr.io/wford26/bettrack-frontend:<version>`
+- `ghcr.io/wford26/bettrack/backend:<version>`
+- `ghcr.io/wford26/bettrack/frontend:<version>`
 - Both tagged as `:latest`
 
 The bash script auto-detects the repository owner from the git remote and lowercases it to satisfy GHCR's lowercase-only requirement.

@@ -9,152 +9,131 @@ needs ESPN data.
 module to the given FastMCP instance. `odds_handler` may be None when
 ODDS_API_KEY is not configured; both tools below return an explanatory
 error in that case.
+
+The odds-card tool is split into three module-level helpers -- odds
+extraction, best-price selection, and template rendering -- so the data
+handling can be tested without standing up a server or an API client.
 """
 
+import json
 from datetime import datetime
 
 from ..team_reference import get_team_logo_url
 
+# Sport key -> league slug understood by get_team_logo_url(). Both tools in
+# this module resolve logos, so the mapping lives here instead of being
+# repeated inside each one.
+_SPORT_LEAGUE_MAP = {
+    "americanfootball_nfl": "nfl",
+    "basketball_nba": "nba",
+    "icehockey_nhl": "nhl",
+}
 
-def register_artifact_tools(mcp, odds_handler) -> None:
-    """Attach the visual artifact tools to `mcp`.
 
-    Args:
-        mcp: A FastMCP server instance
-        odds_handler: An OddsAPIHandler instance, or None if ODDS_API_KEY is
-            not configured
+def _league_for(sport: str) -> str:
+    """Map an Odds API sport key to a league slug, defaulting to NFL."""
+    return _SPORT_LEAGUE_MAP.get(sport, "nfl")
+
+
+def _extract_book_odds(book: dict, home_team: str, away_team: str) -> dict:
+    """Flatten one bookmaker's markets into a single row of odds.
+
+    The Odds API nests each market (h2h/spreads/totals) as a list of outcomes
+    keyed by team name, but the card template wants one flat record per book.
+    Books routinely omit markets, so anything missing falls back to 0 (or the
+    -110 standard juice) rather than raising.
     """
+    markets = book.get("markets", [])
 
-    @mcp.tool()
-    async def get_odds_card_artifact(
-        team_name: str,
-        sport: str = "basketball_nba"
-    ) -> dict:
-        """
-        Get a COMPLETE HTML artifact for an odds comparison card - ready to render immediately.
-        Returns pre-built React component with real data embedded.
+    # Moneyline
+    h2h_market = next((m for m in markets if m.get("key") == "h2h"), None)
+    ml_home = ml_away = 0
+    if h2h_market:
+        for outcome in h2h_market.get("outcomes", []):
+            if outcome.get("name") == home_team:
+                ml_home = outcome.get("price", 0)
+            elif outcome.get("name") == away_team:
+                ml_away = outcome.get("price", 0)
 
-        Args:
-            team_name: Team name to search for (e.g., "Nuggets", "Lakers", "Chiefs")
-            sport: Sport key (basketball_nba, americanfootball_nfl, icehockey_nhl)
+    # Spread, which carries its own juice per side
+    spread_market = next((m for m in markets if m.get("key") == "spreads"), None)
+    spread_home = spread_away = 0
+    spread_home_juice = spread_away_juice = -110
+    if spread_market:
+        for outcome in spread_market.get("outcomes", []):
+            if outcome.get("name") == home_team:
+                spread_home = outcome.get("point", 0)
+                spread_home_juice = outcome.get("price", -110)
+            elif outcome.get("name") == away_team:
+                spread_away = outcome.get("point", 0)
+                spread_away_juice = outcome.get("price", -110)
 
-        Returns:
-            Dictionary with complete HTML artifact string and render instruction
+    # Totals are keyed by "Over"/"Under" rather than by team, and both sides
+    # share one line, so the line is read off whichever outcome carries it.
+    totals_market = next((m for m in markets if m.get("key") == "totals"), None)
+    total_line = total_over = total_under = 0
+    if totals_market:
+        outcomes = totals_market.get("outcomes", [])
+        over_outcome = next((o for o in outcomes if o.get("name") == "Over"), None)
+        under_outcome = next((o for o in outcomes if o.get("name") == "Under"), None)
+        if over_outcome:
+            total_line = over_outcome.get("point", 0)
+            total_over = over_outcome.get("price", -110)
+        if under_outcome:
+            total_under = under_outcome.get("price", -110)
 
-        Example:
-            get_odds_card_artifact("Nuggets") -> Complete React card with Nuggets odds
-            get_odds_card_artifact("Chiefs", "americanfootball_nfl") -> NFL odds card
+    return {
+        "name": book.get("title", ""),
+        "ml_home": ml_home,
+        "ml_away": ml_away,
+        "spread_home": spread_home,
+        "spread_away": spread_away,
+        "spread_home_juice": spread_home_juice,
+        "spread_away_juice": spread_away_juice,
+        "total_line": total_line,
+        "total_over": total_over,
+        "total_under": total_under,
+    }
 
-        Note: This returns a COMPLETE artifact - Claude should render it directly, not rebuild
-        """
-        if not odds_handler:
-            return {"error": "Odds API not configured. Please set ODDS_API_KEY environment variable."}
 
-        # Search for team's game
-        search_result = await odds_handler.search_odds(query=team_name, sport=sport)
-        games = search_result.get("matching_games", [])
+def _best_focus_odds(books_data: list, is_home: bool) -> tuple:
+    """Return the best (moneyline, spread) across books for the focus team.
 
-        if not games:
-            return {
-                "success": False,
-                "error": f"No upcoming games found for '{team_name}'",
-                "suggestion": "Try a different team name or check the sport parameter"
-            }
+    Higher is better for both: a larger American moneyline pays more, and a
+    larger spread point value is more favourable. A moneyline of 0 means the
+    book did not price that side, so those are excluded -- note this also
+    excludes genuine negative (favourite) prices, which is why a card for a
+    favourite reports a best moneyline of 0.
+    """
+    side = "home" if is_home else "away"
+    ml_key, spread_key = "ml_" + side, "spread_" + side
 
-        game = games[0]  # Get first matching game
-        home_team = game.get("home_team", "")
-        away_team = game.get("away_team", "")
-        commence_time = game.get("commence_time", "")
-        bookmakers = game.get("bookmakers", [])[:5]  # Top 5 bookmakers
+    best_ml = max([b[ml_key] for b in books_data if b[ml_key] > 0], default=0)
+    best_spread = max([b[spread_key] for b in books_data], default=0)
+    return best_ml, best_spread
 
-        if not bookmakers:
-            return {"success": False, "error": "No odds available for this game"}
 
-        # Determine which team user is interested in
-        is_home = team_name.lower() in home_team.lower()
-        focus_team = home_team if is_home else away_team
-        other_team = away_team if is_home else home_team
-        focus_abbr = focus_team.split()[-1].upper()[:3]
-        other_abbr = other_team.split()[-1].upper()[:3]
+def _render_odds_card(
+    *,
+    sport: str,
+    commence_time: str,
+    focus_team: str,
+    other_team: str,
+    focus_abbr: str,
+    is_home: bool,
+    focus_logo: str,
+    other_logo: str,
+    books_data: list,
+    best_ml,
+    best_spread,
+) -> str:
+    """Build the self-contained React component source for the odds card.
 
-        # Get team logos
-        league_map = {
-            "basketball_nba": "nba",
-            "americanfootball_nfl": "nfl",
-            "icehockey_nhl": "nhl"
-        }
-        league = league_map.get(sport, "nfl")
-
-        home_logo = get_team_logo_url(home_team, league, size=500) or ""
-        away_logo = get_team_logo_url(away_team, league, size=500) or ""
-        focus_logo = home_logo if is_home else away_logo
-        other_logo = away_logo if is_home else home_logo
-
-        # Extract odds from bookmakers
-        books_data = []
-        for book in bookmakers:
-            book_name = book.get("title", "")
-            markets = book.get("markets", [])
-
-            # Get h2h (moneyline) odds
-            h2h_market = next((m for m in markets if m.get("key") == "h2h"), None)
-            ml_home = ml_away = 0
-            if h2h_market:
-                for outcome in h2h_market.get("outcomes", []):
-                    if outcome.get("name") == home_team:
-                        ml_home = outcome.get("price", 0)
-                    elif outcome.get("name") == away_team:
-                        ml_away = outcome.get("price", 0)
-
-            # Get spread odds
-            spread_market = next((m for m in markets if m.get("key") == "spreads"), None)
-            spread_home = spread_away = 0
-            spread_home_juice = spread_away_juice = -110
-            if spread_market:
-                for outcome in spread_market.get("outcomes", []):
-                    if outcome.get("name") == home_team:
-                        spread_home = outcome.get("point", 0)
-                        spread_home_juice = outcome.get("price", -110)
-                    elif outcome.get("name") == away_team:
-                        spread_away = outcome.get("point", 0)
-                        spread_away_juice = outcome.get("price", -110)
-
-            # Get totals
-            totals_market = next((m for m in markets if m.get("key") == "totals"), None)
-            total_line = total_over = total_under = 0
-            if totals_market:
-                outcomes = totals_market.get("outcomes", [])
-                over_outcome = next((o for o in outcomes if o.get("name") == "Over"), None)
-                under_outcome = next((o for o in outcomes if o.get("name") == "Under"), None)
-                if over_outcome:
-                    total_line = over_outcome.get("point", 0)
-                    total_over = over_outcome.get("price", -110)
-                if under_outcome:
-                    total_under = under_outcome.get("price", -110)
-
-            books_data.append({
-                "name": book_name,
-                "ml_home": ml_home,
-                "ml_away": ml_away,
-                "spread_home": spread_home,
-                "spread_away": spread_away,
-                "spread_home_juice": spread_home_juice,
-                "spread_away_juice": spread_away_juice,
-                "total_line": total_line,
-                "total_over": total_over,
-                "total_under": total_under
-            })
-
-        # Find best odds for focus team
-        if is_home:
-            best_ml = max([b["ml_home"] for b in books_data if b["ml_home"] > 0], default=0)
-            best_spread = max([b["spread_home"] for b in books_data], default=0)
-        else:
-            best_ml = max([b["ml_away"] for b in books_data if b["ml_away"] > 0], default=0)
-            best_spread = max([b["spread_away"] for b in books_data], default=0)
-
-        # Generate complete HTML artifact with embedded data
-        artifact_html = f"""export default function OddsCard() {{
+    `books_data` is embedded with json.dumps rather than str(): a Python repr
+    is not JSON, and a book whose name contains an apostrophe (e.g.
+    "Bally\'s Bet") would otherwise emit a component that will not parse.
+    """
+    return f"""export default function OddsCard() {{
   const gameTime = new Date('{commence_time}');
   const formattedTime = gameTime.toLocaleTimeString('en-US', {{ hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }});
 
@@ -164,7 +143,7 @@ def register_artifact_tools(mcp, odds_handler) -> None:
   const focusLogo = "{focus_logo}";
   const otherLogo = "{other_logo}";
 
-  const books = {str(books_data).replace("'", '"')};
+  const books = {json.dumps(books_data)};
 
   const bestML = {best_ml};
   const bestSpread = {best_spread};
@@ -275,6 +254,94 @@ def register_artifact_tools(mcp, odds_handler) -> None:
   );
 }}"""
 
+
+def register_artifact_tools(mcp, odds_handler) -> None:
+    """Attach the visual artifact tools to `mcp`.
+
+    Args:
+        mcp: A FastMCP server instance
+        odds_handler: An OddsAPIHandler instance, or None if ODDS_API_KEY is
+            not configured
+    """
+
+    @mcp.tool()
+    async def get_odds_card_artifact(
+        team_name: str,
+        sport: str = "basketball_nba"
+    ) -> dict:
+        """
+        Get a COMPLETE HTML artifact for an odds comparison card - ready to render immediately.
+        Returns pre-built React component with real data embedded.
+
+        Args:
+            team_name: Team name to search for (e.g., "Nuggets", "Lakers", "Chiefs")
+            sport: Sport key (basketball_nba, americanfootball_nfl, icehockey_nhl)
+
+        Returns:
+            Dictionary with complete HTML artifact string and render instruction
+
+        Example:
+            get_odds_card_artifact("Nuggets") -> Complete React card with Nuggets odds
+            get_odds_card_artifact("Chiefs", "americanfootball_nfl") -> NFL odds card
+
+        Note: This returns a COMPLETE artifact - Claude should render it directly, not rebuild
+        """
+        if not odds_handler:
+            return {"error": "Odds API not configured. Please set ODDS_API_KEY environment variable."}
+
+        # Search for team's game
+        search_result = await odds_handler.search_odds(query=team_name, sport=sport)
+        games = search_result.get("matching_games", [])
+
+        if not games:
+            return {
+                "success": False,
+                "error": f"No upcoming games found for '{team_name}'",
+                "suggestion": "Try a different team name or check the sport parameter"
+            }
+
+        game = games[0]  # Get first matching game
+        home_team = game.get("home_team", "")
+        away_team = game.get("away_team", "")
+        commence_time = game.get("commence_time", "")
+        bookmakers = game.get("bookmakers", [])[:5]  # Top 5 bookmakers
+
+        if not bookmakers:
+            return {"success": False, "error": "No odds available for this game"}
+
+        # The card is written from the perspective of the team the user asked
+        # for, so everything below is labelled focus/other rather than
+        # home/away.
+        is_home = team_name.lower() in home_team.lower()
+        focus_team = home_team if is_home else away_team
+        other_team = away_team if is_home else home_team
+        focus_abbr = focus_team.split()[-1].upper()[:3]
+
+        league = _league_for(sport)
+        home_logo = get_team_logo_url(home_team, league, size=500) or ""
+        away_logo = get_team_logo_url(away_team, league, size=500) or ""
+        focus_logo = home_logo if is_home else away_logo
+        other_logo = away_logo if is_home else home_logo
+
+        books_data = [
+            _extract_book_odds(book, home_team, away_team) for book in bookmakers
+        ]
+        best_ml, best_spread = _best_focus_odds(books_data, is_home)
+
+        artifact_html = _render_odds_card(
+            sport=sport,
+            commence_time=commence_time,
+            focus_team=focus_team,
+            other_team=other_team,
+            focus_abbr=focus_abbr,
+            is_home=is_home,
+            focus_logo=focus_logo,
+            other_logo=other_logo,
+            books_data=books_data,
+            best_ml=best_ml,
+            best_spread=best_spread,
+        )
+
         return {
             "success": True,
             "artifact_type": "react",
@@ -319,13 +386,7 @@ def register_artifact_tools(mcp, odds_handler) -> None:
         scores_result = await odds_handler.get_scores(sport=sport, days_from=3)
         games_data = scores_result.get("data", []) if scores_result.get("success") else []
 
-        # Determine league for logo lookup
-        league_map = {
-            "americanfootball_nfl": "nfl",
-            "basketball_nba": "nba",
-            "icehockey_nhl": "nhl"
-        }
-        league = league_map.get(sport, "nfl")
+        league = _league_for(sport)
 
         # Add logo URLs to games
         for game in games_data:

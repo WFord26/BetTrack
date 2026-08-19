@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`get_odds_card_artifact` decomposed (issue #74 follow-up)**: The 1.0.0 split moved this function into `artifact_tools.py` verbatim, leaving the 261-line body the issue flagged intact. Its data handling is now three module-level helpers — `_extract_book_odds()` (one bookmaker's nested markets to a flat row), `_best_focus_odds()` (best price across books), and `_render_odds_card()` (component source) — reducing the tool itself to 92 lines of orchestration.
+  - Rendered output is byte-identical to the 1.0.0 version for the same input, and the not-configured/no-games/no-odds paths are unchanged.
+  - The sport-to-league map duplicated in both tools is now the shared `_SPORT_LEAGUE_MAP`/`_league_for()`; the unused `other_abbr` local was dropped.
+  - New `tests/test_artifact_tools.py` covers the extracted helpers (20 tests), taking `artifact_tools.py` from 16% to 62% coverage and `sports_api/` from 57% to 61%.
+
+### Fixed
+
+- **Odds cards for bookmakers with an apostrophe in their name produced an unparseable component**: `_render_odds_card()` embedded the per-book data with `str(books_data).replace("'", '"')`, which is a Python repr rather than JSON. A book such as "Bally's Bet" emitted `{"name": "Bally"s Bet"}`, breaking the whole artifact. Now embedded with `json.dumps()`.
+
 ---
 
 ## [1.0.0] - 2026-08-16

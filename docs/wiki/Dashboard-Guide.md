@@ -789,17 +789,27 @@ docs(wiki): update dashboard guide
 
 ### Docker Build
 
-**Backend**:
+Use the build script — it resolves versions, labels, platforms and the build
+context for you:
+
 ```bash
-cd dashboard/backend
-docker build -t bettrack-backend .
-docker run -p 3001:3001 -e DATABASE_URL=... bettrack-backend
+cd dashboard
+npm run docker:build -- backend
+npm run docker:build -- all
+npm run docker:dry
 ```
 
-**Frontend**:
+To build by hand, note that **the build context is `dashboard/`, not the
+component directory**. Both Dockerfiles install from the shared workspace
+lockfile (`COPY package*.json ./` then `COPY backend/package*.json ./backend/`),
+so building from inside `dashboard/backend` fails:
+
 ```bash
-cd dashboard/frontend
-docker build -t bettrack-frontend .
+cd dashboard
+docker build -f backend/Dockerfile -t bettrack-backend .
+docker run -p 3001:3001 -e DATABASE_URL=... bettrack-backend
+
+docker build -f frontend/Dockerfile -t bettrack-frontend .
 docker run -p 80:80 bettrack-frontend
 ```
 
@@ -828,9 +838,12 @@ CORS_ORIGIN="https://yourdomain.com"
 ### Pre-built Images
 
 ```bash
-# Pull from GitHub Container Registry
-docker pull ghcr.io/wford26/bettrack-backend:latest
-docker pull ghcr.io/wford26/bettrack-frontend:latest
+# Pull from GitHub Container Registry.
+#   :latest      the newest release
+#   :edge        the tip of main
+#   :<version>   a specific released version
+docker pull ghcr.io/wford26/bettrack/backend:latest
+docker pull ghcr.io/wford26/bettrack/frontend:latest
 
 # Run with compose
 cd dashboard

@@ -258,7 +258,7 @@ jobs:
           fi
 
   release-script-tests:
-    name: Release & Bump Scripts
+    name: Release, Bump & Docker Scripts
     runs-on: ubuntu-latest
 
     steps:
@@ -291,6 +291,11 @@ jobs:
             node scripts/release.mjs "$scope" --json > /dev/null
           done
           echo "✅ every release scope resolves"
+
+      # Catches a moved Dockerfile or a renamed package key. --dry-run needs no
+      # Docker daemon, so this runs on a plain runner.
+      - name: Validate docker build plan
+        run: node scripts/docker-build.mjs all --dry-run
 
   build-validation:
     name: Build Validation

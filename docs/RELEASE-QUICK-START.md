@@ -77,10 +77,10 @@ See [dashboard/secrets/README.md](../dashboard/secrets/README.md) for advanced s
 - `mcp/releases/frontend.v*.zip`
 
 ### Docker Images
-- `ghcr.io/<owner>/bettrack-backend:YYYY.MM.DD`
-- `ghcr.io/<owner>/bettrack-backend:latest`
-- `ghcr.io/<owner>/bettrack-frontend:YYYY.MM.DD`
-- `ghcr.io/<owner>/bettrack-frontend:latest`
+- `ghcr.io/<owner>/bettrack/backend:YYYY.MM.DD`
+- `ghcr.io/<owner>/bettrack/backend:latest`
+- `ghcr.io/<owner>/bettrack/frontend:YYYY.MM.DD`
+- `ghcr.io/<owner>/bettrack/frontend:latest`
 
 ### Git
 - Tag: `YYYY.MM.DD` (or `YYYY.MM.DD.N` if multiple releases same day)
@@ -144,12 +144,12 @@ git push origin 2026.01.12
 
 ```bash
 # Latest versions
-docker pull ghcr.io/<owner>/sports-odds-mcp-backend:latest
-docker pull ghcr.io/<owner>/sports-odds-mcp-frontend:latest
+docker pull ghcr.io/<owner>/bettrack/backend:latest
+docker pull ghcr.io/<owner>/bettrack/frontend:latest
 
 # Specific release
-docker pull ghcr.io/<owner>/sports-odds-mcp-backend:2026.01.12
-docker pull ghcr.io/<owner>/sports-odds-mcp-frontend:2026.01.12
+docker pull ghcr.io/<owner>/bettrack/backend:2026.01.12
+docker pull ghcr.io/<owner>/bettrack/frontend:2026.01.12
 ```
 
 ## Troubleshooting

@@ -181,3 +181,6 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Local Docker buildx cache (scripts/docker-build.mjs)
+.docker-cache/
