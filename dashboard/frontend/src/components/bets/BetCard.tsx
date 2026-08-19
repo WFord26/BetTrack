@@ -144,17 +144,15 @@ export default function BetCard({ bet }: BetCardProps) {
   return (
     <>
       <div
-        className="ds-sand-bg flex"
-        style={
+        className={`ds-sand-bg flex ${
           isDarkMode
-            ? { boxShadow: '0 8px 0 #120a22' }
-            : { border: '3px solid #3a2413', boxShadow: '6px 6px 0 #d8c19a' }
-        }
+            ? 'shadow-ds-drop-lg'
+            : 'border-[3px] border-ink shadow-ds-card-sand-lg'
+        }`}
       >
         {/* Left stub column */}
         <div
-          className={`flex-shrink-0 flex flex-col items-center justify-center gap-2.5 py-3 ${statusMeta.stub}`}
-          style={{ width: '78px', borderRight: '3px dashed #b39a72' }}
+          className={`flex-shrink-0 w-[78px] flex flex-col items-center justify-center gap-2.5 py-3 border-r-[3px] border-dashed border-sand-perf ${statusMeta.stub}`}
         >
           <span
             className="font-display text-[7px] tracking-[.18em] text-terra-text"
@@ -208,7 +206,7 @@ export default function BetCard({ bet }: BetCardProps) {
             })}
           </div>
 
-          <div className="flex items-center gap-3 mt-3 pt-2.5" style={{ borderTop: '2px dotted #b39a72' }}>
+          <div className="flex items-center gap-3 mt-3 pt-2.5 border-t-2 border-dotted border-sand-perf">
             <div className="ds-barcode flex-1 h-4" />
             <span className="font-body text-[12px] text-ink-muted whitespace-nowrap">
               {formatCurrency(bet.stake)} stake
@@ -323,9 +321,10 @@ export default function BetCard({ bet }: BetCardProps) {
                 onClick={handleDelete}
                 disabled={isProcessing}
                 className={`flex-1 px-4 py-2 font-display text-[9px] tracking-[.06em] disabled:opacity-50 ${
-                  isDarkMode ? 'ds-btn-press' : 'ds-btn-press-light'
+                  isDarkMode
+                    ? 'ds-btn-press-coral'
+                    : 'ds-btn-press-light'
                 }`}
-                style={isDarkMode ? { backgroundColor: '#ef5350', color: '#fdf3df', boxShadow: '0 4px 0 #8a2e2b' } : undefined}
               >
                 {isProcessing ? 'DELETING...' : 'DELETE'}
               </button>

@@ -28,8 +28,8 @@
 }
 
 @keyframes pixel-pulse {
-  0%, 100% { box-shadow: 0 6px 0 #991b1b, 0 10px 20px rgba(0,0,0,0.4); }
-  50%       { box-shadow: 0 4px 0 #991b1b, 0 8px 16px rgba(0,0,0,0.3); }
+  0%, 100% { box-shadow: 0 6px 0 theme(colors.brand.800), 0 10px 20px rgba(0,0,0,0.4); }
+  50%       { box-shadow: 0 4px 0 theme(colors.brand.800), 0 8px 16px rgba(0,0,0,0.3); }
 }
 
 /* Desert Sunset — hard on/off blink (never fades) for LIVE dots/chips/stamps */
@@ -128,15 +128,15 @@
            border-4 border-brand-800
            transition-all duration-100
            select-none cursor-pointer;
-    box-shadow: 0 6px 0 #7f1d1d, 0 10px 20px rgba(0,0,0,0.4);
+    box-shadow: 0 6px 0 theme(colors.brand.900), 0 10px 20px rgba(0,0,0,0.4);
   }
   .btn-pixel:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 0 #7f1d1d, 0 14px 24px rgba(0,0,0,0.45);
+    box-shadow: 0 8px 0 theme(colors.brand.900), 0 14px 24px rgba(0,0,0,0.45);
   }
   .btn-pixel:active {
     transform: translateY(4px);
-    box-shadow: 0 2px 0 #7f1d1d, 0 4px 10px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 0 theme(colors.brand.900), 0 4px 10px rgba(0,0,0,0.3);
   }
 
   /* Pixel button — dark/ghost variant (gray background, same press effect) */
@@ -149,15 +149,15 @@
            border-4 border-surface-800
            transition-all duration-100
            select-none cursor-pointer;
-    box-shadow: 0 6px 0 #030712, 0 10px 20px rgba(0,0,0,0.4);
+    box-shadow: 0 6px 0 theme(colors.surface.950), 0 10px 20px rgba(0,0,0,0.4);
   }
   .btn-pixel-ghost:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 0 #030712, 0 14px 24px rgba(0,0,0,0.45);
+    box-shadow: 0 8px 0 theme(colors.surface.950), 0 14px 24px rgba(0,0,0,0.45);
   }
   .btn-pixel-ghost:active {
     transform: translateY(4px);
-    box-shadow: 0 2px 0 #030712, 0 4px 10px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 0 theme(colors.surface.950), 0 4px 10px rgba(0,0,0,0.3);
   }
 
   /* ── Cards ────────────────────────────────────────────────────────────── */
@@ -170,10 +170,10 @@
            rounded-lg
            border border-gray-100 dark:border-surface-700
            p-4;
-    box-shadow: 2px 2px 0px #9ca3af;
+    box-shadow: 2px 2px 0px theme(colors.surface.400);
   }
   .dark .card {
-    box-shadow: 2px 2px 0px #030712;
+    box-shadow: 2px 2px 0px theme(colors.surface.950);
   }
 
   /* Pixel card — retro style with hard offset shadow. Use on landing page
@@ -191,11 +191,11 @@
   }
   /* Light mode pixel card shadow */
   :root:not(.dark) .card-pixel {
-    box-shadow: 0 6px 0 #9ca3af, 0 10px 20px rgba(0,0,0,0.15);
+    box-shadow: 0 6px 0 theme(colors.surface.400), 0 10px 20px rgba(0,0,0,0.15);
   }
   /* Dark mode pixel card shadow */
   .dark .card-pixel {
-    box-shadow: 0 6px 0 #030712, 0 10px 20px rgba(0,0,0,0.3);
+    box-shadow: 0 6px 0 theme(colors.surface.950), 0 10px 20px rgba(0,0,0,0.3);
   }
 
   /* ── Bet outcome badges ───────────────────────────────────────────────── */
@@ -250,82 +250,179 @@
    * See the design handoff README for the full token/spec rationale.
    * ══════════════════════════════════════════════════════════════════════ */
 
+  /* Page headline — hard offset shadow that flips with the color scheme.
+   * Light: gold-headline. Dark: terracotta. Used on every Desert Sunset page
+   * title, so the light/dark pair lives here rather than as an isDarkMode
+   * ternary in each page component. */
+  .ds-headline {
+    text-shadow: 4px 4px 0 theme(colors.gold-headline);
+  }
+  .dark .ds-headline {
+    text-shadow: 4px 4px 0 theme(colors.terra.DEFAULT);
+  }
+  /* Same pair, 3px offset — for smaller section titles */
+  .ds-headline-sm {
+    text-shadow: 3px 3px 0 theme(colors.gold-headline);
+  }
+  .dark .ds-headline-sm {
+    text-shadow: 3px 3px 0 theme(colors.terra.DEFAULT);
+  }
+  /* Headline sitting on the terracotta banner: ink in light, terracotta in
+   * dark (where the banner is dusk-chrome instead). */
+  .ds-headline-banner {
+    text-shadow: 3px 3px 0 theme(colors.ink);
+  }
+  .dark .ds-headline-banner {
+    text-shadow: 4px 4px 0 theme(colors.terra.DEFAULT);
+  }
+
   /* Notched panel (dark) — no radius/border; a hard pixel "plus" silhouette
    * via 4 offset same-color shadows plus a 5th hard drop-shadow edge.
    * `--ds-panel` lets callers swap the fill (defaults to dusk-panel). */
   .ds-panel {
-    --ds-panel: #2a1a45;
+    --ds-panel: theme(colors.dusk-panel);
     background-color: var(--ds-panel);
     box-shadow:
       -4px 0 var(--ds-panel), 4px 0 var(--ds-panel),
       0 -4px var(--ds-panel), 0 4px var(--ds-panel),
-      0 8px 0 #120a22;
+      0 8px 0 theme(colors.dusk-shadow);
   }
   /* Larger drop edge — landing feature cards, bet slip, futures market panel */
   .ds-panel-lg {
-    --ds-panel: #2a1a45;
+    --ds-panel: theme(colors.dusk-panel);
     background-color: var(--ds-panel);
     box-shadow:
       -4px 0 var(--ds-panel), 4px 0 var(--ds-panel),
       0 -4px var(--ds-panel), 0 4px var(--ds-panel),
-      0 10px 0 #120a22;
+      0 10px 0 theme(colors.dusk-shadow);
   }
 
   /* Ink-border card (light) — ticket/manual-paper chrome */
   .ds-card-ink {
     @apply bg-sand-panel border-[3px] border-ink;
-    box-shadow: 5px 5px 0 #d8c19a;
+    box-shadow: 5px 5px 0 theme(colors.sand-shadow);
   }
   .ds-card-ink-lg {
     @apply bg-sand-panel border-4 border-ink;
-    box-shadow: 8px 8px 0 #d8c19a;
+    box-shadow: 8px 8px 0 theme(colors.sand-shadow);
   }
 
   /* Press button — dark (gold) and light (terracotta) variants. Active state
    * presses down (translateY) and shortens the hard shadow edge. */
   .ds-btn-press {
     @apply bg-gold text-dusk font-display cursor-pointer select-none;
-    box-shadow: 0 4px 0 #8a5a10;
+    box-shadow: 0 4px 0 theme(colors.gold-edge);
     transition: transform .1s ease, box-shadow .1s ease;
   }
-  .ds-btn-press:hover  { transform: translateY(-2px); box-shadow: 0 6px 0 #8a5a10; }
-  .ds-btn-press:active { transform: translateY(3px);  box-shadow: 0 2px 0 #8a5a10; }
+  .ds-btn-press:hover  { transform: translateY(-2px); box-shadow: 0 6px 0 theme(colors.gold-edge); }
+  .ds-btn-press:active { transform: translateY(3px);  box-shadow: 0 2px 0 theme(colors.gold-edge); }
+
+  /* Destructive variant of the dark press button — coral face, coral-edge lip */
+  .ds-btn-press-coral {
+    @apply bg-coral text-terra-text font-display cursor-pointer select-none;
+    box-shadow: theme(boxShadow.ds-press-coral);
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .ds-btn-press-coral:hover  { transform: translateY(-2px); box-shadow: 0 6px 0 theme(colors.coral-edge); }
+  .ds-btn-press-coral:active { transform: translateY(3px);  box-shadow: 0 2px 0 theme(colors.coral-edge); }
 
   .ds-btn-press-light {
     @apply bg-terra text-terra-text font-display border-2 border-ink cursor-pointer select-none;
-    box-shadow: 0 4px 0 #3a2413;
+    box-shadow: 0 4px 0 theme(colors.ink);
     transition: transform .1s ease, box-shadow .1s ease;
   }
-  .ds-btn-press-light:hover  { transform: translateY(-2px); box-shadow: 0 6px 0 #3a2413; }
-  .ds-btn-press-light:active { transform: translateY(3px);  box-shadow: 0 2px 0 #3a2413; }
+  .ds-btn-press-light:hover  { transform: translateY(-2px); box-shadow: 0 6px 0 theme(colors.ink); }
+  .ds-btn-press-light:active { transform: translateY(3px);  box-shadow: 0 2px 0 theme(colors.ink); }
 
   /* Odds cell — the two-sided pressable price button */
   .ds-odds-cell-dark {
     @apply bg-dusk-panel2 text-gold-odds font-semibold;
-    box-shadow: 0 3px 0 #120a22;
+    box-shadow: 0 3px 0 theme(colors.dusk-shadow);
   }
   .ds-odds-cell-dark-inset {
     @apply text-gold-odds font-semibold;
-    box-shadow: 0 0 0 2px #43306a inset;
+    box-shadow: 0 0 0 2px theme(colors.dusk-ring) inset;
   }
   .ds-odds-cell-light {
     @apply bg-sand-panel2 text-ink font-semibold border-2 border-ink;
-    box-shadow: 0 2px 0 #3a2413;
+    box-shadow: 0 2px 0 theme(colors.ink);
   }
   .ds-odds-cell-selected {
     @apply bg-gold text-dusk;
-    box-shadow: 0 0 0 2px #8a5a10 inset;
+    box-shadow: 0 0 0 2px theme(colors.gold-edge) inset;
+  }
+
+  /* Futures market header — terracotta→plum sunset band */
+  .ds-band-sunset {
+    background: linear-gradient(90deg, theme(colors.terra.DEFAULT), theme(colors.plum));
+  }
+
+  /* Dashboard pixel-grid backdrop — a 4px brand-red lattice, deepened in
+   * dark mode. Apply to an absolutely-positioned overlay with its own opacity. */
+  .ds-pixel-grid {
+    background-image:
+      repeating-linear-gradient(0deg,  theme(colors.brand.700) 0px, transparent 2px, transparent 4px, theme(colors.brand.700) 4px),
+      repeating-linear-gradient(90deg, theme(colors.brand.700) 0px, transparent 2px, transparent 4px, theme(colors.brand.700) 4px);
+    background-size: 4px 4px;
+    image-rendering: pixelated;
+  }
+  .dark .ds-pixel-grid {
+    background-image:
+      repeating-linear-gradient(0deg,  theme(colors.brand.600) 0px, transparent 2px, transparent 4px, theme(colors.brand.600) 4px),
+      repeating-linear-gradient(90deg, theme(colors.brand.600) 0px, transparent 2px, transparent 4px, theme(colors.brand.600) 4px);
+  }
+
+  /* Landing hero scrim — fades the artwork into the dusk page background.
+   * The translucent stops stay as rgba (a token can't carry an alpha here);
+   * the opaque stop uses the dusk token. */
+  .ds-hero-scrim {
+    background: linear-gradient(rgba(29,17,48,.25) 0%, rgba(29,17,48,.35) 55%, theme(colors.dusk) 100%);
+  }
+
+  /* Hero CTA — the dark press button with an added ambient drop, so it lifts
+   * off the photographic hero rather than a flat panel. */
+  .ds-btn-press-hero {
+    @apply bg-gold text-dusk font-display cursor-pointer select-none;
+    box-shadow: theme(boxShadow.ds-press-lg), 0 10px 20px rgba(0,0,0,.45);
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .ds-btn-press-hero:hover  {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 theme(colors.gold-edge), 0 14px 24px rgba(0,0,0,.5);
+  }
+  .ds-btn-press-hero:active {
+    transform: translateY(3px);
+    box-shadow: theme(boxShadow.ds-press-sm), 0 4px 10px rgba(0,0,0,.4);
+  }
+
+  /* Secondary hero CTA — translucent dusk fill with a plum inset ring */
+  .ds-btn-ghost-plum {
+    @apply text-cream font-display;
+    background-color: rgba(29,17,48,.75);
+    box-shadow: 0 0 0 3px theme(colors.plum) inset, 0 5px 0 theme(colors.dusk-shadow);
+  }
+
+  /* Range slider track fill — the filled portion is driven by `--ds-fill`
+   * (a percentage set inline by the component); the colors stay tokenized. */
+  .ds-range-fill {
+    background: linear-gradient(
+      to right,
+      theme(colors.gold) 0%,
+      theme(colors.gold) var(--ds-fill, 0%),
+      theme(colors.dusk) var(--ds-fill, 0%),
+      theme(colors.dusk) 100%
+    );
   }
 
   /* Ticket-stub barcode footer */
   .ds-barcode {
-    background: repeating-linear-gradient(90deg, #3a2413 0 2px, transparent 2px 5px, #3a2413 5px 6px, transparent 6px 9px);
+    background: repeating-linear-gradient(90deg, theme(colors.ink) 0 2px, transparent 2px 5px, theme(colors.ink) 5px 6px, transparent 6px 9px);
   }
 
   /* Sand halftone page background */
   .ds-sand-bg {
-    background-color: #f3e6cc;
-    background-image: radial-gradient(#d8c5a0 1px, transparent 1px);
+    background-color: theme(colors.sand);
+    background-image: radial-gradient(theme(colors.sand-dot) 1px, transparent 1px);
     background-size: 6px 6px;
   }
 

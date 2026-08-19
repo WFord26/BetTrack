@@ -42,13 +42,7 @@ export default function Home() {
         }}
       >
         {/* Dusk gradient overlay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(rgba(29,17,48,.25) 0%, rgba(29,17,48,.35) 55%, #1d1130 100%)',
-          }}
-        />
+        <div className="ds-hero-scrim absolute inset-0" />
 
         <div className="relative z-10 flex flex-col items-center">
           {/* Cowboy Dollar Logo */}
@@ -64,23 +58,21 @@ export default function Home() {
 
           {/* Wordmark */}
           <div
-            className="font-display text-cream mt-[18px] text-[15px]"
-            style={{ textShadow: '2px 2px 0 #f97b2c' }}
+            className="font-display text-cream mt-[18px] text-[15px] text-shadow-ds-ember"
           >
             BETTRACK
           </div>
 
           {/* Headline */}
           <h1
-            className="font-display text-cream mt-[22px] text-center text-[34px] leading-[1.5] tracking-[.06em]"
-            style={{ textShadow: '5px 5px 0 #c14d21, 10px 10px 0 rgba(18,10,34,.5)' }}
+            className="font-display text-cream mt-[22px] text-center text-[34px] leading-[1.5] tracking-[.06em] text-shadow-ds-hero"
           >
             BET LIKE<br />A COWBOY
           </h1>
 
           {/* Tagline */}
           <p
-            className="font-body mt-5 text-center text-[19px] text-[#f3d9b8]"
+            className="font-body mt-5 text-center text-[19px] text-cream-warm"
             style={{ textShadow: '0 2px 0 rgba(18,10,34,.6)' }}
           >
             Where the Wild West meets smart betting
@@ -90,18 +82,13 @@ export default function Home() {
           <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row">
             <Link
               to="/v2"
-              className="ds-btn-press font-display px-[26px] py-[18px] text-[11px]"
-              style={{ boxShadow: '0 4px 0 #8a5a10, 0 10px 20px rgba(0,0,0,.45)' }}
+              className="ds-btn-press-hero font-display px-[26px] py-[18px] text-[11px]"
             >
               START TRACKING
             </Link>
             <Link
               to="#what-we-do"
-              className="font-display text-cream px-[26px] py-[18px] text-[11px]"
-              style={{
-                backgroundColor: 'rgba(29,17,48,.75)',
-                boxShadow: '0 0 0 3px #6d4a9e inset, 0 5px 0 #120a22',
-              }}
+              className="ds-btn-ghost-plum px-[26px] py-[18px] text-[11px]"
             >
               LEARN MORE
             </Link>
@@ -112,7 +99,7 @@ export default function Home() {
       {/* Sunset stripe divider */}
       <div className="flex h-2.5">
         <div className="flex-1 bg-gold" />
-        <div className="flex-1 bg-[#f97b2c]" />
+        <div className="flex-1 bg-ember" />
         <div className="flex-1 bg-coral" />
         <div className="flex-1 bg-plum" />
         <div className="flex-1 bg-dusk-panel2" />
@@ -135,8 +122,7 @@ export default function Home() {
       {/* What We Are Section */}
       <section id="what-we-are" className="px-10 pt-12 pb-14">
         <h2
-          className="font-display text-ember mb-[34px] text-center text-[15px]"
-          style={{ textShadow: '3px 3px 0 #120a22' }}
+          className="font-display text-ember mb-[34px] text-center text-[15px] text-shadow-ds-dusk"
         >
           WHAT WE ARE
         </h2>

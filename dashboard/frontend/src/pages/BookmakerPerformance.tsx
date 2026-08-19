@@ -50,16 +50,16 @@ function formatBookmakerName(key: string): string {
 
 function scoreColor(score: number | null, isDark: boolean): string {
   if (score == null) return isDark ? 'text-cream-muted' : 'text-ink-muted';
-  if (score >= 75) return isDark ? 'text-[#6cbf67]' : 'text-[#4f8f3f]';
-  if (score >= 50) return isDark ? 'text-gold' : 'text-[#8a6800]';
-  return isDark ? 'text-coral' : 'text-[#c0392b]';
+  if (score >= 75) return isDark ? 'text-sunwin-dark' : 'text-sunwin-light';
+  if (score >= 50) return isDark ? 'text-gold' : 'text-sunpending-ink';
+  return isDark ? 'text-coral' : 'text-sunloss-light';
 }
 
 function scoreBadge(score: number | null, isDark: boolean): string {
   if (score == null) return isDark ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-muted border border-ink';
-  if (score >= 75) return isDark ? 'bg-[#1a3a1a] text-[#6cbf67] border border-[#4f8f3f]' : 'bg-[#e8f5e8] text-[#4f8f3f] border border-[#4f8f3f]';
-  if (score >= 50) return isDark ? 'bg-[#3a2810] text-gold border border-gold-edge' : 'bg-[#fdf3dd] text-[#8a6800] border border-[#b8860b]';
-  return isDark ? 'bg-coral-chip text-coral border border-coral' : 'bg-[#fceaea] text-[#c0392b] border border-[#c0392b]';
+  if (score >= 75) return isDark ? 'bg-sunwin-chip text-sunwin-dark border border-sunwin-light' : 'bg-sunwin-wash text-sunwin-light border border-sunwin-light';
+  if (score >= 50) return isDark ? 'bg-sunpending-chip text-gold border border-gold-edge' : 'bg-sunpending-wash text-sunpending-ink border border-sunpending';
+  return isDark ? 'bg-coral-chip text-coral border border-coral' : 'bg-sunloss-wash text-sunloss-light border border-sunloss-light';
 }
 
 function limitBadge(profile: LimitProfile, isDark: boolean): string {
@@ -121,7 +121,7 @@ function RankingRow({
         <div className={`flex-shrink-0 w-9 h-9 flex items-center justify-center font-display text-[11px] ${
           rank === 1 ? (isDarkMode ? 'bg-gold text-dusk' : 'bg-gold text-ink') :
           rank === 2 ? (isDarkMode ? 'bg-dusk-panel2 text-cream-secondary' : 'bg-sand-shadow text-ink-secondary') :
-          rank === 3 ? (isDarkMode ? 'bg-[#3a2810] text-ember' : 'bg-[#f3e4d0] text-terra') :
+          rank === 3 ? (isDarkMode ? 'bg-sunpending-chip text-ember' : 'bg-sand-bronze text-terra') :
           (isDarkMode ? 'bg-dusk-panel2 text-cream-muted' : 'bg-sand-panel2 text-ink-muted border border-ink')
         }`}>
           {rank}
@@ -373,8 +373,8 @@ export default function BookmakerPerformance() {
   const pageCls = isDarkMode ? 'min-h-screen bg-dusk' : 'min-h-screen ds-sand-bg';
   const cardCls = isDarkMode ? 'ds-panel' : 'ds-card-ink';
   const tabActiveCls = isDarkMode
-    ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
-    : 'bg-terra text-terra-text border-2 border-ink shadow-[0_3px_0_#3a2413]';
+    ? 'bg-gold text-dusk shadow-ds-press'
+    : 'bg-terra text-terra-text border-2 border-ink shadow-ds-press-ink';
   const tabInactiveCls = isDarkMode
     ? 'bg-dusk-panel2 text-cream-muted'
     : 'bg-sand-panel text-ink-secondary border-2 border-ink';
@@ -383,15 +383,14 @@ export default function BookmakerPerformance() {
   return (
     <div className={pageCls}>
       {/* Page header */}
-      <div className={isDarkMode ? 'bg-dusk-chrome' : 'bg-terra shadow-[0_4px_0_#3a2413]'}>
+      <div className={isDarkMode ? 'bg-dusk-chrome' : 'bg-terra shadow-ds-press-ink-lg'}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="mb-4">
             <p className={`font-display text-[8px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-ember' : 'text-terra-text opacity-80'}`}>
               WHO RUNS THE SALOON
             </p>
             <h1
-              className={`font-display text-[19px] ${isDarkMode ? 'text-cream' : 'text-terra-text'}`}
-              style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '3px 3px 0 #3a2413' }}
+              className={`ds-headline-banner font-display text-[19px] ${isDarkMode ? 'text-cream' : 'text-terra-text'}`}
             >
               BOOKMAKERS
             </h1>
@@ -453,7 +452,7 @@ export default function BookmakerPerformance() {
 
         {/* Error */}
         {error && (
-          <div className={`p-4 mb-4 ${isDarkMode ? 'bg-coral-chip border border-coral text-coral' : 'bg-[#fceaea] border-2 border-[#c0392b] text-[#c0392b]'}`}>
+          <div className={`p-4 mb-4 ${isDarkMode ? 'bg-coral-chip border border-coral text-coral' : 'bg-sunloss-wash border-2 border-sunloss-light text-sunloss-light'}`}>
             <p className="font-body text-sm">{error}</p>
           </div>
         )}

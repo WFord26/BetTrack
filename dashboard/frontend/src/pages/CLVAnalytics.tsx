@@ -18,6 +18,7 @@ import {
 } from '../store/clvSlice';
 import { CLVFilters } from '../types/clv.types';
 import { formatPercentage, formatCurrency } from '../utils/format';
+import { chartChrome, chartSeries } from '../theme/chartTokens';
 import {
   LineChart,
   Line,
@@ -129,10 +130,7 @@ export default function CLVAnalytics() {
         <div className="flex items-center justify-between">
           <div>
             <p className="font-display text-[8px] tracking-[.1em] text-ember mb-2">SIGNAL FROM THE HERD</p>
-            <h1
-              className="font-display text-[19px] text-cream"
-              style={{ textShadow: '4px 4px 0 #c14d21' }}
-            >
+            <h1 className="font-display text-[19px] text-cream text-shadow-ds-terra">
               CLV ANALYTICS
             </h1>
             <p className="font-body text-sm text-cream-muted mt-1">
@@ -173,14 +171,14 @@ export default function CLVAnalytics() {
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
-            { label: 'AVG CLV', value: `${summary.averageCLV > 0 ? '+' : ''}${summary.averageCLV.toFixed(2)}%`, color: summary.averageCLV >= 2 ? '#6cbf67' : summary.averageCLV <= -2 ? '#ef5350' : '#fcc63a' },
-            { label: 'CLV WIN RATE', value: formatPercentage(summary.clvWinRate), color: '#f7ead6' },
-            { label: 'EXPECTED ROI', value: `${summary.expectedROI > 0 ? '+' : ''}${summary.expectedROI.toFixed(2)}%`, color: summary.expectedROI >= 0 ? '#6cbf67' : '#ef5350' },
-            { label: 'ACTUAL ROI', value: `${summary.actualROI > 0 ? '+' : ''}${summary.actualROI.toFixed(2)}%`, color: summary.actualROI >= 0 ? '#6cbf67' : '#ef5350' },
-          ].map(({ label, value, color }) => (
+            { label: 'AVG CLV', value: `${summary.averageCLV > 0 ? '+' : ''}${summary.averageCLV.toFixed(2)}%`, colorClass: summary.averageCLV >= 2 ? 'text-sunwin-dark' : summary.averageCLV <= -2 ? 'text-sunloss-dark' : 'text-gold' },
+            { label: 'CLV WIN RATE', value: formatPercentage(summary.clvWinRate), colorClass: 'text-cream' },
+            { label: 'EXPECTED ROI', value: `${summary.expectedROI > 0 ? '+' : ''}${summary.expectedROI.toFixed(2)}%`, colorClass: summary.expectedROI >= 0 ? 'text-sunwin-dark' : 'text-sunloss-dark' },
+            { label: 'ACTUAL ROI', value: `${summary.actualROI > 0 ? '+' : ''}${summary.actualROI.toFixed(2)}%`, colorClass: summary.actualROI >= 0 ? 'text-sunwin-dark' : 'text-sunloss-dark' },
+          ].map(({ label, value, colorClass }) => (
             <div key={label} className="ds-panel px-[18px] py-4">
               <p className="font-display text-[7px] tracking-[.1em] text-cream-muted mb-2">{label}</p>
-              <p className="font-display text-[22px]" style={{ color }}>{value}</p>
+              <p className={`font-display text-[22px] ${colorClass}`}>{value}</p>
             </div>
           ))}
         </div>
@@ -190,33 +188,33 @@ export default function CLVAnalytics() {
           <h3 className="font-display text-[9px] tracking-[.08em] text-cream mb-4">CLV TREND · LAST 12 WEEKS</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trends}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartChrome.grid} />
               <XAxis 
                 dataKey="date" 
-                stroke="#9CA3AF"
-                tick={{ fill: '#9CA3AF' }}
+                stroke={chartChrome.axis}
+                tick={{ fill: chartChrome.axis }}
               />
               <YAxis 
-                stroke="#9CA3AF"
-                tick={{ fill: '#9CA3AF' }}
-                label={{ value: 'CLV %', angle: -90, position: 'insideLeft', fill: '#9CA3AF' }}
+                stroke={chartChrome.axis}
+                tick={{ fill: chartChrome.axis }}
+                label={{ value: 'CLV %', angle: -90, position: 'insideLeft', fill: chartChrome.axis }}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: '1px solid #374151',
+                  backgroundColor: chartChrome.tooltipBg,
+                  border: `1px solid ${chartChrome.grid}`,
                   borderRadius: '8px',
-                  color: '#F3F4F6'
+                  color: chartChrome.tooltipText
                 }}
                 formatter={(value: any) => [`${value.toFixed(2)}%`, 'CLV']}
               />
-              <Legend wrapperStyle={{ color: '#9CA3AF' }} />
+              <Legend wrapperStyle={{ color: chartChrome.axis }} />
               <Line
                 type="monotone"
                 dataKey="averageCLV"
-                stroke="#dc2626"
+                stroke={chartSeries.primary}
                 strokeWidth={3}
-                dot={{ fill: '#dc2626', r: 4 }}
+                dot={{ fill: chartSeries.primary, r: 4 }}
                 name="Average CLV"
               />
             </LineChart>
@@ -229,30 +227,30 @@ export default function CLVAnalytics() {
             <h3 className="font-display text-[9px] tracking-[.08em] text-cream mb-4">CLV BY SPORT</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={report.bySport}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartChrome.grid} />
                 <XAxis 
                   dataKey="sportName" 
-                  stroke="#9CA3AF"
-                  tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                  stroke={chartChrome.axis}
+                  tick={{ fill: chartChrome.axis, fontSize: 12 }}
                   angle={-45}
                   textAnchor="end"
                   height={80}
                 />
                 <YAxis 
-                  stroke="#9CA3AF"
-                  tick={{ fill: '#9CA3AF' }}
-                  label={{ value: 'CLV %', angle: -90, position: 'insideLeft', fill: '#9CA3AF' }}
+                  stroke={chartChrome.axis}
+                  tick={{ fill: chartChrome.axis }}
+                  label={{ value: 'CLV %', angle: -90, position: 'insideLeft', fill: chartChrome.axis }}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#1F2937', 
-                    border: '1px solid #374151',
+                    backgroundColor: chartChrome.tooltipBg,
+                    border: `1px solid ${chartChrome.grid}`,
                     borderRadius: '8px',
-                    color: '#F3F4F6'
+                    color: chartChrome.tooltipText
                   }}
                   formatter={(value: any) => [`${value.toFixed(2)}%`, 'Avg CLV']}
                 />
-                <Bar dataKey="averageCLV" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="averageCLV" fill={chartSeries.primary} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -261,30 +259,30 @@ export default function CLVAnalytics() {
             <h3 className="font-display text-[9px] tracking-[.08em] text-cream mb-4">CLV BY BOOKMAKER</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={report.byBookmaker}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartChrome.grid} />
                 <XAxis 
                   dataKey="bookmaker" 
-                  stroke="#9CA3AF"
-                  tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                  stroke={chartChrome.axis}
+                  tick={{ fill: chartChrome.axis, fontSize: 12 }}
                   angle={-45}
                   textAnchor="end"
                   height={80}
                 />
                 <YAxis 
-                  stroke="#9CA3AF"
-                  tick={{ fill: '#9CA3AF' }}
-                  label={{ value: 'CLV %', angle: -90, position: 'insideLeft', fill: '#9CA3AF' }}
+                  stroke={chartChrome.axis}
+                  tick={{ fill: chartChrome.axis }}
+                  label={{ value: 'CLV %', angle: -90, position: 'insideLeft', fill: chartChrome.axis }}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#1F2937', 
-                    border: '1px solid #374151',
+                    backgroundColor: chartChrome.tooltipBg,
+                    border: `1px solid ${chartChrome.grid}`,
                     borderRadius: '8px',
-                    color: '#F3F4F6'
+                    color: chartChrome.tooltipText
                   }}
                   formatter={(value: any) => [`${value.toFixed(2)}%`, 'Avg CLV']}
                 />
-                <Bar dataKey="averageCLV" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="averageCLV" fill={chartSeries.primary} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -293,19 +291,19 @@ export default function CLVAnalytics() {
         {/* Top & Worst Bets */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="ds-panel p-5">
-            <h3 className="font-display text-[8px] tracking-[.08em] text-[#6cbf67] mb-4">TOP 3 CLV BETS</h3>
+            <h3 className="font-display text-[8px] tracking-[.08em] text-sunwin-dark mb-4">TOP 3 CLV BETS</h3>
             <div className="flex flex-col gap-3">
               {report.topBets.slice(0, 5).map((bet) => (
-                <div key={bet.betId} className="ds-sand-bg box-shadow-[0_6px_0_#120a22] px-3 py-3 text-ink">
+                <div key={bet.betId} className="ds-sand-bg shadow-ds-drop px-3 py-3 text-ink">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-body text-sm font-semibold text-ink">{bet.sportName}</span>
-                    <span className="font-display text-[11px] text-[#4f8f3f]">+{bet.clv.toFixed(2)}%</span>
+                    <span className="font-display text-[11px] text-sunwin-light">+{bet.clv.toFixed(2)}%</span>
                   </div>
                   <p className="font-body text-sm text-ink-muted mb-1">{bet.matchup}</p>
                   <div className="flex items-center justify-between font-display text-[6.5px] tracking-[.06em] text-ink-muted">
                     <span>{bet.selectionType}</span>
                     <span>{bet.odds} → {bet.closingOdds}</span>
-                    {bet.outcome && <span className={bet.outcome === 'won' ? 'text-[#4f8f3f]' : bet.outcome === 'lost' ? 'text-[#c0392b]' : 'text-[#b8860b]'}>{bet.outcome.toUpperCase()}</span>}
+                    {bet.outcome && <span className={bet.outcome === 'won' ? 'text-sunwin-light' : bet.outcome === 'lost' ? 'text-sunloss-light' : 'text-sunpending'}>{bet.outcome.toUpperCase()}</span>}
                   </div>
                 </div>
               ))}
@@ -316,16 +314,16 @@ export default function CLVAnalytics() {
             <h3 className="font-display text-[8px] tracking-[.08em] text-coral mb-4">WORST 3 CLV BETS</h3>
             <div className="flex flex-col gap-3">
               {report.worstBets.slice(0, 5).map((bet) => (
-                <div key={bet.betId} className="ds-sand-bg box-shadow-[0_6px_0_#120a22] px-3 py-3 text-ink">
+                <div key={bet.betId} className="ds-sand-bg shadow-ds-drop px-3 py-3 text-ink">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-body text-sm font-semibold text-ink">{bet.sportName}</span>
-                    <span className="font-display text-[11px] text-[#c0392b]">{bet.clv.toFixed(2)}%</span>
+                    <span className="font-display text-[11px] text-sunloss-light">{bet.clv.toFixed(2)}%</span>
                   </div>
                   <p className="font-body text-sm text-ink-muted mb-1">{bet.matchup}</p>
                   <div className="flex items-center justify-between font-display text-[6.5px] tracking-[.06em] text-ink-muted">
                     <span>{bet.selectionType}</span>
                     <span>{bet.odds} → {bet.closingOdds}</span>
-                    {bet.outcome && <span className={bet.outcome === 'won' ? 'text-[#4f8f3f]' : bet.outcome === 'lost' ? 'text-[#c0392b]' : 'text-[#b8860b]'}>{bet.outcome.toUpperCase()}</span>}
+                    {bet.outcome && <span className={bet.outcome === 'won' ? 'text-sunwin-light' : bet.outcome === 'lost' ? 'text-sunloss-light' : 'text-sunpending'}>{bet.outcome.toUpperCase()}</span>}
                   </div>
                 </div>
               ))}

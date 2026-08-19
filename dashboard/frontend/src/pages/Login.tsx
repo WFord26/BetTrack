@@ -91,6 +91,9 @@ export default function Login() {
                 onClick={() => login('microsoft', from)}
                 className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
+                {/* Microsoft logo. The fills are Microsoft's brand colors, not
+                    BetTrack design tokens — they must stay literal and must not
+                    change with our theme. Same for the Google mark below. */}
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 23 23" fill="none">
                   <path d="M0 0h10.92v10.92H0V0z" fill="#f25022"/>
                   <path d="M12.08 0H23v10.92H12.08V0z" fill="#00a4ef"/>

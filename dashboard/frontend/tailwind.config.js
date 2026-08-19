@@ -31,12 +31,19 @@
 //   shadow.pixel-*   → Offset box shadows for the retro pixel aesthetic.
 //   shadow.card      → Standard elevated card shadow (dark-mode aware via CSS var).
 //
-// Migration path:
+// This file is the ONLY place a BetTrack color may be written as a literal.
+// As of issue #75 there are no color hexes left in src/**/*.tsx, and index.css
+// reaches back here via theme(). Two deliberate exceptions:
+//   - src/theme/chartTokens.ts, because Recharts needs values in JS props. Its
+//     test asserts every entry still matches its token here.
+//   - The OAuth provider logos in Login.tsx, which are third-party brand marks.
+// So: add a token here and reference it; do not reintroduce `bg-[#abc123]`.
+//
+// Remaining migration path:
 //   1. Replace `bg-blue-600` active states in Header.tsx → `bg-brand-600`
 //   2. Replace `font-family: ui-monospace` inline styles → `font-display` class
-//   3. Replace `boxShadow: '0 6px 0 ...'` inline styles → `shadow-pixel-btn` etc.
-//   4. Replace `primary-*` references → `brand-*` (only 2 exist)
-//   5. For semantic bet outcomes: replace ad-hoc green/red → win/loss tokens
+//   3. Replace `primary-*` references → `brand-*` (only 2 exist)
+//   4. For semantic bet outcomes: replace ad-hoc green/red → win/loss tokens
 //
 // DO NOT change: gray-*, green-*, yellow-*, purple-* raw utilities. Components
 // that use those directly still work. Migrate to semantic tokens over time.
@@ -206,12 +213,17 @@ export default {
         'cream-secondary': '#c7b2e0',
         'cream-muted':     '#a78fc9',
         'cream-faint':     '#7c66a3',
+        'cream-warm':      '#f3d9b8', // warm body copy on dusk (landing sub-head)
 
         sand:          '#f3e6cc', // light page background (halftone base)
         'sand-panel':  '#fdf8ec', // light panel
         'sand-panel2': '#f3e6cc', // light panel alt
         'sand-shadow': '#d8c19a', // light hard shadow offset
         'sand-divider':'#ecdcc0', // light row divider
+        'sand-dot':    '#d8c5a0', // halftone dot on the sand page background
+        'sand-perf':   '#b39a72', // ticket perforation (dashed/dotted rules)
+        'sand-meter':  '#e4d2ae', // unfilled meter block on sand
+        'sand-bronze': '#f3e4d0', // third-place / bronze row tint (light)
 
         ink:             '#3a2413', // ink border / primary text on sand
         'ink-secondary': '#6b4f33',
@@ -227,18 +239,45 @@ export default {
         terra: {
           DEFAULT: '#c14d21', // primary action (light) / headline shadows (dark)
           dark:    '#a63c15', // banner-dark
+          hover:   '#8f3110', // banner tab hover (light)
+          shadow:  '#7a2f11', // hard text-shadow on terracotta chrome
           text:    '#fdf3df', // text on terracotta
           muted:   '#f6cfb5', // muted text on terracotta
         },
         coral:        '#ef5350', // live / loss (dark)
         'coral-chip': '#3a1424', // live chip background (dark)
+        'coral-edge': '#8a2e2b', // hard press edge under a coral surface
         plum:         '#6d4a9e', // purple accent
 
         // Sunset win/loss/pending — distinct from the existing win/loss/push
         // ramps above (those stay untouched for un-migrated pages).
-        sunwin:     { dark: '#6cbf67', light: '#4f8f3f' },
-        sunloss:    { dark: '#ef5350', light: '#c0392b' },
-        sunpending: '#b8860b',
+        //   dark/light → the value itself, per color scheme
+        //   chip       → tinted badge background in dark mode
+        //   wash       → tinted badge background in light mode
+        //   ink        → readable text weight of the color on a light wash
+        sunwin:     { dark: '#6cbf67', light: '#4f8f3f', chip: '#1a3a1a', wash: '#e8f5e8' },
+        sunloss:    { dark: '#ef5350', light: '#c0392b', chip: '#3a1424', wash: '#fceaea' },
+        sunpending: {
+          DEFAULT: '#b8860b',
+          chip:    '#3a2810',
+          wash:    '#fdf3dd',
+          ink:     '#8a6800',
+        },
+
+        // ── 8-bit scoreboard ─────────────────────────────────────────────────
+        // The CRT scoreboard on EnhancedGameCard. A cool slate palette that is
+        // deliberately outside the Desert Sunset ramps — it reads as a physical
+        // LED board, not as page chrome.
+        scoreboard: {
+          bg:            '#020617', // dark board face
+          'bg-light':    '#f8fafc', // light board face
+          text:          '#e5e7eb', // digits/labels on the dark board
+          'text-light':  '#1e293b', // digits/labels on the light board
+          bezel:         '#e5e7eb', // board border (dark)
+          'bezel-light': '#cbd5e1', // board border (light)
+          away:          '#38bdf8', // away score / away-side accents
+          home:          '#f97316', // home score / home-side accents
+        },
 
       },
 
@@ -321,6 +360,45 @@ export default {
         // Standard elevated card — subtle, for app UI cards (not pixel-art style).
         // Matches the existing shadow-md usage but slightly more refined.
         'card': '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
+
+        // ── Desert Sunset hard shadows ────────────────────────────────────
+        // Every offset here is a hard edge (no blur) in a palette color, which
+        // is why they belong in the config rather than as arbitrary
+        // `shadow-[0_3px_0_#8a5a10]` values: retinting the system is a config
+        // edit, not a sweep through components.
+        //
+        //   ds-press-*  → the bottom edge under a pressable surface.
+        //                 `gold-edge` under gold (dark), `ink` under terracotta
+        //                 (light). Pair with the -sm variant on :active.
+        //   ds-drop-*   → the hard drop edge under a dark notched panel
+        //                 (`dusk-shadow`).
+        //   ds-card-*   → the offset under a light ink-bordered card
+        //                 (`sand-shadow`).
+        //   ds-ring-*   → 2px inset hairline. The color carries the meaning:
+        //                 default = structural, gold = focus, win/loss/plum =
+        //                 status.
+
+        'ds-press-sm':      '0 2px 0 #8a5a10',  // gold-edge, pressed
+        'ds-press':         '0 3px 0 #8a5a10',  // gold-edge
+        'ds-press-lg':      '0 4px 0 #8a5a10',  // gold-edge, prominent
+        'ds-press-ink-sm':  '0 2px 0 #3a2413',  // ink, pressed
+        'ds-press-ink':     '0 3px 0 #3a2413',  // ink
+        'ds-press-ink-lg':  '0 4px 0 #3a2413',  // ink, prominent
+        'ds-press-coral':   '0 4px 0 #8a2e2b',  // coral-edge, under a coral chip
+
+        'ds-drop':          '0 6px 0 #120a22',  // dusk-shadow
+        'ds-drop-lg':       '0 8px 0 #120a22',  // dusk-shadow, prominent
+
+        'ds-card-sand':     '4px 4px 0 #d8c19a',
+        'ds-card-sand-lg':  '6px 6px 0 #d8c19a',
+        'ds-meter-sand':    '3px 0 0 #d8c19a inset', // meter block separator
+
+        'ds-ring':          '0 0 0 2px #43306a inset', // dusk-ring, structural
+        'ds-ring-gold':     '0 0 0 2px #8a5a10 inset', // gold-edge
+        'ds-ring-focus':    '0 0 0 2px #fcc63a inset', // gold, focus state
+        'ds-ring-win':      '0 0 0 2px #6cbf67 inset', // sunwin-dark
+        'ds-ring-loss':     '0 0 0 2px #ef5350 inset', // sunloss-dark / coral
+        'ds-ring-plum':     '0 0 0 2px #6d4a9e inset', // plum, SGP grouping
       },
 
       // ── Border Radius ───────────────────────────────────────────────────────
@@ -343,7 +421,7 @@ export default {
   plugins: [
     // Text shadow plugin — adds font-display-level text shadows for headings.
     // Matches the inline textShadow styles in Home.tsx hero and section headers.
-    function({ addUtilities }) {
+    function({ addUtilities, theme }) {
       addUtilities({
         '.text-shadow-pixel': {
           'text-shadow': '3px 3px 0px rgba(0,0,0,0.5)',
@@ -356,6 +434,31 @@ export default {
         },
         '.text-shadow-none': {
           'text-shadow': 'none',
+        },
+
+        // ── Desert Sunset hard text shadows ──────────────────────────────
+        // One-off headline treatments. The recurring light/dark headline pair
+        // lives in index.css as `.ds-headline*` — reach for these only for the
+        // shadows that are specific to one surface.
+        '.text-shadow-ds-terra': {
+          'text-shadow': `4px 4px 0 ${theme('colors.terra.DEFAULT')}`,
+        },
+        '.text-shadow-ds-chrome': {
+          // logotype sitting on the terracotta top bar
+          'text-shadow': `2px 2px 0 ${theme('colors.terra.shadow')}`,
+        },
+        '.text-shadow-ds-ember': {
+          'text-shadow': `2px 2px 0 ${theme('colors.ember')}`,
+        },
+        '.text-shadow-ds-dusk': {
+          'text-shadow': `3px 3px 0 ${theme('colors.dusk-shadow')}`,
+        },
+        '.text-shadow-ds-dusk-sm': {
+          'text-shadow': `2px 2px 0 ${theme('colors.dusk-shadow')}`,
+        },
+        '.text-shadow-ds-hero': {
+          // landing hero — terracotta offset plus a soft dusk cast
+          'text-shadow': `5px 5px 0 ${theme('colors.terra.DEFAULT')}, 10px 10px 0 rgba(18,10,34,.5)`,
         },
       })
     },

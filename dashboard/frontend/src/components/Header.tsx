@@ -186,17 +186,17 @@ const dropdownItemClass =
 
 const dropdownPanelClass =
   'absolute right-0 mt-2 bg-sand-panel dark:bg-dusk-panel border-2 border-ink dark:border-0 ' +
-  'shadow-[4px_4px_0_#d8c19a] dark:shadow-[0_8px_0_#120a22] py-1 z-50';
+  'shadow-ds-card-sand dark:shadow-ds-drop-lg py-1 z-50';
 
 // Sunset stripe — the signature divider beneath every topbar
 function SunsetStripe({ light }: { light?: boolean }) {
   const segs = light
-    ? ['#e0a512', '#c14d21', '#6d4a9e']
-    : ['#fcc63a', '#f97b2c', '#ef5350', '#6d4a9e', '#362251'];
+    ? ['bg-gold-headline', 'bg-terra', 'bg-plum']
+    : ['bg-gold', 'bg-ember', 'bg-coral', 'bg-plum', 'bg-dusk-panel2'];
   return (
     <div className="flex h-1.5">
       {segs.map((c, i) => (
-        <div key={i} className="flex-1" style={{ background: c }} />
+        <div key={i} className={`flex-1 ${c}`} />
       ))}
     </div>
   );
@@ -272,7 +272,7 @@ export default function Header() {
 
   return (
     <header className="bg-dusk-chrome dark:bg-dusk-chrome sticky top-0 z-40 transition-colors">
-      <div className="bg-terra dark:bg-dusk-chrome shadow-[0_4px_0_#3a2413] dark:shadow-none">
+      <div className="bg-terra dark:bg-dusk-chrome shadow-ds-press-ink-lg dark:shadow-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-terra dark:bg-dusk-chrome">
         <div className="flex items-center justify-between h-16 gap-4">
 
@@ -305,8 +305,7 @@ export default function Header() {
             </div>
             {/* Site name — Press Start 2P pixel wordmark */}
             <span
-              className="font-display text-[10px] text-terra-text dark:text-cream hidden md:block tracking-wide"
-              style={{ textShadow: '2px 2px 0 #7a2f11' }}
+              className="font-display text-[10px] text-terra-text dark:text-cream hidden md:block tracking-wide text-shadow-ds-chrome"
             >
               {siteConfig.siteName.toUpperCase()}
             </span>
@@ -322,8 +321,8 @@ export default function Header() {
                 className={[
                   'flex-shrink-0 px-2.5 py-2 font-display text-[7px] tracking-wide transition-all whitespace-nowrap',
                   isActive(item.path)
-                    ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10] dark:shadow-[0_3px_0_#8a5a10]'
-                    : 'bg-terra-dark text-terra-muted dark:bg-dusk-panel dark:text-cream-muted hover:bg-[#8f3110] dark:hover:bg-dusk-panel2',
+                    ? 'bg-gold text-dusk shadow-ds-press'
+                    : 'bg-terra-dark text-terra-muted dark:bg-dusk-panel dark:text-cream-muted hover:bg-terra-hover dark:hover:bg-dusk-panel2',
                 ].join(' ')}
               >
                 {item.label}

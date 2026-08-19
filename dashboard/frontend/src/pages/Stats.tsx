@@ -153,7 +153,7 @@ export default function Stats() {
         <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <p className="font-display text-[8px] text-terra tracking-[.1em] mb-3">HOW'S THE HERD?</p>
-            <h1 className="font-display text-[19px] text-ink [text-shadow:4px_4px_0_#e0a512]">STATISTICS</h1>
+            <h1 className="font-display text-[19px] text-ink ds-headline">STATISTICS</h1>
             <p className="mt-3 font-body text-ink-secondary">
               Analyze your betting performance
             </p>
@@ -169,7 +169,7 @@ export default function Stats() {
                   font-display text-[7.5px] px-[13px] py-2.5 border-2 border-ink transition-all
                   ${
                     dateRange === range
-                      ? 'bg-terra text-terra-text shadow-[0_3px_0_#3a2413]'
+                      ? 'bg-terra text-terra-text shadow-ds-press-ink'
                       : 'bg-sand-panel text-ink-secondary'
                   }
                 `}

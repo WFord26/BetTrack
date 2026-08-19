@@ -70,7 +70,7 @@ export default function TeaserControl({
 
   if (sport === 'unknown') {
     return (
-      <div className="bg-dusk-panel2 shadow-[0_0_0_2px_#8a5a10_inset] p-3">
+      <div className="bg-dusk-panel2 shadow-ds-ring-gold p-3">
         <p className="font-body text-sm text-gold">
           ⚠️ Unable to determine sport. Add game legs first.
         </p>
@@ -98,7 +98,7 @@ export default function TeaserControl({
               flex-1 py-2.5 font-display text-[8px] transition-all
               ${
                 selectedPoints === points
-                  ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
+                  ? 'bg-gold text-dusk shadow-ds-press'
                   : 'bg-dusk-panel2 text-cream-muted'
               }
             `}

@@ -22,9 +22,9 @@ import { SharpIndicator, ContrarianOpportunity, SharpSide } from '../types/sharp
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function confidenceBadge(score: number, isDark: boolean): string {
-  if (score >= 8) return isDark ? 'bg-[#1a3a1a] text-[#6cbf67] border border-[#4f8f3f]' : 'bg-[#e8f5e8] text-[#4f8f3f] border border-[#4f8f3f]';
-  if (score >= 6) return isDark ? 'bg-[#3a2810] text-gold border border-gold-edge' : 'bg-[#fdf3dd] text-[#8a6800] border border-[#b8860b]';
-  return isDark ? 'bg-coral-chip text-coral border border-coral' : 'bg-[#fceaea] text-[#c0392b] border border-[#c0392b]';
+  if (score >= 8) return isDark ? 'bg-sunwin-chip text-sunwin-dark border border-sunwin-light' : 'bg-sunwin-wash text-sunwin-light border border-sunwin-light';
+  if (score >= 6) return isDark ? 'bg-sunpending-chip text-gold border border-gold-edge' : 'bg-sunpending-wash text-sunpending-ink border border-sunpending';
+  return isDark ? 'bg-coral-chip text-coral border border-coral' : 'bg-sunloss-wash text-sunloss-light border border-sunloss-light';
 }
 
 function sideLabel(side: SharpSide, homeTeam?: string, awayTeam?: string): string {
@@ -201,8 +201,8 @@ export default function SharpMoneyAnalytics() {
   const pageCls = isDarkMode ? 'min-h-screen bg-dusk' : 'min-h-screen ds-sand-bg';
   const statChipCls = isDarkMode ? 'ds-panel p-3' : 'ds-card-ink p-3';
   const tabActiveCls = isDarkMode
-    ? 'bg-gold text-dusk shadow-[0_3px_0_#8a5a10]'
-    : 'bg-terra text-terra-text border-2 border-ink shadow-[0_3px_0_#3a2413]';
+    ? 'bg-gold text-dusk shadow-ds-press'
+    : 'bg-terra text-terra-text border-2 border-ink shadow-ds-press-ink';
   const tabInactiveCls = isDarkMode
     ? 'bg-dusk-panel2 text-cream-muted'
     : 'bg-sand-panel text-ink-secondary border-2 border-ink';
@@ -210,15 +210,14 @@ export default function SharpMoneyAnalytics() {
   return (
     <div className={pageCls}>
       {/* Header */}
-      <div className={isDarkMode ? 'bg-dusk-chrome' : 'bg-terra shadow-[0_4px_0_#3a2413]'}>
+      <div className={isDarkMode ? 'bg-dusk-chrome' : 'bg-terra shadow-ds-press-ink-lg'}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="mb-4">
             <p className={`font-display text-[8px] tracking-[.1em] mb-2 ${isDarkMode ? 'text-ember' : 'text-terra-text opacity-80'}`}>
               FADE THE POSSE
             </p>
             <h1
-              className={`font-display text-[19px] ${isDarkMode ? 'text-cream' : 'text-terra-text'}`}
-              style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '3px 3px 0 #3a2413' }}
+              className={`ds-headline-banner font-display text-[19px] ${isDarkMode ? 'text-cream' : 'text-terra-text'}`}
             >
               SHARP VS PUBLIC
             </h1>
@@ -299,7 +298,7 @@ export default function SharpMoneyAnalytics() {
 
         {/* Error */}
         {error && (
-          <div className={`p-4 mb-4 ${isDarkMode ? 'bg-coral-chip text-coral border border-coral' : 'bg-[#fceaea] text-[#c0392b] border-2 border-[#c0392b]'}`}>
+          <div className={`p-4 mb-4 ${isDarkMode ? 'bg-coral-chip text-coral border border-coral' : 'bg-sunloss-wash text-sunloss-light border-2 border-sunloss-light'}`}>
             <p className="font-body text-sm">{error}</p>
           </div>
         )}

@@ -8,17 +8,16 @@ import { AppDispatch } from '../../store';
 import { fetchCLVSummary, selectCLVSummary, selectCLVLoading, selectCLVError } from '../../store/clvSlice';
 import { formatPercentage } from '../../utils/format';
 
-const EMPTY_BLOCK = '#e4d2ae';
-
-function Meter({ ratio, color }: { ratio: number; color: string }) {
+/** 10-block fill meter. `colorClass` is a Tailwind background token
+ *  (e.g. 'bg-sunwin-light'), so the palette stays in tailwind.config.js. */
+function Meter({ ratio, colorClass }: { ratio: number; colorClass: string }) {
   const filled = Math.round(Math.min(Math.max(ratio, 0), 1) * 10);
   return (
     <div className="flex gap-[3px] mt-1.5">
       {Array.from({ length: 10 }).map((_, i) => (
         <div
           key={i}
-          className="w-[10px] h-[10px]"
-          style={{ backgroundColor: i < filled ? color : EMPTY_BLOCK }}
+          className={`w-[10px] h-[10px] ${i < filled ? colorClass : 'bg-sand-meter'}`}
         />
       ))}
     </div>
@@ -113,7 +112,7 @@ export default function CLVSummaryCard() {
                 <span className="text-sunwin-light font-medium">Positive CLV</span>
                 <span className="text-ink-muted">{summary.positiveCLVCount} ({(positiveRatio * 100).toFixed(0)}%)</span>
               </div>
-              <Meter ratio={positiveRatio} color="#4f8f3f" />
+              <Meter ratio={positiveRatio} colorClass="bg-sunwin-light" />
             </div>
 
             <div>
@@ -121,7 +120,7 @@ export default function CLVSummaryCard() {
                 <span className="text-gold-headline font-medium">Neutral CLV</span>
                 <span className="text-ink-muted">{summary.neutralCLVCount} ({(neutralRatio * 100).toFixed(0)}%)</span>
               </div>
-              <Meter ratio={neutralRatio} color="#e0a512" />
+              <Meter ratio={neutralRatio} colorClass="bg-gold-headline" />
             </div>
 
             <div>
@@ -129,7 +128,7 @@ export default function CLVSummaryCard() {
                 <span className="text-sunloss-light font-medium">Negative CLV</span>
                 <span className="text-ink-muted">{summary.negativeCLVCount} ({(negativeRatio * 100).toFixed(0)}%)</span>
               </div>
-              <Meter ratio={negativeRatio} color="#c0392b" />
+              <Meter ratio={negativeRatio} colorClass="bg-sunloss-light" />
             </div>
           </div>
         </div>
