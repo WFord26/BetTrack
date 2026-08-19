@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.7.0] - 2026-08-19
+
 ### Added
 
 - **Team season stats are actually synced now (issue #91)**: `syncTeamSeasonStats` had no caller after #76 — no route and no job invoked it — so `team_stats` stayed empty for every sport regardless of the per-sport mapping being correct. It now has both a trigger and a schedule.
