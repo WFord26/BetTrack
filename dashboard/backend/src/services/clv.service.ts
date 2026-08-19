@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import type { OddsSnapshot } from '@prisma/client';
 import { logger } from '../config/logger';
 import { prisma } from '../config/database';
 
@@ -8,24 +9,44 @@ type BetLegWithBetAndGame = Prisma.BetLegGetPayload<{
 }>;
 
 /**
- * Shape `findMatchingOddsSnapshot` expects: one row per outcome, carrying a
- * flat `price`/`point`/`timestamp`.
- *
- * WARNING: this is NOT the shape of the `OddsSnapshot` model, which stores one
- * row per bookmaker/market with `homePrice`/`awayPrice`/`homeSpread`/
- * `totalLine`/`capturedAt` columns and has no `outcome`, `price`, `point` or
- * `timestamp` field. `captureClosingLine` passes real `OddsSnapshot` rows, so
- * the selection match below always compares `undefined` and never succeeds.
- * Typing this file surfaced the mismatch; it is preserved as-is rather than
- * silently changing settlement behaviour.
+ * The `OddsSnapshot` columns the closing-line matcher reads. Declared as a
+ * subset of the model so tests must supply real column names, and so callers
+ * can pass rows selected with a narrower `select`.
  */
-interface ClosingLineSnapshot {
-  marketType?: string;
-  outcome?: string;
-  point?: number | null;
-  price?: unknown;
-  timestamp?: Date | string;
+type ClosingLineSnapshot = Pick<
+  OddsSnapshot,
+  | 'bookmaker'
+  | 'marketType'
+  | 'homePrice'
+  | 'awayPrice'
+  | 'homeSpread'
+  | 'homeSpreadPrice'
+  | 'awaySpread'
+  | 'awaySpreadPrice'
+  | 'totalLine'
+  | 'overPrice'
+  | 'underPrice'
+  | 'capturedAt'
+>;
+
+/** A closing price resolved from a snapshot, with the row it came from. */
+interface ClosingLineMatch {
+  price: number;
+  snapshot: ClosingLineSnapshot;
 }
+
+/** `OddsSnapshot.marketType` value that carries each bet leg selection type. */
+const MARKET_TYPE_BY_SELECTION_TYPE: Record<string, string> = {
+  moneyline: 'h2h',
+  spread: 'spreads',
+  total: 'totals',
+};
+
+/**
+ * Half-point tolerance is too wide (-3 and -3.5 are different markets), so a
+ * leg's line must match the snapshot's to within rounding noise.
+ */
+const LINE_MATCH_TOLERANCE = 0.1;
 
 /**
  * CLV (Closing Line Value) Service
@@ -68,43 +89,32 @@ export class CLVService {
 
       // Update closing odds for each bet leg
       for (const leg of betLegs) {
-        // Find matching odds snapshot for this selection
-        const matchingSnapshot = this.findMatchingOddsSnapshot(
-          // See ClosingLineSnapshot: the stored rows do not carry the flat
-          // per-outcome fields this matcher reads.
-          game.oddsSnapshots as unknown as ClosingLineSnapshot[],
+        // Find the closing price for this selection in the stored snapshots
+        const match = this.findClosingLine(
+          game.oddsSnapshots,
           leg.selectionType,
           leg.selection,
-          leg.line
+          leg.line,
+          leg.bookmaker
         );
 
-        if (matchingSnapshot) {
-          // OddsSnapshot price columns are `Int` (American odds) per schema —
-          // see prisma/schema.prisma. The defensive cast guards against
-          // accidental decimals slipping in from upstream parsing changes;
-          // skip rather than persist NaN if the value is non-numeric.
-          const rawPrice = matchingSnapshot.price;
-          const closingOdds = typeof rawPrice === 'number' && Number.isFinite(rawPrice)
-            ? Math.trunc(rawPrice)
-            : null;
-
-          if (closingOdds === null) {
-            logger.warn(
-              `Matching snapshot for bet leg ${leg.id} had non-numeric price ` +
-              `(${String(rawPrice)}); skipping closing-line capture.`
-            );
-            continue;
-          }
-
-          await prisma.betLeg.update({
-            where: { id: leg.id },
-            data: { closingOdds },
-          });
-
-          logger.info(`Captured closing odds for bet leg ${leg.id}: ${closingOdds}`);
-        } else {
-          logger.warn(`No matching odds snapshot for bet leg ${leg.id}`);
+        if (!match) {
+          logger.warn(
+            `No matching odds snapshot for bet leg ${leg.id} ` +
+            `(${leg.selectionType}/${leg.selection}${leg.line ? ` @ ${leg.line.toString()}` : ''})`
+          );
+          continue;
         }
+
+        await prisma.betLeg.update({
+          where: { id: leg.id },
+          data: { closingOdds: match.price },
+        });
+
+        logger.info(
+          `Captured closing odds for bet leg ${leg.id}: ${match.price} ` +
+          `(${match.snapshot.bookmaker} @ ${match.snapshot.capturedAt.toISOString()})`
+        );
       }
 
       logger.info(`Captured closing lines for ${betLegs.length} bet legs on game ${gameId}`);
@@ -463,39 +473,118 @@ export class CLVService {
   }
 
   /**
-   * Find matching odds snapshot for a bet leg
+   * Find the closing price for a bet leg among a game's odds snapshots.
+   *
+   * `OddsSnapshot` stores one row per bookmaker/market with a column pair per
+   * side (`homePrice`/`awayPrice`, `homeSpreadPrice`/`awaySpreadPrice`,
+   * `overPrice`/`underPrice`) — not one row per outcome — so the leg's
+   * `selection` ('home' | 'away' | 'over' | 'under') selects the column rather
+   * than filtering rows.
+   *
+   * Snapshots are scanned newest first (`capturedAt`), preferring the book the
+   * leg was placed at so CLV compares like with like, and falling back to any
+   * book when that one has no usable row. Rows whose price column is empty are
+   * skipped so a partially-populated latest snapshot doesn't lose the capture.
    */
-  private findMatchingOddsSnapshot(
+  private findClosingLine(
     snapshots: ClosingLineSnapshot[],
     selectionType: string,
     selection: string,
-    line: Prisma.Decimal | null
-  ): ClosingLineSnapshot | null {
-    // Get the most recent snapshot for the matching market and selection
-    const matchingSnapshots = snapshots.filter(snapshot => {
-      // Match by market type
-      const marketTypeMatch = 
-        (selectionType === 'moneyline' && snapshot.marketType === 'h2h') ||
-        (selectionType === 'spread' && snapshot.marketType === 'spreads') ||
-        (selectionType === 'total' && snapshot.marketType === 'totals');
+    line: Prisma.Decimal | null,
+    bookmaker?: string | null
+  ): ClosingLineMatch | null {
+    const marketType = MARKET_TYPE_BY_SELECTION_TYPE[selectionType];
+    if (!marketType) {
+      return null;
+    }
 
-      if (!marketTypeMatch) return false;
+    const candidates = snapshots
+      .filter(snapshot => snapshot.marketType === marketType)
+      .sort((a, b) => b.capturedAt.getTime() - a.capturedAt.getTime());
 
-      // Match by selection
-      const selectionMatch = snapshot.outcome === selection;
+    const sameBookmaker = bookmaker
+      ? candidates.filter(
+          snapshot => snapshot.bookmaker.toLowerCase() === bookmaker.toLowerCase()
+        )
+      : [];
 
-      // Match by line (for spreads/totals)
-      if (line && snapshot.point !== null && snapshot.point !== undefined) {
-        return selectionMatch && Math.abs(snapshot.point - line.toNumber()) < 0.1;
+    for (const pool of [sameBookmaker, candidates]) {
+      for (const snapshot of pool) {
+        const price = this.priceForSelection(snapshot, selectionType, selection, line);
+        if (price !== null) {
+          return { price, snapshot };
+        }
       }
+    }
 
-      return selectionMatch;
-    });
+    return null;
+  }
 
-    // Return the most recent matching snapshot
-    return matchingSnapshots.sort((a, b) =>
-      new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime()
-    )[0] || null;
+  /**
+   * Read the price a snapshot holds for one selection, or null when the
+   * snapshot doesn't cover it (unknown selection, line moved off the leg's
+   * number, or an empty price column).
+   */
+  private priceForSelection(
+    snapshot: ClosingLineSnapshot,
+    selectionType: string,
+    selection: string,
+    line: Prisma.Decimal | null
+  ): number | null {
+    const legLine = line === null || line === undefined ? null : line.toNumber();
+
+    if (selectionType === 'moneyline') {
+      if (selection !== 'home' && selection !== 'away') return null;
+      return this.toAmericanOdds(
+        selection === 'home' ? snapshot.homePrice : snapshot.awayPrice
+      );
+    }
+
+    if (selectionType === 'spread') {
+      if (selection !== 'home' && selection !== 'away') return null;
+      // Spreads are stored per side (home -3.5 / away +3.5), matching the side
+      // the leg's own line was taken from.
+      const snapshotLine =
+        selection === 'home' ? snapshot.homeSpread : snapshot.awaySpread;
+      if (!this.linesMatch(legLine, snapshotLine)) return null;
+      return this.toAmericanOdds(
+        selection === 'home' ? snapshot.homeSpreadPrice : snapshot.awaySpreadPrice
+      );
+    }
+
+    if (selectionType === 'total') {
+      if (selection !== 'over' && selection !== 'under') return null;
+      if (!this.linesMatch(legLine, snapshot.totalLine)) return null;
+      return this.toAmericanOdds(
+        selection === 'over' ? snapshot.overPrice : snapshot.underPrice
+      );
+    }
+
+    return null;
+  }
+
+  /**
+   * Whether a snapshot's line is the same number the leg was placed at. A leg
+   * with no line (moneyline-style) matches anything; a leg with a line needs a
+   * snapshot that actually carries one, since CLV is only meaningful when both
+   * prices refer to the same market.
+   */
+  private linesMatch(legLine: number | null, snapshotLine: Prisma.Decimal | null): boolean {
+    if (legLine === null) return true;
+    if (snapshotLine === null) return false;
+    return Math.abs(snapshotLine.toNumber() - legLine) < LINE_MATCH_TOLERANCE;
+  }
+
+  /**
+   * Normalize a snapshot price column to American odds. The columns are `Int`
+   * per schema, but guard against non-numeric or zero values (not a valid
+   * American price) rather than persisting them as closing odds.
+   */
+  private toAmericanOdds(value: number | null): number | null {
+    if (value === null || value === undefined) return null;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric === 0) return null;
+    return Math.trunc(numeric);
   }
 
   /**

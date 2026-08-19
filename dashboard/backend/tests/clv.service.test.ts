@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { CLVService } from '../src/services/clv.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import type { OddsSnapshot as OddsSnapshotRow } from '@prisma/client';
 
 // Mock Prisma
 jest.mock('../src/config/database', () => ({
@@ -216,36 +217,63 @@ describe('CLV Service', () => {
   // ========================================================================
 
   describe('captureClosingLine', () => {
-    it('should capture closing odds from latest snapshot', async () => {
+    /**
+     * Build a row shaped like the real `OddsSnapshot` model: one row per
+     * bookmaker/market, prices in side-specific columns, no per-outcome rows.
+     */
+    const snapshot = (overrides: Partial<OddsSnapshotRow>): OddsSnapshotRow => ({
+      id: 'snapshot-1',
+      gameId: 'game-1',
+      bookmaker: 'draftkings',
+      marketType: 'h2h',
+      homePrice: null,
+      awayPrice: null,
+      homeSpread: null,
+      homeSpreadPrice: null,
+      awaySpread: null,
+      awaySpreadPrice: null,
+      totalLine: null,
+      overPrice: null,
+      underPrice: null,
+      capturedAt: new Date('2026-01-15T18:55:00Z'),
+      movementType: null,
+      movementSize: null,
+      volumeIndicator: null,
+      ...overrides
+    });
+
+    const betLeg = (overrides: Record<string, unknown>) => ({
+      id: 'leg-1',
+      gameId: 'game-1',
+      status: 'pending',
+      closingOdds: null,
+      selectionType: 'moneyline',
+      selection: 'home',
+      line: null,
+      bookmaker: null,
+      ...overrides
+    });
+
+    it('should capture the home moneyline price from the most recent snapshot', async () => {
       mockPrisma.betLeg.findMany.mockResolvedValue([
-        {
-          id: 'leg-1',
-          gameId: 'game-1',
-          status: 'pending',
-          closingOdds: null,
-          selectionType: 'moneyline',
-          selection: 'home',
-          line: null
-        }
+        betLeg({ selectionType: 'moneyline', selection: 'home' })
       ] as any);
 
       mockPrisma.game.findUnique.mockResolvedValue({
         id: 'game-1',
         oddsSnapshots: [
-          {
+          snapshot({
             marketType: 'h2h',
-            outcome: 'home',
-            price: -135,
-            point: null,
-            timestamp: new Date('2026-01-15T18:55:00Z')
-          },
-          {
+            homePrice: -130,
+            awayPrice: 110,
+            capturedAt: new Date('2026-01-15T18:50:00Z')
+          }),
+          snapshot({
             marketType: 'h2h',
-            outcome: 'home',
-            price: -130,
-            point: null,
-            timestamp: new Date('2026-01-15T18:50:00Z')
-          }
+            homePrice: -135,
+            awayPrice: 115,
+            capturedAt: new Date('2026-01-15T18:55:00Z')
+          })
         ]
       } as any);
 
@@ -256,6 +284,247 @@ describe('CLV Service', () => {
       expect(mockPrisma.betLeg.update).toHaveBeenCalledWith({
         where: { id: 'leg-1' },
         data: { closingOdds: -135 }
+      });
+    });
+
+    it('should capture the away price for an away selection', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'moneyline', selection: 'away' })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [snapshot({ marketType: 'h2h', homePrice: -135, awayPrice: 115 })]
+      } as any);
+
+      mockPrisma.betLeg.update.mockResolvedValue({} as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).toHaveBeenCalledWith({
+        where: { id: 'leg-1' },
+        data: { closingOdds: 115 }
+      });
+    });
+
+    it('should capture the spread price for the side the leg was taken on', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'spread', selection: 'away', line: new Decimal(3.5) })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [
+          snapshot({
+            marketType: 'spreads',
+            homeSpread: new Decimal(-3.5),
+            homeSpreadPrice: -110,
+            awaySpread: new Decimal(3.5),
+            awaySpreadPrice: -108
+          })
+        ]
+      } as any);
+
+      mockPrisma.betLeg.update.mockResolvedValue({} as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).toHaveBeenCalledWith({
+        where: { id: 'leg-1' },
+        data: { closingOdds: -108 }
+      });
+    });
+
+    it('should skip a spread snapshot whose line moved off the leg line', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'spread', selection: 'home', line: new Decimal(-3) })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [
+          // Line moved to -3.5 in the newest snapshot; the -3 price is still
+          // the one the leg can be compared against.
+          snapshot({
+            marketType: 'spreads',
+            homeSpread: new Decimal(-3.5),
+            homeSpreadPrice: -105,
+            capturedAt: new Date('2026-01-15T18:55:00Z')
+          }),
+          snapshot({
+            marketType: 'spreads',
+            homeSpread: new Decimal(-3),
+            homeSpreadPrice: -118,
+            capturedAt: new Date('2026-01-15T18:50:00Z')
+          })
+        ]
+      } as any);
+
+      mockPrisma.betLeg.update.mockResolvedValue({} as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).toHaveBeenCalledWith({
+        where: { id: 'leg-1' },
+        data: { closingOdds: -118 }
+      });
+    });
+
+    it('should capture the over price when the total line matches', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'total', selection: 'over', line: new Decimal(48.5) })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [
+          snapshot({
+            marketType: 'totals',
+            totalLine: new Decimal(48.5),
+            overPrice: -112,
+            underPrice: -108
+          })
+        ]
+      } as any);
+
+      mockPrisma.betLeg.update.mockResolvedValue({} as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).toHaveBeenCalledWith({
+        where: { id: 'leg-1' },
+        data: { closingOdds: -112 }
+      });
+    });
+
+    it('should not capture when no snapshot carries the leg total line', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'total', selection: 'under', line: new Decimal(48.5) })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [
+          snapshot({
+            marketType: 'totals',
+            totalLine: new Decimal(50.5),
+            overPrice: -110,
+            underPrice: -110
+          })
+        ]
+      } as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).not.toHaveBeenCalled();
+    });
+
+    it('should ignore snapshots from other markets', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'moneyline', selection: 'home' })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [
+          snapshot({
+            marketType: 'spreads',
+            homeSpread: new Decimal(-3.5),
+            homeSpreadPrice: -110
+          })
+        ]
+      } as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).not.toHaveBeenCalled();
+    });
+
+    it('should prefer the bookmaker the leg was placed at', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'moneyline', selection: 'home', bookmaker: 'FanDuel' })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [
+          snapshot({
+            bookmaker: 'draftkings',
+            marketType: 'h2h',
+            homePrice: -140,
+            capturedAt: new Date('2026-01-15T18:59:00Z')
+          }),
+          snapshot({
+            bookmaker: 'fanduel',
+            marketType: 'h2h',
+            homePrice: -125,
+            capturedAt: new Date('2026-01-15T18:55:00Z')
+          })
+        ]
+      } as any);
+
+      mockPrisma.betLeg.update.mockResolvedValue({} as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).toHaveBeenCalledWith({
+        where: { id: 'leg-1' },
+        data: { closingOdds: -125 }
+      });
+    });
+
+    it('should fall back to another bookmaker when the leg book has no snapshot', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'moneyline', selection: 'home', bookmaker: 'betmgm' })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [
+          snapshot({ bookmaker: 'draftkings', marketType: 'h2h', homePrice: -140 })
+        ]
+      } as any);
+
+      mockPrisma.betLeg.update.mockResolvedValue({} as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).toHaveBeenCalledWith({
+        where: { id: 'leg-1' },
+        data: { closingOdds: -140 }
+      });
+    });
+
+    it('should fall back to an older snapshot when the newest lacks the price', async () => {
+      mockPrisma.betLeg.findMany.mockResolvedValue([
+        betLeg({ selectionType: 'moneyline', selection: 'away' })
+      ] as any);
+
+      mockPrisma.game.findUnique.mockResolvedValue({
+        id: 'game-1',
+        oddsSnapshots: [
+          snapshot({
+            marketType: 'h2h',
+            homePrice: -135,
+            awayPrice: null,
+            capturedAt: new Date('2026-01-15T18:59:00Z')
+          }),
+          snapshot({
+            marketType: 'h2h',
+            homePrice: -130,
+            awayPrice: 112,
+            capturedAt: new Date('2026-01-15T18:50:00Z')
+          })
+        ]
+      } as any);
+
+      mockPrisma.betLeg.update.mockResolvedValue({} as any);
+
+      await service.captureClosingLine('game-1');
+
+      expect(mockPrisma.betLeg.update).toHaveBeenCalledWith({
+        where: { id: 'leg-1' },
+        data: { closingOdds: 112 }
       });
     });
 
@@ -270,9 +539,7 @@ describe('CLV Service', () => {
     });
 
     it('should handle games with no odds snapshots', async () => {
-      mockPrisma.betLeg.findMany.mockResolvedValue([
-        { id: 'leg-1', gameId: 'game-1', status: 'pending', closingOdds: null }
-      ] as any);
+      mockPrisma.betLeg.findMany.mockResolvedValue([betLeg({})] as any);
 
       mockPrisma.game.findUnique.mockResolvedValue({
         id: 'game-1',
@@ -285,9 +552,7 @@ describe('CLV Service', () => {
     });
 
     it('should handle missing game', async () => {
-      mockPrisma.betLeg.findMany.mockResolvedValue([
-        { id: 'leg-1', gameId: 'game-1', status: 'pending', closingOdds: null }
-      ] as any);
+      mockPrisma.betLeg.findMany.mockResolvedValue([betLeg({})] as any);
 
       mockPrisma.game.findUnique.mockResolvedValue(null);
 
