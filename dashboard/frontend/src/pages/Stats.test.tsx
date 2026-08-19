@@ -34,7 +34,31 @@ vi.mock('../components/stats/CLVSummaryCard', () => ({
 import api from '../services/api';
 const mockApi = api as unknown as { get: ReturnType<typeof vi.fn> };
 
-const API_STATS = {
+/** One entry of the `bySport` / `byBetType` maps the API returns. */
+interface BreakdownEntry {
+  count: number;
+  won: number;
+  netProfit: number;
+}
+
+/** Shape of `GET /bets/stats`. The two breakdowns are open-ended maps — Stats.tsx
+ *  reads them with `Object.entries(... || {})` — so they're typed as Records
+ *  rather than inferred from the fixture, letting tests pass an empty map. */
+interface ApiStats {
+  totalBets: number;
+  wonBets: number;
+  lostBets: number;
+  pushBets: number;
+  winRate: number;
+  totalStaked: number;
+  totalReturn: number;
+  netProfit: number;
+  roi: number;
+  bySport: Record<string, BreakdownEntry>;
+  byBetType: Record<string, BreakdownEntry>;
+}
+
+const API_STATS: ApiStats = {
   totalBets: 30,
   wonBets: 18,
   lostBets: 10,
@@ -54,7 +78,7 @@ const API_STATS = {
   },
 };
 
-function withStats(stats: typeof API_STATS = API_STATS) {
+function withStats(stats: ApiStats = API_STATS) {
   mockApi.get.mockResolvedValue({ data: { data: stats } });
 }
 
