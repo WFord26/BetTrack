@@ -18,12 +18,86 @@ Changes that affect the entire project structure:
 
 ## [Unreleased]
 
+---
+
+## [2026.08.18]
+
+### Packages
+
+- **MCP:** v1.0.1
+- **Backend:** v0.6.0
+- **Frontend:** v0.6.1
+- **Dashboard:** v0.3.1
+
+### Project
+
 - **Frontend page test coverage and CI Node version — #66/#69 follow-up**: Re-verified issues #66 and #69 against the actual code rather than trusting their closed status. #69 had only covered 5 of 19 pages with structure-only tests; #66 had missed one CI job still pinned to Node 20. Both now fully addressed, and the coverage gate recalibrated to match — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
 - **Sports MCP server split — Phase 3 tech debt** (issue #74): `sports_mcp_server.py` (1,540 lines, 25+ inline tool definitions) became a ~220-line composition root over `sports_api/tools/`, five modules grouped by API (odds, ESPN, formatted output, artifacts, diagnostics). Blocked on #67's test coverage prerequisite, which turned out not to actually be met (11% coverage, 11 failing tests) despite #67 being closed — fixed the test suite first, then raised coverage past the 50% trigger, then decomposed. CI now runs `pytest` for the MCP server for the first time — see [mcp/CHANGELOG.md](mcp/CHANGELOG.md) for details.
 - **Arbitrage & Middle Detection** (Phase 3, issue #9): Merged to `beta`, pending version bump/release. Full-stack detection of guaranteed-profit arbitrage and middle opportunities across bookmakers — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
 - **Oversized service split — Phase 3 tech debt** (issue #73): `arbitrage.service.ts` (1,096 lines) and `bet.service.ts` (1,030 lines) became thin entry points over `services/arbitrage/` and `services/bet/`, each a set of single-responsibility modules. Public API unchanged, so no consumer import moved — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
 - **`BaseStatsService` extraction — Phase 3 tech debt** (issue #72): Replaced the seven near-identical API-Sports stats services (2,948 lines, no shared base, no tests) with an abstract base plus thin per-sport adapters (~2,115 lines, 35 tests). Consolidating the copies surfaced four bugs that had been fixed in one sport but not the others — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
 - **TypeScript `any` reduction — Phase 2 tech debt** (issue #71): Cleared all explicit `any` annotations from the six heaviest backend files; repo-wide count dropped from 253 to 178. Surfaced and fixed a broken odds-history endpoint, and surfaced a CLV closing-line defect now tracked as issue #87 — see [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for details.
+
+### MCP Server
+
+#### Changed
+
+- **`get_odds_card_artifact` decomposed (issue #74 follow-up)**: The 1.0.0 split moved this function into `artifact_tools.py` verbatim, leaving the 261-line body the issue flagged intact. Its data handling is now three module-level helpers — `_extract_book_odds()` (one bookmaker's nested markets to a flat row), `_best_focus_odds()` (best price across books), and `_render_odds_card()` (component source) — reducing the tool itself to 92 lines of orchestration.
+  - Rendered output is byte-identical to the 1.0.0 version for the same input, and the not-configured/no-games/no-odds paths are unchanged.
+  - The sport-to-league map duplicated in both tools is now the shared `_SPORT_LEAGUE_MAP`/`_league_for()`; the unused `other_abbr` local was dropped.
+  - New `tests/test_artifact_tools.py` covers the extracted helpers (20 tests), taking `artifact_tools.py` from 16% to 62% coverage and `sports_api/` from 57% to 61%.
+
+#### Fixed
+
+- **Odds cards for bookmakers with an apostrophe in their name produced an unparseable component**: `_render_odds_card()` embedded the per-book data with `str(books_data).replace("'", '"')`, which is a Python repr rather than JSON. A book such as "Bally's Bet" emitted `{"name": "Bally"s Bet"}`, breaking the whole artifact. Now embedded with `json.dumps()`.
+
+### Backend
+
+#### Added
+
+- **NBA, NCAAB, NHL and soccer team season stats syncs (issue #76)**: The four remaining `syncTeamSeasonStats` branches were `logger.warn` placeholders, so team stats stayed empty for half the supported leagues. All four now sync `/teams/statistics` as adapters on `BaseStatsService`, per issue #72's architecture.
+  - `src/services/api-sports/base-stats.service.ts`: the `/teams/statistics` body moved into a protected `runTeamStatsSync`, parameterised by the target sport key and league params so a multi-league service can pick one league per call. Four new hooks carry the host differences: `teamStatsIdParam` (american-football and baseball query by `id`, the rest by `team`), `formatStatsSeason` (basketball labels seasons `"2024-2025"`), `mapTeamSeasonStats` (the payload → `TeamStats` mapping, defaulting to the existing american-football shape), and `findTeamForStats` (how the upstream team id resolves to a local `Team`). The response is now unwrapped tolerantly — `/teams/statistics` returns a bare object on most hosts where every other endpoint returns an array — and `toStatNumber` coerces the percentage and average strings API-Sports mixes in
+  - `src/services/api-sports/basketball.service.ts` (new): `BasketballStatsService` collapses what NBA (league 12) and NCAAB (league 127) share on the basketball host — the year-pair season label (previously duplicated as `defaultTeamSeason` in both) and the `games`/`points` season-stats mapping. Points for/against split into the `offense`/`defense` columns, wins/losses/win% into `standings`
+  - `src/services/api-sports/nhl.service.ts`: maps the hockey host's `games`/`goals` blocks. Overtime results stay in their own `overtimeWins`/`overtimeLosses` keys rather than being folded into the regulation record, since an overtime loss still earns a standings point
+  - `src/services/api-sports/soccer.service.ts`: the league table is now a `Sport.key` → API-Football league id map (`LEAGUE_IDS_BY_SPORT_KEY`, covering EPL, La Liga, Serie A, Bundesliga, Ligue 1, MLS and the Champions League), read by both the live-games fan-out and the new `syncTeamStatsForLeague`. The service spans several sport keys and so has neither a `sportKey` nor a `leagueId` of its own — the caller names the league, and the resolved key is what lands in the `TeamStats.sportKey` column. Teams resolve by `externalId`, since soccer teams never come through `/teams` and carry no `apiSportsTeamId`. Draws map to `standings.ties`; clean sheets, failed-to-score, penalties and recent form come along
+  - `src/services/stats-sync.service.ts`: `syncTeamSeasonStats` is a sport-key lookup plus a soccer branch rather than a nine-case switch. Sports with no team stats sync (MLB) still log the existing "not implemented" warning rather than writing empty rows from the default mapper
+  - `tests/team-stats-sync.service.test.ts` (new): 17 tests driving the real dispatch down to the `TeamStats` write, against fixtures shaped like the actual basketball, hockey and API-Football responses — query param and season label per host, the full mapped payload per sport, soccer's sport-key → league table and `externalId` team resolution, and the unchanged NFL and MLB paths
+  - Note: `syncTeamSeasonStats` still has no caller — no route and no job invokes it, so `team_stats` stays empty until one does. Tracked as issue #91; #76's premise that these run on a cron via `stats-sync.job.ts` was never true, that job only polls live games
+
+#### Fixed
+
+- **CLV closing lines were never captured (issue #87)**: `CLVService.findMatchingOddsSnapshot` matched on `snapshot.outcome` / `price` / `point` / `timestamp` — four fields `OddsSnapshot` does not have. `outcome` was always `undefined`, so the matcher returned `null` for every leg, `betLeg.closingOdds` stayed null, `calculateCLV` returned null, and CLV reporting had no data for any bet ever placed. The matcher is now written against the real columns.
+  - `src/services/clv.service.ts`: `findMatchingOddsSnapshot` is replaced by `findClosingLine` + `priceForSelection`. `OddsSnapshot` stores one row per bookmaker/market with a column pair per side, not one row per outcome, so the leg's `selection` (`home`/`away`/`over`/`under`) now picks the column rather than filtering rows: moneyline → `homePrice`/`awayPrice`, spread → `homeSpreadPrice`/`awaySpreadPrice` with the line checked against `homeSpread`/`awaySpread`, total → `overPrice`/`underPrice` against `totalLine`. Recency sorts on `capturedAt`, not the non-existent `timestamp`
+  - `src/services/clv.service.ts`: snapshots are scanned newest-first rather than taking only the single newest row, so a partially-populated latest snapshot (one side priced, the other null) no longer loses the capture — the scan falls through to the next row that carries the price. A leg with a line still requires a snapshot at that same line (±0.1), since a price at a different number is not a comparable closing line
+  - `src/services/clv.service.ts`: the scan prefers snapshots from the leg's own `bookmaker` (the column added for per-book CLV) and falls back to any book when that one has no usable row, so CLV compares a bet against the closing price at the book it was placed at where possible
+  - `src/services/clv.service.ts`: `ClosingLineSnapshot` is now a `Pick<OddsSnapshot, ...>` of the columns the matcher reads instead of a hand-written interface, so a future schema drift fails `tsc` rather than silently matching nothing. The `as unknown as` cast at the call site is gone
+  - `tests/clv.service.test.ts`: the `captureClosingLine` mocks previously returned `{ outcome, price, point, timestamp }` objects cast `as any` — a shape the database never produces — so the suite passed against a fictional schema. Snapshots are now built from a full `OddsSnapshot` row (typed against the Prisma model, so the fixture cannot drift from the real columns), covering moneyline home/away, spread side selection, line-moved-off-the-leg fallback, total over/under, market isolation, bookmaker preference and fallback, and the null-price fallback. All 8 new capture assertions fail against the previous implementation
+
+### Frontend
+
+#### Changed
+
+- **155 inline hex colors replaced with design tokens (issue #75)**: every BetTrack color literal is now gone from `src/**/*.tsx` — retinting or re-theming the app is a `tailwind.config.js` edit rather than a sweep through 22 component files. Three kinds of replacement:
+  - **Arbitrary utilities → named tokens.** `shadow-[0_3px_0_#8a5a10]` → `shadow-ds-press`, `shadow-[0_0_0_2px_#43306a_inset]` → `shadow-ds-ring`, `bg-[#fceaea]` → `bg-sunloss-wash`, and so on. 17 Desert Sunset `boxShadow` tokens (`ds-press-*`, `ds-drop-*`, `ds-card-sand*`, `ds-ring-*`) and the missing colors they referenced (`sunwin.chip/wash`, `sunloss.chip/wash`, `sunpending.chip/wash/ink`, `terra.hover/shadow`, `coral-edge`, `cream-warm`, `sand-perf/meter/bronze/dot`, and a `scoreboard.*` group for the 8-bit game card) were added to the config.
+  - **Inline `style` objects → CSS recipes.** The repeated `style={{ textShadow: isDarkMode ? '4px 4px 0 #c14d21' : '4px 4px 0 #e0a512' }}` page-headline pattern became `.ds-headline` / `.ds-headline-sm` / `.ds-headline-banner` in `index.css`, which flip on the `dark` class instead of a JS ternary. Same for `.ds-hero-scrim`, `.ds-band-sunset`, `.ds-pixel-grid`, `.ds-range-fill`, `.ds-btn-press-hero`, `.ds-btn-press-coral`, and `.ds-btn-ghost-plum`. `EnhancedDashboard` and `Futures` no longer consume `useDarkMode` at all — their theming is now entirely CSS.
+  - **Recharts props → `src/theme/chartTokens.ts`.** Recharts styles axes, grids, tooltips, and series through JS props, so those colors cannot be utility classes. `chartTokens.ts` is the single place they may be literal, and `chartTokens.test.ts` reads `tailwind.config.js` and fails if any of them drifts from its source token.
+
+  `index.css` was swept the same way — its own hard-coded hexes are now `theme()` references, so the config really is the only place a BetTrack color is written down. Verified by diffing the compiled stylesheet before and after: every removed arbitrary-hex utility has a byte-identical named-token replacement, and the new recipes compile to the exact declarations the inline styles produced.
+
+  Deliberately **not** tokenized: the eight `fill` values in the Microsoft and Google OAuth logos on `Login.tsx`. Those are third-party brand marks that must not shift with our theme; they are commented as exempt so a future audit doesn't re-flag them.
+
+  One incidental fix: `CLVAnalytics.tsx` used `box-shadow-[0_6px_0_#120a22]`, which is not a Tailwind prefix and so rendered nothing. It is now `shadow-ds-drop`, which does apply — the top/bottom CLV bet cards gain the drop shadow they were always meant to have.
+
+#### Fixed
+
+- **`npx tsc --noEmit` failed on `Stats.test.tsx`, breaking the Frontend Tests CI job**: the fixture's type was inferred from its own literal, so `bySport` was typed as `{ basketball_nba: ...; americanfootball_nfl: ... }` rather than an open map. The "shows an empty-state row when a breakdown has no data" case passes `bySport: {}`, which that inferred type rejects (TS2739). `Stats.tsx` reads both breakdowns with `Object.entries(... || {})`, so they are genuinely open-ended — the fixture now carries an explicit `ApiStats` type with `Record<string, BreakdownEntry>` breakdowns. Pre-existing on `main`; unrelated to the token migration, but it gates this branch.
+- **Page component test coverage was 5 pages, not "untested page components" cleared (issue #69 follow-up)**: closing #69 had not been re-verified against the actual page list — 13 of 19 pages (`ApiKeysSettings`, `BetHistory`, `BookmakerPerformance`, `CorrelationDashboard`, `Futures`, `GameDetail`, `Home`, `LineMovementAnalytics`, `Notifications`, `Preferences`, `Stats`, `TeamDetail`, `ValueOpportunities`) still had zero tests, and the 0.6.0 entry below describes a "simplified rendering approach (no API mocking)" that verified component structure rather than behavior. All 19 pages now have real behavioral tests: `services/api`/`apiClient` calls mocked per-page, Redux-backed pages (`BookmakerPerformance`, `CorrelationDashboard`, `LineMovementAnalytics`, `Notifications`, `Futures`) driven through a real store with only the underlying service module mocked (matching the `ArbitrageDashboard.test.tsx` convention), route-param pages (`GameDetail`, `TeamDetail`) rendered inside a `MemoryRouter`, and fixture builders in `src/test/fixtures.ts` reused instead of duplicated. Frontend suite: 45 test files, 501 tests passing.
+- **`test.yml` `build-validation` job still pinned Node 20 (issue #66 follow-up)**: the four Dockerfiles, both `package.json` `engines` fields, and the `backend-tests`/`frontend-tests` CI matrices were upgraded to Node 22, but the separate `build-validation` job's `Setup Node.js` step was missed and still requested `node-version: '20'`. Now `'22'`, matching everywhere else.
+- **Coverage thresholds recalibrated after #69's new tests changed the real numbers**: the 0.6.0 entry below set gates at `{lines:13, functions:13, branches:13, statements:13}`, and a later, undocumented bump to `{lines:37, functions:65, branches:74, statements:37}` was already failing CI (measured branches sat at 72.36%, 1.6 points under gate) because it was calibrated against a coverage snapshot that didn't match what actually landed. Re-ratcheted to just under the current measured numbers (59.1 / 75.4 / 72.4 / 59.1) — `{lines:57, functions:73, branches:70, statements:57}` — following the same "just under, not above" policy the threshold comment documents. `src/pages` itself sits at 98.6% statement coverage; the remaining branch gap is pre-existing and outside #69's scope (`Header.tsx`, `Footer.tsx`, `BetCard.tsx`, `OddsGrid.tsx` and other shared/chart components have no tests at all).
+
+### Dashboard
+
+- **Frontend page test coverage and CI Node version — #66/#69 follow-up**: Closing #69 had only covered 5 of 19 page components, with structure-only tests that mocked no API calls; closing #66 had missed one CI job (`test.yml`'s `build-validation`) still pinned to Node 20. All 19 pages now have behavioral tests (real API/Redux mocking, 501 tests across the frontend suite), the missed CI job is now Node 22, and the frontend coverage gate is re-ratcheted to the resulting real numbers — see [dashboard/frontend/CHANGELOG.md](dashboard/frontend/CHANGELOG.md) for details.
 
 ---
 
@@ -89,7 +163,6 @@ See [dashboard/CHANGELOG.md](dashboard/CHANGELOG.md) for full details.
 ---
 
 ---
-
 
 ## [2026-02-03] 
 

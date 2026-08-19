@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.3.1] - 2026-08-18
+
 - **Frontend page test coverage and CI Node version — #66/#69 follow-up**: Closing #69 had only covered 5 of 19 page components, with structure-only tests that mocked no API calls; closing #66 had missed one CI job (`test.yml`'s `build-validation`) still pinned to Node 20. All 19 pages now have behavioral tests (real API/Redux mocking, 501 tests across the frontend suite), the missed CI job is now Node 22, and the frontend coverage gate is re-ratcheted to the resulting real numbers — see [dashboard/frontend/CHANGELOG.md](dashboard/frontend/CHANGELOG.md) for details.
 
 ---

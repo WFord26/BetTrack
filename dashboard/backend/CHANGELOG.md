@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.6.0] - 2026-08-18
+
 ### Added
 
 - **NBA, NCAAB, NHL and soccer team season stats syncs (issue #76)**: The four remaining `syncTeamSeasonStats` branches were `logger.warn` placeholders, so team stats stayed empty for half the supported leagues. All four now sync `/teams/statistics` as adapters on `BaseStatsService`, per issue #72's architecture.

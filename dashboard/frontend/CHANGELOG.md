@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.6.1] - 2026-08-18
+
 ### Changed
 
 - **155 inline hex colors replaced with design tokens (issue #75)**: every BetTrack color literal is now gone from `src/**/*.tsx` — retinting or re-theming the app is a `tailwind.config.js` edit rather than a sweep through 22 component files. Three kinds of replacement:
