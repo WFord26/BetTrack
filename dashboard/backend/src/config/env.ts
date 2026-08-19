@@ -62,6 +62,12 @@ const envSchema = z.object({
   FOOTBALL_SYNC_CRON: z.string().default('0 * * * *'),
   FOOTBALL_SYNC_HOURS_BACK: z.string().default('96'),
   FOOTBALL_SYNC_HOURS_FORWARD: z.string().default('72'),
+  // Season totals move at most once a day, so the team stats sync runs
+  // overnight rather than on the hourly cadence the game syncs use.
+  TEAM_STATS_SYNC_CRON: z.string().default('30 5 * * *'),
+  TEAM_STATS_SYNC_DELAY_MS: z.string().default('250'),
+  // Pins the season to sync; unset means "the season in progress".
+  TEAM_STATS_SYNC_SEASON: z.string().optional(),
   ENABLE_WEBSOCKETS: z.string().default('false'),
   REDIS_URL: z.string().optional(),
   

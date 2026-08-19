@@ -423,6 +423,12 @@ POST /api/admin/sync-football-hourly-window
 GET /api/admin/football-sync-status
   Football hourly sync job status
 
+POST /api/admin/sync-team-stats
+  Sync season totals into team_stats for one sport, or all (background)
+
+GET /api/admin/team-stats-sync-status
+  Team season stats sync status (manual run + daily job)
+
 GET /api/admin/stats
   Database statistics
 
@@ -469,6 +475,10 @@ Runs hourly, syncing NFL and NCAAF over a rolling window (96 h back / 72 h forwa
 #### MLB Hourly Sync Job
 
 Runs hourly, syncing MLB games over a rolling window. Shares the same pattern as the football sync job.
+
+#### Team Season Stats Job
+
+Runs daily at 05:30 ET (`TEAM_STATS_SYNC_CRON`), filling `team_stats` with season totals for every team of every supported sport — NFL, NCAAF, NBA, NCAAB, NHL and the seven soccer leagues. Season totals move at most once a day, and a full pass costs one API-Sports request per team, so unlike the game syncs it does not run on startup; trigger one immediately with `POST /api/admin/sync-team-stats`. Pauses per sport when the remaining quota drops below `API_SPORTS_MIN_REMAINING`.
 
 ### Timezone Handling
 

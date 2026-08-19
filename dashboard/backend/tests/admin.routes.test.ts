@@ -9,6 +9,7 @@ import { outcomeResolverService } from '../src/services/outcome-resolver.service
 import { getOddsSyncStatus } from '../src/jobs/sync-odds.job';
 import { getMlbHourlySyncStatus } from '../src/jobs/mlb-hourly-sync.job';
 import { getFootballHourlySyncStatus } from '../src/jobs/football-hourly-sync.job';
+import { getTeamStatsSyncStatus } from '../src/jobs/team-stats-sync.job';
 import { StatsSyncService } from '../src/services/stats-sync.service';
 
 // The mock StatsSyncService constructor always returns the same closed-over
@@ -18,6 +19,8 @@ const mockStatsSyncService = new (StatsSyncService as unknown as new () => {
   seedMlbSeasonToDate: jest.Mock;
   syncMlbHourlyWindow: jest.Mock;
   syncFootballHourlyWindow: jest.Mock;
+  syncTeamSeasonStatsForSport: jest.Mock;
+  syncAllTeamSeasonStats: jest.Mock;
 })();
 
 // Mock dependencies
@@ -96,6 +99,10 @@ jest.mock('../src/jobs/football-hourly-sync.job', () => ({
   getFootballHourlySyncStatus: jest.fn()
 }));
 
+jest.mock('../src/jobs/team-stats-sync.job', () => ({
+  getTeamStatsSyncStatus: jest.fn()
+}));
+
 // admin.routes.ts instantiates `new StatsSyncService()` at module load time,
 // so the mock object must be self-contained inside the factory (referencing
 // an outer `const` here would hit the TDZ, since imports — and therefore
@@ -105,6 +112,8 @@ jest.mock('../src/services/stats-sync.service', () => {
     seedMlbSeasonToDate: jest.fn(),
     syncMlbHourlyWindow: jest.fn(),
     syncFootballHourlyWindow: jest.fn(),
+    syncTeamSeasonStatsForSport: jest.fn(),
+    syncAllTeamSeasonStats: jest.fn(),
   };
   return {
     StatsSyncService: jest.fn().mockImplementation(() => mockInstance),
@@ -118,6 +127,7 @@ jest.mock('../src/config/env', () => ({
     MLB_SYNC_HOURS_FORWARD: '24',
     FOOTBALL_SYNC_HOURS_BACK: '96',
     FOOTBALL_SYNC_HOURS_FORWARD: '72',
+    TEAM_STATS_SYNC_DELAY_MS: '250',
   }
 }));
 
@@ -936,6 +946,180 @@ describe('Admin Routes', () => {
 
       const response = await request(app)
         .get('/api/admin/football-sync-status')
+        .expect(500);
+
+      expect(response.body.status).toBe('error');
+    });
+  });
+
+  describe('POST /api/admin/sync-team-stats', () => {
+    /** A per-sport result, as the service returns them. */
+    const nbaResult = {
+      sportKey: 'basketball_nba',
+      season: 2025,
+      teamsProcessed: 30,
+      teamsUpdated: 30,
+      teamsSkipped: 0,
+      requestsRemaining: 4200,
+      pausedDueToQuota: false,
+      errors: [],
+    };
+
+    it('should sync every supported sport when no sportKey is given', async () => {
+      mockStatsSyncService.syncAllTeamSeasonStats.mockResolvedValue([nbaResult]);
+
+      const response = await request(app)
+        .post('/api/admin/sync-team-stats')
+        .expect(200);
+
+      expect(response.body.status).toBe('success');
+      expect(response.body.data).toEqual({
+        sportKey: 'all',
+        season: null,
+        minimumRemainingRequests: 500,
+      });
+      expect(mockStatsSyncService.syncAllTeamSeasonStats).toHaveBeenCalledWith({
+        season: undefined,
+        minimumRemainingRequests: 500,
+        delayMs: 250,
+      });
+      expect(mockStatsSyncService.syncTeamSeasonStatsForSport).not.toHaveBeenCalled();
+    });
+
+    it('should sync a single sport when sportKey is given', async () => {
+      mockStatsSyncService.syncTeamSeasonStatsForSport.mockResolvedValue(nbaResult);
+
+      const response = await request(app)
+        .post('/api/admin/sync-team-stats')
+        .send({ sportKey: 'basketball_nba', season: 2024 })
+        .expect(200);
+
+      expect(response.body.data).toEqual({
+        sportKey: 'basketball_nba',
+        season: 2024,
+        minimumRemainingRequests: 500,
+      });
+      expect(mockStatsSyncService.syncTeamSeasonStatsForSport).toHaveBeenCalledWith('basketball_nba', {
+        season: 2024,
+        minimumRemainingRequests: 500,
+        delayMs: 250,
+      });
+      expect(mockStatsSyncService.syncAllTeamSeasonStats).not.toHaveBeenCalled();
+    });
+
+    it('should reject a season outside the supported range without starting a sync', async () => {
+      const response = await request(app)
+        .post('/api/admin/sync-team-stats')
+        .send({ season: 1999 })
+        .expect(400);
+
+      expect(response.body.status).toBe('error');
+      expect(mockStatsSyncService.syncAllTeamSeasonStats).not.toHaveBeenCalled();
+      expect(mockStatsSyncService.syncTeamSeasonStatsForSport).not.toHaveBeenCalled();
+    });
+
+    it('should respond before the background sync finishes', async () => {
+      let finishSync: (value: any) => void;
+      mockStatsSyncService.syncAllTeamSeasonStats.mockReturnValue(
+        new Promise(resolve => {
+          finishSync = resolve;
+        })
+      );
+
+      await request(app)
+        .post('/api/admin/sync-team-stats')
+        .expect(200);
+
+      finishSync!([nbaResult]);
+    });
+
+    it('should handle synchronous initiation errors', async () => {
+      mockStatsSyncService.syncAllTeamSeasonStats.mockImplementation(() => {
+        throw new Error('boom');
+      });
+
+      const response = await request(app)
+        .post('/api/admin/sync-team-stats')
+        .expect(500);
+
+      expect(response.body.status).toBe('error');
+    });
+  });
+
+  describe('GET /api/admin/team-stats-sync-status', () => {
+    it('should summarize the daily job results across sports', async () => {
+      jest.mocked(getTeamStatsSyncStatus).mockReturnValue({
+        isRunning: false,
+        lastRunTime: new Date('2026-09-07T09:30:00Z'),
+        lastResults: [
+          {
+            sportKey: 'basketball_nba',
+            season: 2025,
+            teamsProcessed: 30,
+            teamsUpdated: 30,
+            teamsSkipped: 0,
+            requestsRemaining: 4200,
+            pausedDueToQuota: false,
+            errors: [],
+          },
+          {
+            sportKey: 'icehockey_nhl',
+            season: 2025,
+            teamsProcessed: 32,
+            teamsUpdated: 31,
+            teamsSkipped: 0,
+            requestsRemaining: 4100,
+            pausedDueToQuota: true,
+            errors: ['Failed to sync icehockey_nhl team stats for Boston Bruins (1): boom'],
+          },
+        ],
+        cronExpression: '30 5 * * *',
+      } as any);
+
+      const response = await request(app)
+        .get('/api/admin/team-stats-sync-status')
+        .expect(200);
+
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.dailyJob.cronExpression).toBe('30 5 * * *');
+      expect(response.body.data.dailyJob.summary).toEqual(
+        expect.objectContaining({
+          teamsUpdated: 61,
+          errors: 1,
+          pausedDueToQuota: true,
+          // The tightest remaining count across sports is the one worth showing.
+          requestsRemaining: 4100,
+        })
+      );
+      expect(response.body.data.dailyJob.summary.sports).toHaveLength(2);
+      // manualRun UI state is shared module-level state on the router
+      // (not reset between tests) — only assert its shape here.
+      expect(['idle', 'running', 'completed', 'failed']).toContain(response.body.data.manualRun.status);
+    });
+
+    it('should report a null summary before the daily job has ever run', async () => {
+      jest.mocked(getTeamStatsSyncStatus).mockReturnValue({
+        isRunning: false,
+        lastRunTime: null,
+        lastResults: null,
+        cronExpression: '30 5 * * *',
+      } as any);
+
+      const response = await request(app)
+        .get('/api/admin/team-stats-sync-status')
+        .expect(200);
+
+      expect(response.body.data.dailyJob.lastRunTime).toBeNull();
+      expect(response.body.data.dailyJob.summary).toBeNull();
+    });
+
+    it('should handle errors from the status lookup', async () => {
+      jest.mocked(getTeamStatsSyncStatus).mockImplementation(() => {
+        throw new Error('status unavailable');
+      });
+
+      const response = await request(app)
+        .get('/api/admin/team-stats-sync-status')
         .expect(500);
 
       expect(response.body.status).toBe('error');

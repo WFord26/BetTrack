@@ -129,6 +129,15 @@ export class SoccerService extends BaseStatsService<Fixture> {
     return sportKey in LEAGUE_IDS_BY_SPORT_KEY;
   }
 
+  /**
+   * Every internal sport key this service covers. Callers that need to walk
+   * all soccer leagues (the team season stats sync) read it from here rather
+   * than keeping a second copy of the league list.
+   */
+  static get sportKeys(): string[] {
+    return Object.keys(LEAGUE_IDS_BY_SPORT_KEY);
+  }
+
   protected get gamesEndpoint(): string {
     return '/fixtures';
   }

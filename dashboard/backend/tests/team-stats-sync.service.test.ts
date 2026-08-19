@@ -17,12 +17,12 @@ jest.mock('../src/config/env', () => ({
 
 jest.mock('../src/config/database', () => ({
   prisma: {
-    team: { findFirst: jest.fn() },
+    team: { findFirst: jest.fn(), findMany: jest.fn() },
     teamStats: { upsert: jest.fn() },
   },
 }));
 
-import { StatsSyncService } from '../src/services/stats-sync.service';
+import { StatsSyncService, resolveCurrentTeamStatsSeason } from '../src/services/stats-sync.service';
 import { ApiSportsClient } from '../src/services/api-sports/client';
 import { prisma } from '../src/config/database';
 
@@ -153,6 +153,7 @@ function upsertedStats() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPrisma.team.findMany.mockResolvedValue([]);
   apiGet = jest.spyOn(ApiSportsClient.prototype, 'get');
   service = new StatsSyncService();
 });
@@ -406,5 +407,228 @@ describe('StatsSyncService.syncTeamSeasonStats — unchanged sports', () => {
 
     expect(apiGet).not.toHaveBeenCalled();
     expect(mockPrisma.teamStats.upsert).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The wiring added for #91: walking every team of a sport, which is what
+ * actually fills `team_stats`. The per-team dispatch above is exercised for
+ * real here — only the team rows and the HTTP client are stubbed.
+ */
+describe('StatsSyncService.syncTeamSeasonStatsForSport', () => {
+  beforeEach(() => {
+    apiGet.mockResolvedValue(BASKETBALL_STATS as any);
+    mockPrisma.team.findFirst.mockResolvedValue({ id: 7 });
+  });
+
+  it('reads the teams of just that sport', async () => {
+    await service.syncTeamSeasonStatsForSport('basketball_nba', { season: 2024, delayMs: 0 });
+
+    expect(mockPrisma.team.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { sport: { key: 'basketball_nba' } } })
+    );
+  });
+
+  it('queries once per team, keyed by the API-Sports id rather than our own', async () => {
+    mockPrisma.team.findMany.mockResolvedValue([
+      { id: 7, name: 'Boston Celtics', apiSportsTeamId: 139, externalId: 'odds-bos' },
+      { id: 8, name: 'Denver Nuggets', apiSportsTeamId: 141, externalId: 'odds-den' },
+    ]);
+
+    const result = await service.syncTeamSeasonStatsForSport('basketball_nba', { season: 2024, delayMs: 0 });
+
+    expect(apiGet).toHaveBeenCalledTimes(2);
+    expect(apiGet).toHaveBeenNthCalledWith(1, '/teams/statistics', {
+      team: 139,
+      season: '2024-2025',
+      league: 12,
+    });
+    expect(apiGet).toHaveBeenNthCalledWith(2, '/teams/statistics', {
+      team: 141,
+      season: '2024-2025',
+      league: 12,
+    });
+    expect(mockPrisma.teamStats.upsert).toHaveBeenCalledTimes(2);
+    expect(result).toEqual(
+      expect.objectContaining({
+        sportKey: 'basketball_nba',
+        season: 2024,
+        teamsProcessed: 2,
+        teamsUpdated: 2,
+        teamsSkipped: 0,
+        pausedDueToQuota: false,
+        errors: [],
+      })
+    );
+  });
+
+  it('skips teams that carry no API-Sports id instead of querying on null', async () => {
+    mockPrisma.team.findMany.mockResolvedValue([
+      { id: 7, name: 'Boston Celtics', apiSportsTeamId: 139, externalId: null },
+      { id: 8, name: 'Odds-only team', apiSportsTeamId: null, externalId: 'odds-xyz' },
+    ]);
+
+    const result = await service.syncTeamSeasonStatsForSport('basketball_nba', { season: 2024, delayMs: 0 });
+
+    expect(apiGet).toHaveBeenCalledTimes(1);
+    expect(result.teamsProcessed).toBe(1);
+    expect(result.teamsSkipped).toBe(1);
+  });
+
+  it('uses externalId for soccer, whose teams never come through /teams', async () => {
+    apiGet.mockResolvedValue(SOCCER_STATS as any);
+    mockPrisma.team.findFirst.mockResolvedValue({ id: 21 });
+    mockPrisma.team.findMany.mockResolvedValue([
+      { id: 21, name: 'Manchester United', apiSportsTeamId: null, externalId: '33' },
+      { id: 22, name: 'Not from API-Football', apiSportsTeamId: null, externalId: 'odds-only' },
+    ]);
+
+    const result = await service.syncTeamSeasonStatsForSport('soccer_epl', { season: 2024, delayMs: 0 });
+
+    expect(apiGet).toHaveBeenCalledTimes(1);
+    expect(apiGet).toHaveBeenCalledWith('/teams/statistics', { team: 33, season: '2024', league: 39 });
+    expect(result.teamsUpdated).toBe(1);
+    // The non-numeric external id is not a usable API-Football team id.
+    expect(result.teamsSkipped).toBe(1);
+  });
+
+  it('keeps going after one team fails, and reports it', async () => {
+    mockPrisma.team.findMany.mockResolvedValue([
+      { id: 7, name: 'Boston Celtics', apiSportsTeamId: 139, externalId: null },
+      { id: 8, name: 'Denver Nuggets', apiSportsTeamId: 141, externalId: null },
+    ]);
+    apiGet
+      .mockRejectedValueOnce(new Error('upstream 500'))
+      .mockResolvedValue(BASKETBALL_STATS as any);
+
+    const result = await service.syncTeamSeasonStatsForSport('basketball_nba', { season: 2024, delayMs: 0 });
+
+    expect(result.teamsProcessed).toBe(2);
+    expect(result.teamsUpdated).toBe(1);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('Boston Celtics');
+  });
+
+  it('stops once the API quota falls below the floor', async () => {
+    mockPrisma.team.findMany.mockResolvedValue([
+      { id: 7, name: 'Boston Celtics', apiSportsTeamId: 139, externalId: null },
+      { id: 8, name: 'Denver Nuggets', apiSportsTeamId: 141, externalId: null },
+      { id: 9, name: 'Miami Heat', apiSportsTeamId: 143, externalId: null },
+    ]);
+    const hasSufficient = jest
+      .spyOn(ApiSportsClient.prototype, 'hasSufficientRemaining')
+      .mockReturnValueOnce(true)
+      .mockReturnValue(false);
+    const remaining = jest
+      .spyOn(ApiSportsClient.prototype, 'getLastRemainingRequests')
+      .mockReturnValue(12);
+
+    const result = await service.syncTeamSeasonStatsForSport('basketball_nba', {
+      season: 2024,
+      delayMs: 0,
+      minimumRemainingRequests: 500,
+    });
+
+    expect(apiGet).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(
+      expect.objectContaining({
+        teamsProcessed: 1,
+        teamsUpdated: 1,
+        teamsSkipped: 2,
+        pausedDueToQuota: true,
+        requestsRemaining: 12,
+      })
+    );
+
+    hasSufficient.mockRestore();
+    remaining.mockRestore();
+  });
+
+  it('reports an unsupported sport without touching the API or the team table', async () => {
+    const result = await service.syncTeamSeasonStatsForSport('baseball_mlb', { season: 2024, delayMs: 0 });
+
+    expect(mockPrisma.team.findMany).not.toHaveBeenCalled();
+    expect(apiGet).not.toHaveBeenCalled();
+    expect(result.errors).toEqual(['Team stats sync not supported for sport: baseball_mlb']);
+  });
+
+  it('refuses a second concurrent run for the same sport', async () => {
+    mockPrisma.team.findMany.mockResolvedValue([
+      { id: 7, name: 'Boston Celtics', apiSportsTeamId: 139, externalId: null },
+    ]);
+
+    let releaseFirstCall: (value: any) => void;
+    apiGet.mockReturnValueOnce(new Promise(resolve => {
+      releaseFirstCall = resolve;
+    }) as any);
+
+    const firstRun = service.syncTeamSeasonStatsForSport('basketball_nba', { season: 2024, delayMs: 0 });
+    await new Promise(resolve => setImmediate(resolve));
+
+    const blocked = await service.syncTeamSeasonStatsForSport('basketball_nba', { season: 2024, delayMs: 0 });
+
+    expect(blocked.errors).toEqual(['Team stats sync for basketball_nba already in progress']);
+    expect(apiGet).toHaveBeenCalledTimes(1);
+
+    releaseFirstCall!(BASKETBALL_STATS);
+    await firstRun;
+
+    // The guard is released once the run finishes.
+    const afterwards = await service.syncTeamSeasonStatsForSport('basketball_nba', { season: 2024, delayMs: 0 });
+    expect(afterwards.errors).toEqual([]);
+  });
+
+  it('defaults the season to the one in progress when the caller names none', async () => {
+    mockPrisma.team.findMany.mockResolvedValue([
+      { id: 7, name: 'Boston Celtics', apiSportsTeamId: 139, externalId: null },
+    ]);
+
+    const result = await service.syncTeamSeasonStatsForSport('basketball_nba', { delayMs: 0 });
+
+    expect(result.season).toBe(resolveCurrentTeamStatsSeason('basketball_nba'));
+  });
+});
+
+describe('StatsSyncService.syncAllTeamSeasonStats', () => {
+  it('covers every sport the per-team dispatch supports', async () => {
+    const results = await service.syncAllTeamSeasonStats({ season: 2024, delayMs: 0 });
+
+    expect(results.map(result => result.sportKey)).toEqual([
+      'americanfootball_nfl',
+      'americanfootball_ncaaf',
+      'basketball_nba',
+      'basketball_ncaab',
+      'icehockey_nhl',
+      'soccer_epl',
+      'soccer_spain_la_liga',
+      'soccer_italy_serie_a',
+      'soccer_germany_bundesliga',
+      'soccer_france_ligue_one',
+      'soccer_usa_mls',
+      'soccer_uefa_champs_league',
+    ]);
+  });
+
+  it('spends no requests on a sport with no teams stored', async () => {
+    await service.syncAllTeamSeasonStats({ season: 2024, delayMs: 0 });
+
+    expect(apiGet).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveCurrentTeamStatsSeason', () => {
+  it.each([
+    ['basketball_nba', new Date('2026-03-15T12:00:00'), 2025],
+    ['basketball_nba', new Date('2026-11-15T12:00:00'), 2026],
+    ['americanfootball_nfl', new Date('2026-01-20T12:00:00'), 2025],
+    ['americanfootball_nfl', new Date('2026-09-20T12:00:00'), 2026],
+    ['soccer_epl', new Date('2026-05-01T12:00:00'), 2025],
+  ])('labels %s on %s as season %i', (sportKey, now, expected) => {
+    expect(resolveCurrentTeamStatsSeason(sportKey as string, now as Date)).toBe(expected);
+  });
+
+  it('labels MLS by its calendar year, since its season does not straddle one', () => {
+    expect(resolveCurrentTeamStatsSeason('soccer_usa_mls', new Date('2026-03-15T12:00:00'))).toBe(2026);
+    expect(resolveCurrentTeamStatsSeason('soccer_usa_mls', new Date('2026-11-15T12:00:00'))).toBe(2026);
   });
 });
