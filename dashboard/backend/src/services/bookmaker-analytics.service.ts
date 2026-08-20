@@ -72,6 +72,20 @@ export class BookmakerAnalyticsService {
   private readonly MAX_BET_MEDIUM_LIMIT = 1500;
   private readonly MAX_BET_LOW_LIMIT = 500;
 
+  // Uptime is a Beta-Binomial posterior mean over user-submitted outage reports,
+  // not a raw ratio: a raw ratio collapses to 0% for any book with a small
+  // denominator, so one report could zero a bookmaker. See GitHub issue #97.
+  /** Prior mean uptime: a book is assumed this reliable until its own data says otherwise. */
+  private readonly PRIOR_UPTIME = 0.95;
+  /** Prior weight (kappa), in exposure units. */
+  private readonly PRIOR_STRENGTH = 20;
+  /** Minimum exposure; protects small books and books that have gone dark. */
+  private readonly EXPOSURE_FLOOR = 20;
+  /** Max reporter-days a single user contributes to one bookmaker per window. */
+  private readonly USER_DAY_CAP = 5;
+  /** Games per unit of exposure. */
+  private readonly GAMES_PER_EXPOSURE = 10;
+
   async calculateBookmakerMetrics(bookmaker: string): Promise<BookmakerAnalytics> {
     const normalizedBookmaker = bookmaker.trim().toLowerCase();
 
@@ -111,7 +125,7 @@ export class BookmakerAnalyticsService {
     const gameIds = Array.from(new Set(currentOdds.map((row) => row.gameId)));
     const offeredMarketTypes = Array.from(new Set(currentOdds.map((row) => row.marketType)));
 
-    const [consensusRows, movementEvents, snapshots] = await Promise.all([
+    const [consensusRows, movementEvents, snapshots, reports] = await Promise.all([
       prisma.marketConsensus.findMany({
         where: {
           calculatedAt: { gte: cutoff },
@@ -134,6 +148,17 @@ export class BookmakerAnalyticsService {
         },
         orderBy: {
           capturedAt: 'asc',
+        },
+      }),
+      prisma.bookmakerReport.findMany({
+        where: {
+          bookmaker: normalizedBookmaker,
+          createdAt: { gte: cutoff },
+        },
+        select: {
+          userId: true,
+          reportType: true,
+          createdAt: true,
         },
       }),
     ]);
@@ -255,7 +280,47 @@ export class BookmakerAnalyticsService {
       )
     );
 
-    const uptimePercentage: number | null = null; // TODO(uptime-tracking): no data source yet; fill via user-submitted reports in a future phase
+    // Outage signal is deduplicated to distinct (userId, calendar day) pairs, with
+    // each user capped at USER_DAY_CAP days, so the metric stays duration-sensitive
+    // without letting one user drive a bookmaker's score on their own.
+    const outageDaysByUser = new Map<string, Set<string>>();
+    const limitReportUserIds = new Set<string>();
+    for (const report of reports) {
+      if (report.reportType === 'LIMIT_REDUCTION') {
+        limitReportUserIds.add(report.userId);
+        continue;
+      }
+      const day = report.createdAt.toISOString().slice(0, 10);
+      const days = outageDaysByUser.get(report.userId) ?? new Set<string>();
+      days.add(day);
+      outageDaysByUser.set(report.userId, days);
+    }
+
+    let outageReporterDays = 0;
+    for (const days of outageDaysByUser.values()) {
+      outageReporterDays += Math.min(days.size, this.USER_DAY_CAP);
+    }
+
+    const accountLimitReports = limitReportUserIds.size;
+
+    // null (not 0) when there is no signal at all, so the UI can distinguish
+    // "no reports yet" from "100% reliable".
+    const uptimePercentage: number | null =
+      outageReporterDays === 0
+        ? null
+        : (() => {
+            const exposure = Math.max(
+              this.EXPOSURE_FLOOR,
+              totalGamesOffered / this.GAMES_PER_EXPOSURE
+            );
+            const priorReportRate = 1 - this.PRIOR_UPTIME;
+            const rate =
+              (outageReporterDays + priorReportRate * this.PRIOR_STRENGTH) /
+              (exposure + this.PRIOR_STRENGTH);
+            return (
+              Math.round(100 * (1 - clamp(rate, 0, 1)) * 100) / 100
+            );
+          })();
 
     const updateDiffs: number[] = [];
     for (let i = 1; i < snapshots.length; i++) {
@@ -301,7 +366,11 @@ export class BookmakerAnalyticsService {
             100
           ))) /
       2;
-    const reliabilityScore = (marketEfficiency) / 2; // uptimePercentage excluded until data source exists
+    // Falls back to half-range only when there is no uptime signal; blends both once populated.
+    const reliabilityScore =
+      uptimePercentage === null
+        ? marketEfficiency / 2
+        : (uptimePercentage + marketEfficiency) / 2;
     const coverageScore = clamp(
       (totalMarketsOffered / this.COVERAGE_MARKET_TARGET) * 100,
       0,
@@ -343,7 +412,7 @@ export class BookmakerAnalyticsService {
         averageOddsAge,
         limitProfile,
         estimatedMaxBet: toDecimal(estimatedMaxBet),
-        accountLimitReports: 0,
+        accountLimitReports,
         totalGamesOffered,
         totalMarketsOffered,
         averageMargin: toDecimal(marginVsConsensus),
@@ -367,6 +436,7 @@ export class BookmakerAnalyticsService {
         averageOddsAge,
         limitProfile,
         estimatedMaxBet: toDecimal(estimatedMaxBet),
+        accountLimitReports,
         totalGamesOffered,
         totalMarketsOffered,
         averageMargin: toDecimal(marginVsConsensus),
@@ -407,7 +477,11 @@ export class BookmakerAnalyticsService {
     const orderByMap: Record<RankCriteria, any[]> = {
       value: [{ bestOddsFrequency: 'desc' }, { averageCLVOffered: 'desc' }],
       sharpness: [{ sharpBookRating: 'desc' }, { firstMoverFrequency: 'desc' }],
-      reliability: [{ uptimePercentage: 'desc' }, { marketEfficiency: 'desc' }],
+      // nulls last: Postgres orders DESC as NULLS FIRST, which would put unreported books on top.
+      reliability: [
+        { uptimePercentage: { sort: 'desc', nulls: 'last' } },
+        { marketEfficiency: 'desc' },
+      ],
       coverage: [{ totalMarketsOffered: 'desc' }, { totalGamesOffered: 'desc' }],
       limits: [{ estimatedMaxBet: 'desc' }, { sharpBookRating: 'desc' }],
       recommendation: [{ recommendationScore: 'desc' }, { sharpBookRating: 'desc' }],

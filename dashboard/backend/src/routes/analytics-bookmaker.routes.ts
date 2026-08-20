@@ -1,14 +1,37 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { bookmakerAnalyticsService } from '../services/bookmaker-analytics.service';
 import { marketConsensusService } from '../services/market-consensus.service';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
 import {
   AuthenticatedRequest,
+  getUserId,
   requireSessionAuth,
 } from '../middleware/auth-session.middleware';
 
 const router = Router();
+
+/** Matches the normalization BookmakerAnalyticsService applies before persisting. */
+function normalizeBookmaker(value: string | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+const createReportSchema = z.object({
+  reportType: z.enum(['OUTAGE', 'LIMIT_REDUCTION']),
+  note: z.string().max(280).optional(),
+});
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** One outage report per user per book per 24h; one limit report per 30 days. */
+const REPORT_RATE_LIMIT_MS: Record<'OUTAGE' | 'LIMIT_REDUCTION', number> = {
+  OUTAGE: DAY_MS,
+  LIMIT_REDUCTION: 30 * DAY_MS,
+};
+
+/** Must match BookmakerAnalyticsService.LOOKBACK_DAYS so the panel shows the same window. */
+const REPORT_SUMMARY_WINDOW_DAYS = 30;
 
 router.use(requireSessionAuth);
 
@@ -260,6 +283,139 @@ router.get('/:bookmaker/outliers', async (req: AuthenticatedRequest, res: Respon
   } catch (error) {
     logger.error(`Error fetching outlier stats for bookmaker ${req.params.bookmaker}:`, error);
     res.status(500).json({ success: false, error: 'Failed to fetch outlier stats' });
+  }
+});
+
+/**
+ * POST /api/analytics/bookmakers/:bookmaker/reports
+ * Submit a user report about a bookmaker (outage, or account limit reduction).
+ *
+ * Rate-limited per user per bookmaker per report type, enforced against
+ * bookmaker_reports rather than the in-process rate-limit middleware, which is
+ * per-replica and loses state on restart. See GitHub issue #97.
+ */
+router.post('/:bookmaker/reports', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const parsed = createReportSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid report payload',
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bookmaker reports require a signed-in user and are unavailable in standalone mode',
+      });
+    }
+
+    const bookmaker = normalizeBookmaker(req.params.bookmaker);
+    if (!bookmaker) {
+      return res.status(400).json({ success: false, error: 'bookmaker is required' });
+    }
+
+    // Reports must attach to a bookmaker we actually track, so they cannot be
+    // filed against arbitrary strings.
+    const known = await prisma.bookmakerAnalytics.findUnique({
+      where: { bookmaker },
+      select: { bookmaker: true },
+    });
+    if (!known) {
+      return res.status(404).json({ success: false, error: `Unknown bookmaker: ${bookmaker}` });
+    }
+
+    const { reportType, note } = parsed.data;
+    const windowMs = REPORT_RATE_LIMIT_MS[reportType];
+    const since = new Date(Date.now() - windowMs);
+
+    const recent = await prisma.bookmakerReport.findFirst({
+      where: { userId, bookmaker, reportType, createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+
+    if (recent) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((recent.createdAt.getTime() + windowMs - Date.now()) / 1000)
+      );
+      res.setHeader('Retry-After', String(retryAfterSeconds));
+      return res.status(429).json({
+        success: false,
+        error: `You have already submitted a ${reportType} report for ${bookmaker} recently. Try again later.`,
+        retryAfterSeconds,
+      });
+    }
+
+    const report = await prisma.bookmakerReport.create({
+      data: { userId, bookmaker, reportType, note: note ?? null },
+      select: { id: true, bookmaker: true, reportType: true, createdAt: true },
+    });
+
+    logger.info(`Bookmaker report submitted: ${reportType} for ${bookmaker}`);
+
+    return res.status(201).json({ success: true, data: report });
+  } catch (error) {
+    logger.error(`Error submitting report for bookmaker ${req.params.bookmaker}:`, error);
+    return res.status(500).json({ success: false, error: 'Failed to submit bookmaker report' });
+  }
+});
+
+/**
+ * GET /api/analytics/bookmakers/:bookmaker/reports/summary
+ * Report counts feeding the current analytics row, plus the timestamp of the
+ * last analytics run so the UI can show how stale the derived Uptime is.
+ */
+router.get('/:bookmaker/reports/summary', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const bookmaker = normalizeBookmaker(req.params.bookmaker);
+    if (!bookmaker) {
+      return res.status(400).json({ success: false, error: 'bookmaker is required' });
+    }
+
+    const since = new Date(Date.now() - REPORT_SUMMARY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+    const [reports, analytics] = await Promise.all([
+      prisma.bookmakerReport.findMany({
+        where: { bookmaker, createdAt: { gte: since } },
+        select: { userId: true, reportType: true, createdAt: true },
+      }),
+      prisma.bookmakerAnalytics.findUnique({
+        where: { bookmaker },
+        select: { uptimePercentage: true, accountLimitReports: true, calculatedAt: true },
+      }),
+    ]);
+
+    // Mirrors the service's dedup: distinct (user, day) for outages, distinct users for limits.
+    const outageDays = new Set<string>();
+    const limitUsers = new Set<string>();
+    for (const report of reports) {
+      if (report.reportType === 'LIMIT_REDUCTION') {
+        limitUsers.add(report.userId);
+      } else {
+        outageDays.add(`${report.userId}:${report.createdAt.toISOString().slice(0, 10)}`);
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        bookmaker,
+        windowDays: REPORT_SUMMARY_WINDOW_DAYS,
+        outageReporterDays: outageDays.size,
+        limitReductionReporters: limitUsers.size,
+        uptimePercentage: analytics?.uptimePercentage ?? null,
+        accountLimitReports: analytics?.accountLimitReports ?? 0,
+        calculatedAt: analytics?.calculatedAt ?? null,
+      },
+    });
+  } catch (error) {
+    logger.error(`Error fetching report summary for bookmaker ${req.params.bookmaker}:`, error);
+    return res.status(500).json({ success: false, error: 'Failed to fetch report summary' });
   }
 });
 

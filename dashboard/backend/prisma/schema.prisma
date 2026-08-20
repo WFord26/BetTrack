@@ -435,6 +435,7 @@ model User {
   clvStats    UserCLVStats[]
   arbitrageOpportunities ArbitrageOpportunity[]
   parlayAnalyses ParlayAnalysis[]
+  bookmakerReports BookmakerReport[]
 
   @@unique([provider, providerId])
   @@index([email])
@@ -743,4 +744,29 @@ model AdminSettings {
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("admin_settings")
+}
+
+// User-submitted signal about a bookmaker's reliability and account limits.
+// Aggregated into BookmakerAnalytics.uptimePercentage / accountLimitReports
+// by the daily bookmaker-analytics job. See GitHub issue #97.
+model BookmakerReport {
+  id         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String              @map("user_id") @db.Uuid
+  bookmaker  String              @db.VarChar(50) // Normalized: trim().toLowerCase()
+  reportType BookmakerReportType @map("report_type")
+  note       String?             @db.VarChar(280)
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bookmaker, createdAt])
+  @@index([userId, bookmaker, createdAt])
+  @@map("bookmaker_reports")
+}
+
+enum BookmakerReportType {
+  OUTAGE
+  LIMIT_REDUCTION
+
+  @@map("bookmaker_report_type")
 }

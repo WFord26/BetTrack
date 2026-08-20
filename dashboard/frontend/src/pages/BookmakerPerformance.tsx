@@ -20,7 +20,14 @@ import {
   selectBookmakerError,
 } from '../store/bookmakerSlice';
 import { useDarkMode } from '../contexts/DarkModeContext';
-import { BookmakerAnalytics, BookmakerRankingCriteria, LimitProfile } from '../types/bookmaker.types';
+import { useToast } from '../components/ToastProvider';
+import { bookmakerService } from '../services/bookmaker.service';
+import {
+  BookmakerAnalytics,
+  BookmakerRankingCriteria,
+  BookmakerReportType,
+  LimitProfile,
+} from '../types/bookmaker.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +86,23 @@ function sharpRatingColor(rating: number, isDark: boolean): string {
 function formatPercent(value: number | undefined | null): string {
   if (value == null) return '—';
   return `${Math.round(value)}%`;
+}
+
+/**
+ * Uptime is null until at least one outage report lands in the window, which is a
+ * different thing from 100% reliable — say so rather than rendering an em dash.
+ */
+/** The derived Uptime only refreshes on the daily analytics job, so show its age. */
+function formatCalculatedAt(value: string | undefined): string {
+  if (!value) return 'unknown';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'unknown';
+  return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function formatUptime(value: number | undefined | null): string {
+  if (value == null) return 'No reports yet';
+  return `${value.toFixed(1)}%`;
 }
 
 function formatSeconds(value: number | undefined | null): string {
@@ -196,6 +220,66 @@ function StatCard({
   );
 }
 
+/**
+ * Lets a signed-in user flag an outage or a limit cut for this bookmaker.
+ * Submissions feed uptimePercentage / accountLimitReports on the next analytics run.
+ */
+function ReportIssue({ bookmaker, isDarkMode }: { bookmaker: string; isDarkMode: boolean }) {
+  const { showToast } = useToast();
+  const [pending, setPending] = useState<BookmakerReportType | null>(null);
+
+  const cardCls = isDarkMode ? 'ds-panel' : 'ds-card-ink';
+  const btnCls = isDarkMode
+    ? 'ds-panel2 font-display text-[7px] tracking-[.08em] px-3 py-2 text-cream hover:opacity-80 disabled:opacity-40'
+    : 'bg-sand-panel2 border-2 border-ink font-display text-[7px] tracking-[.08em] px-3 py-2 text-ink hover:opacity-80 disabled:opacity-40';
+
+  async function submit(reportType: BookmakerReportType) {
+    setPending(reportType);
+    try {
+      await bookmakerService.submitReport(bookmaker, reportType);
+      showToast('Thanks — your report was recorded.', 'success');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const message =
+        status === 429
+          ? err?.response?.data?.error ?? 'You already reported this bookmaker recently.'
+          : 'Could not submit your report. Please try again.';
+      showToast(message, status === 429 ? 'warning' : 'error');
+    } finally {
+      setPending(null);
+    }
+  }
+
+  return (
+    <div className={`${cardCls} p-4`}>
+      <p className={`font-display text-[8px] tracking-[.08em] mb-1 ${isDarkMode ? 'text-cream' : 'text-ink'}`}>
+        REPORT AN ISSUE
+      </p>
+      <p className={`font-body text-xs mb-3 ${isDarkMode ? 'text-cream-muted' : 'text-ink-muted'}`}>
+        Reports from users drive the Uptime and limit-report figures above.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={btnCls}
+          disabled={pending !== null}
+          onClick={() => submit('OUTAGE')}
+        >
+          {pending === 'OUTAGE' ? 'SENDING…' : 'ODDS WERE DOWN'}
+        </button>
+        <button
+          type="button"
+          className={btnCls}
+          disabled={pending !== null}
+          onClick={() => submit('LIMIT_REDUCTION')}
+        >
+          {pending === 'LIMIT_REDUCTION' ? 'SENDING…' : 'LIMITS WERE CUT'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DetailPanel({
   bm,
   isDarkMode,
@@ -239,7 +323,16 @@ function DetailPanel({
         <StatCard label="Sharp Book Rating" value={<span className={sharpRatingColor(bm.sharpBookRating, isDarkMode)}>{bm.sharpBookRating}/10</span>} sub="Based on first-mover frequency" isDarkMode={isDarkMode} />
         <StatCard label="Best Odds Frequency" value={formatPercent(bm.bestOddsFrequency)} sub="% of markets with best line" isDarkMode={isDarkMode} />
         <StatCard label="Market Efficiency" value={<span className={scoreColor(bm.marketEfficiency, isDarkMode)}>{Math.round(bm.marketEfficiency)}</span>} sub="0–100 composite score" isDarkMode={isDarkMode} />
-        <StatCard label="Uptime" value={formatPercent(bm.uptimePercentage)} sub="Odds availability rate" isDarkMode={isDarkMode} />
+        <StatCard
+          label="Uptime"
+          value={formatUptime(bm.uptimePercentage)}
+          sub={
+            bm.uptimePercentage == null
+              ? 'From user outage reports'
+              : `From user outage reports · as of ${formatCalculatedAt(bm.calculatedAt)}`
+          }
+          isDarkMode={isDarkMode}
+        />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -248,6 +341,8 @@ function DetailPanel({
         <StatCard label="Odds Update Freq" value={formatSeconds(bm.oddsUpdateFrequency)} sub="Avg seconds between updates" isDarkMode={isDarkMode} />
         <StatCard label="Outlier Rate" value={formatPercent(bm.outlierFrequency)} sub="% of markets off consensus" isDarkMode={isDarkMode} />
       </div>
+
+      <ReportIssue bookmaker={bm.bookmaker} isDarkMode={isDarkMode} />
 
       {/* Coverage */}
       <div className={`${cardCls} p-4`}>
