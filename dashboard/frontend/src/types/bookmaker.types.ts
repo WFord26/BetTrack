@@ -21,7 +21,7 @@ export interface BookmakerAnalytics {
   firstMoverFrequency: number; // percentage of movement events where this book moved first
   lineMovementLag: number; // seconds behind the first mover on average
   marketEfficiency: number; // 0–100 score
-  uptimePercentage: number | null; // 0–100; null until uptime tracking is implemented
+  uptimePercentage: number | null; // 0–100; null when no user reports exist in the window
   oddsUpdateFrequency: number; // seconds between updates on average
   averageOddsAge: number; // seconds since last update
   limitProfile: LimitProfile;
@@ -34,6 +34,19 @@ export interface BookmakerAnalytics {
   averageCLVOffered?: number | null;
   calculatedAt?: string; // ISO datetime
   updatedAt?: string; // ISO datetime
+}
+
+export type BookmakerReportType = 'OUTAGE' | 'LIMIT_REDUCTION';
+
+export interface BookmakerReportSummary {
+  bookmaker: string;
+  windowDays: number;
+  outageReporterDays: number;
+  limitReductionReporters: number;
+  uptimePercentage: number | null;
+  accountLimitReports: number;
+  /** When the analytics job last recomputed the derived metrics; null if never. */
+  calculatedAt: string | null;
 }
 
 export interface BookmakerOutlierStats {
@@ -60,6 +73,12 @@ export interface BookmakerRankingsResponse {
 export interface BookmakerDetailResponse {
   success: boolean;
   data: BookmakerAnalytics | null;
+  error?: string;
+}
+
+export interface BookmakerReportSummaryResponse {
+  success: boolean;
+  data: BookmakerReportSummary | null;
   error?: string;
 }
 

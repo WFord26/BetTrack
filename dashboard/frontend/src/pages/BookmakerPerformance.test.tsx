@@ -17,6 +17,7 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import bookmakerReducer from '../store/bookmakerSlice';
 import { DarkModeProvider } from '../contexts/DarkModeContext';
+import { ToastProvider } from '../components/ToastProvider';
 import BookmakerPerformance from './BookmakerPerformance';
 import { makeBookmakerAnalytics, BOOKMAKER_OUTLIER_STATS } from '../test/fixtures';
 
@@ -25,6 +26,7 @@ vi.mock('../services/bookmaker.service', () => ({
     getRankings: vi.fn(),
     getBookmakerDetail: vi.fn(),
     getBookmakerOutlierStats: vi.fn(),
+    submitReport: vi.fn(),
   },
 }));
 
@@ -45,7 +47,9 @@ function renderPage() {
     ...render(
       <Provider store={store}>
         <DarkModeProvider>
-          <BookmakerPerformance />
+          <ToastProvider>
+            <BookmakerPerformance />
+          </ToastProvider>
         </DarkModeProvider>
       </Provider>
     ),
@@ -66,6 +70,7 @@ describe('BookmakerPerformance page', () => {
     withRankings([]);
     mockService.getBookmakerDetail.mockResolvedValue(PINNACLE);
     mockService.getBookmakerOutlierStats.mockResolvedValue(BOOKMAKER_OUTLIER_STATS);
+    mockService.submitReport.mockResolvedValue({ success: true, data: { id: 'r1' } });
   });
 
   it('fetches rankings with the default criteria on mount', async () => {
@@ -143,6 +148,91 @@ describe('BookmakerPerformance page', () => {
       await user.selectOptions(within(windowRow).getByRole('combobox'), '7');
 
       expect(mockService.getBookmakerOutlierStats).toHaveBeenLastCalledWith('pinnacle', 7);
+    });
+
+    it('shows a formatted uptime with the date the metric was last computed', async () => {
+      const user = userEvent.setup();
+      withRankings([PINNACLE]);
+      mockService.getBookmakerDetail.mockResolvedValue(
+        makeBookmakerAnalytics({ bookmaker: 'pinnacle', uptimePercentage: 95 })
+      );
+      renderPage();
+
+      await user.click(await screen.findByText('Pinnacle'));
+
+      const uptime = await screen.findByText('Uptime');
+      expect(uptime.nextElementSibling).toHaveTextContent('95.0%');
+      // The derived metric only refreshes on the daily job, so its age is shown
+      expect(within(uptime.closest('div') as HTMLElement).getByText(/as of/)).toBeInTheDocument();
+    });
+
+    it('says "No reports yet" rather than an em dash when uptime is null', async () => {
+      const user = userEvent.setup();
+      withRankings([PINNACLE]);
+      mockService.getBookmakerDetail.mockResolvedValue(
+        makeBookmakerAnalytics({ bookmaker: 'pinnacle', uptimePercentage: null })
+      );
+      renderPage();
+
+      await user.click(await screen.findByText('Pinnacle'));
+
+      const uptime = await screen.findByText('Uptime');
+      expect(uptime.nextElementSibling).toHaveTextContent('No reports yet');
+      // "no signal yet" must not read as a staleness timestamp
+      expect(
+        within(uptime.closest('div') as HTMLElement).queryByText(/as of/)
+      ).not.toBeInTheDocument();
+    });
+
+    it('submits an outage report and confirms it', async () => {
+      const user = userEvent.setup();
+      withRankings([PINNACLE]);
+      renderPage();
+      await user.click(await screen.findByText('Pinnacle'));
+
+      await user.click(await screen.findByRole('button', { name: 'ODDS WERE DOWN' }));
+
+      expect(mockService.submitReport).toHaveBeenCalledWith('pinnacle', 'OUTAGE');
+      expect(await screen.findByText(/your report was recorded/i)).toBeInTheDocument();
+    });
+
+    it('submits a limit-reduction report', async () => {
+      const user = userEvent.setup();
+      withRankings([PINNACLE]);
+      renderPage();
+      await user.click(await screen.findByText('Pinnacle'));
+
+      await user.click(await screen.findByRole('button', { name: 'LIMITS WERE CUT' }));
+
+      expect(mockService.submitReport).toHaveBeenCalledWith('pinnacle', 'LIMIT_REDUCTION');
+    });
+
+    it('surfaces the server message when a report is rate-limited', async () => {
+      const user = userEvent.setup();
+      withRankings([PINNACLE]);
+      mockService.submitReport.mockRejectedValue({
+        response: { status: 429, data: { error: 'Already reported pinnacle recently.' } },
+      });
+      renderPage();
+      await user.click(await screen.findByText('Pinnacle'));
+
+      await user.click(await screen.findByRole('button', { name: 'ODDS WERE DOWN' }));
+
+      expect(await screen.findByText('Already reported pinnacle recently.')).toBeInTheDocument();
+      // The control must recover so the user can retry later
+      expect(screen.getByRole('button', { name: 'ODDS WERE DOWN' })).toBeEnabled();
+    });
+
+    it('falls back to a generic message when the report fails for another reason', async () => {
+      const user = userEvent.setup();
+      withRankings([PINNACLE]);
+      mockService.submitReport.mockRejectedValue({ response: { status: 500 } });
+      renderPage();
+      await user.click(await screen.findByText('Pinnacle'));
+
+      await user.click(await screen.findByRole('button', { name: 'ODDS WERE DOWN' }));
+
+      expect(await screen.findByText(/could not submit your report/i)).toBeInTheDocument();
     });
 
     it('prompts to pick a bookmaker before any selection has been made', async () => {

@@ -20,7 +20,10 @@ vi.mock('./api', () => ({
 }));
 
 import api from './api';
-const mockApi = api as unknown as { get: ReturnType<typeof vi.fn> };
+const mockApi = api as unknown as {
+  get: ReturnType<typeof vi.fn>;
+  post: ReturnType<typeof vi.fn>;
+};
 
 describe('bookmakerService', () => {
   beforeEach(() => {
@@ -136,6 +139,68 @@ describe('bookmakerService', () => {
       mockApi.get.mockResolvedValue({ data: { success: true, data: null } });
 
       await expect(bookmakerService.getBookmakerOutlierStats('pinnacle')).resolves.toBeNull();
+    });
+  });
+
+  describe('submitReport', () => {
+    it('posts the report type and encodes the bookmaker key', async () => {
+      mockApi.post.mockResolvedValue({ data: { success: true, data: { id: 'r1' } } });
+
+      await bookmakerService.submitReport('bet/365', 'OUTAGE');
+
+      expect(mockApi.post).toHaveBeenCalledWith('/analytics/bookmakers/bet%2F365/reports', {
+        reportType: 'OUTAGE',
+      });
+    });
+
+    it('includes a note only when one is supplied', async () => {
+      mockApi.post.mockResolvedValue({ data: { success: true, data: { id: 'r1' } } });
+
+      await bookmakerService.submitReport('pinnacle', 'LIMIT_REDUCTION', 'max bet cut to $50');
+
+      expect(mockApi.post).toHaveBeenCalledWith('/analytics/bookmakers/pinnacle/reports', {
+        reportType: 'LIMIT_REDUCTION',
+        note: 'max bet cut to $50',
+      });
+    });
+
+    it('propagates the 429 rate-limit rejection to the caller', async () => {
+      const rateLimited = Object.assign(new Error('Too many reports'), {
+        response: { status: 429, data: { error: 'Already reported recently' } },
+      });
+      mockApi.post.mockRejectedValue(rateLimited);
+
+      await expect(bookmakerService.submitReport('pinnacle', 'OUTAGE')).rejects.toMatchObject({
+        response: { status: 429 },
+      });
+    });
+  });
+
+  describe('getReportSummary', () => {
+    it('returns the summary payload for the bookmaker', async () => {
+      mockApi.get.mockResolvedValue(
+        successEnvelope({
+          bookmaker: 'pinnacle',
+          windowDays: 30,
+          outageReporterDays: 3,
+          limitReductionReporters: 2,
+          uptimePercentage: 95,
+          accountLimitReports: 2,
+          calculatedAt: '2026-08-20T02:00:00.000Z',
+        })
+      );
+
+      const summary = await bookmakerService.getReportSummary('pinnacle');
+
+      expect(mockApi.get).toHaveBeenCalledWith('/analytics/bookmakers/pinnacle/reports/summary');
+      expect(summary!.outageReporterDays).toBe(3);
+      expect(summary!.uptimePercentage).toBe(95);
+    });
+
+    it('returns null when the bookmaker has no summary', async () => {
+      mockApi.get.mockResolvedValue({ data: { success: true, data: null } });
+
+      await expect(bookmakerService.getReportSummary('newbook')).resolves.toBeNull();
     });
   });
 

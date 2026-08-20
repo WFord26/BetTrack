@@ -10,6 +10,9 @@ import {
   BookmakerRankingsResponse,
   BookmakerDetailResponse,
   BookmakerOutlierResponse,
+  BookmakerReportSummary,
+  BookmakerReportSummaryResponse,
+  BookmakerReportType,
 } from '../types/bookmaker.types';
 
 class BookmakerService {
@@ -49,6 +52,30 @@ class BookmakerService {
     const response = await api.get<BookmakerOutlierResponse>(
       `/analytics/bookmakers/${encodeURIComponent(bookmaker)}/outliers`,
       { params: { days } }
+    );
+    return response.data.data || null;
+  }
+
+  /**
+   * Report an outage or account limit reduction for a bookmaker.
+   * The backend rate-limits per user per bookmaker per report type and
+   * responds 429 when the caller is inside that window.
+   */
+  async submitReport(bookmaker: string, reportType: BookmakerReportType, note?: string) {
+    const response = await api.post(
+      `/analytics/bookmakers/${encodeURIComponent(bookmaker)}/reports`,
+      { reportType, ...(note ? { note } : {}) }
+    );
+    return response.data;
+  }
+
+  /**
+   * Live report counts for a bookmaker, plus when the derived metrics were
+   * last recomputed (they only refresh on the daily analytics job).
+   */
+  async getReportSummary(bookmaker: string): Promise<BookmakerReportSummary | null> {
+    const response = await api.get<BookmakerReportSummaryResponse>(
+      `/analytics/bookmakers/${encodeURIComponent(bookmaker)}/reports/summary`
     );
     return response.data.data || null;
   }

@@ -1,7 +1,8 @@
 /**
  * Integration tests for Bookmaker Analytics Routes
- * Tests all 7 endpoints: /rankings, /sharp, /compare, /best-value/:sport,
- * /movement/:bookmaker, /:bookmaker, /:bookmaker/outliers
+ * Tests all 9 endpoints: /rankings, /sharp, /compare, /best-value/:sport,
+ * /movement/:bookmaker, /:bookmaker, /:bookmaker/outliers,
+ * POST /:bookmaker/reports, /:bookmaker/reports/summary
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
@@ -40,6 +41,11 @@ jest.mock('../src/config/database', () => ({
     bookmakerMovementEvent: {
       findMany: jest.fn(),
     },
+    bookmakerReport: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }));
 
@@ -60,6 +66,7 @@ jest.mock('../src/services/market-consensus.service', () => ({
 }));
 
 import app from '../src/app';
+import { getUserId } from '../src/middleware/auth-session.middleware';
 import { prisma } from '../src/config/database';
 import { bookmakerAnalyticsService } from '../src/services/bookmaker-analytics.service';
 import { marketConsensusService } from '../src/services/market-consensus.service';
@@ -67,6 +74,7 @@ import { marketConsensusService } from '../src/services/market-consensus.service
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 const mockService = bookmakerAnalyticsService as jest.Mocked<typeof bookmakerAnalyticsService>;
 const mockConsensusService = marketConsensusService as jest.Mocked<typeof marketConsensusService>;
+const mockGetUserId = getUserId as jest.MockedFunction<typeof getUserId>;
 
 const sampleRow = {
   id: 'abc-123',
@@ -266,5 +274,166 @@ describe('GET /api/analytics/bookmakers/:bookmaker/outliers', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.days).toBe(7);
+  });
+});
+
+describe('POST /api/analytics/bookmakers/:bookmaker/reports', () => {
+  beforeEach(() => {
+    // This suite asserts on call counts, so recorded calls must not leak between tests
+    jest.clearAllMocks();
+    mockGetUserId.mockReturnValue('user-1');
+    (mockPrisma.bookmakerAnalytics.findUnique as any).mockResolvedValue({ bookmaker: 'draftkings' });
+    (mockPrisma.bookmakerReport.findFirst as any).mockResolvedValue(null);
+    (mockPrisma.bookmakerReport.create as any).mockImplementation(async ({ data }: any) => ({
+      id: 'report-1',
+      bookmaker: data.bookmaker,
+      reportType: data.reportType,
+      createdAt: new Date('2026-08-20T12:00:00.000Z'),
+    }));
+  });
+
+  it('creates an OUTAGE report and normalizes the bookmaker', async () => {
+    const res = await request(app)
+      .post('/api/analytics/bookmakers/DraftKings/reports')
+      .send({ reportType: 'OUTAGE', note: 'no NBA odds for an hour' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.reportType).toBe('OUTAGE');
+    expect(mockPrisma.bookmakerReport.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          userId: 'user-1',
+          bookmaker: 'draftkings',
+          reportType: 'OUTAGE',
+          note: 'no NBA odds for an hour',
+        },
+      })
+    );
+  });
+
+  it('creates a LIMIT_REDUCTION report with a null note when none is given', async () => {
+    const res = await request(app)
+      .post('/api/analytics/bookmakers/draftkings/reports')
+      .send({ reportType: 'LIMIT_REDUCTION' });
+
+    expect(res.status).toBe(201);
+    expect((mockPrisma.bookmakerReport.create as any).mock.calls[0][0].data.note).toBeNull();
+  });
+
+  it('returns 429 with Retry-After when inside the rate-limit window', async () => {
+    // Reported 6h ago; the OUTAGE window is 24h, so ~18h remain
+    const reportedAt = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    (mockPrisma.bookmakerReport.findFirst as any).mockResolvedValue({ createdAt: reportedAt });
+
+    const res = await request(app)
+      .post('/api/analytics/bookmakers/draftkings/reports')
+      .send({ reportType: 'OUTAGE' });
+
+    expect(res.status).toBe(429);
+    expect(res.body.retryAfterSeconds).toBeGreaterThan(17 * 60 * 60);
+    expect(res.body.retryAfterSeconds).toBeLessThanOrEqual(18 * 60 * 60);
+    expect(res.headers['retry-after']).toBe(String(res.body.retryAfterSeconds));
+    expect(mockPrisma.bookmakerReport.create).not.toHaveBeenCalled();
+  });
+
+  it('scopes the rate-limit lookup to this user, bookmaker and report type', async () => {
+    await request(app)
+      .post('/api/analytics/bookmakers/draftkings/reports')
+      .send({ reportType: 'LIMIT_REDUCTION' });
+
+    const where = (mockPrisma.bookmakerReport.findFirst as any).mock.calls[0][0].where;
+    expect(where.userId).toBe('user-1');
+    expect(where.bookmaker).toBe('draftkings');
+    expect(where.reportType).toBe('LIMIT_REDUCTION');
+    // LIMIT_REDUCTION uses a 30-day window, far longer than OUTAGE's 24h
+    const windowMs = Date.now() - where.createdAt.gte.getTime();
+    expect(windowMs).toBeGreaterThan(29 * 24 * 60 * 60 * 1000);
+  });
+
+  it('returns 404 for a bookmaker with no analytics row', async () => {
+    (mockPrisma.bookmakerAnalytics.findUnique as any).mockResolvedValue(null);
+
+    const res = await request(app)
+      .post('/api/analytics/bookmakers/ghostbook/reports')
+      .send({ reportType: 'OUTAGE' });
+
+    expect(res.status).toBe(404);
+    expect(mockPrisma.bookmakerReport.create).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for an unknown report type', async () => {
+    const res = await request(app)
+      .post('/api/analytics/bookmakers/draftkings/reports')
+      .send({ reportType: 'ODDS_TOO_LOW' });
+
+    expect(res.status).toBe(400);
+    expect(mockPrisma.bookmakerReport.create).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for a note over 280 characters', async () => {
+    const res = await request(app)
+      .post('/api/analytics/bookmakers/draftkings/reports')
+      .send({ reportType: 'OUTAGE', note: 'x'.repeat(281) });
+
+    expect(res.status).toBe(400);
+    expect(mockPrisma.bookmakerReport.create).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 in standalone mode, where reports have no user to attribute', async () => {
+    mockGetUserId.mockReturnValue(null);
+
+    const res = await request(app)
+      .post('/api/analytics/bookmakers/draftkings/reports')
+      .send({ reportType: 'OUTAGE' });
+
+    expect(res.status).toBe(400);
+    expect(mockPrisma.bookmakerReport.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/analytics/bookmakers/:bookmaker/reports/summary', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('dedupes outages to reporter-days and limit reports to distinct users', async () => {
+    (mockPrisma.bookmakerReport.findMany as any).mockResolvedValue([
+      { userId: 'u1', reportType: 'OUTAGE', createdAt: new Date('2026-08-01T09:00:00.000Z') },
+      { userId: 'u1', reportType: 'OUTAGE', createdAt: new Date('2026-08-01T18:00:00.000Z') },
+      { userId: 'u1', reportType: 'OUTAGE', createdAt: new Date('2026-08-02T09:00:00.000Z') },
+      { userId: 'u2', reportType: 'OUTAGE', createdAt: new Date('2026-08-02T09:00:00.000Z') },
+      { userId: 'u1', reportType: 'LIMIT_REDUCTION', createdAt: new Date('2026-08-03T09:00:00.000Z') },
+      { userId: 'u2', reportType: 'LIMIT_REDUCTION', createdAt: new Date('2026-08-03T09:00:00.000Z') },
+    ]);
+    (mockPrisma.bookmakerAnalytics.findUnique as any).mockResolvedValue({
+      uptimePercentage: '95.00',
+      accountLimitReports: 2,
+      calculatedAt: new Date('2026-08-20T02:00:00.000Z'),
+    });
+
+    const res = await request(app).get('/api/analytics/bookmakers/DraftKings/reports/summary');
+
+    expect(res.status).toBe(200);
+    // u1 reported twice on Aug 1 → one reporter-day; three (user, day) pairs total
+    expect(res.body.data.outageReporterDays).toBe(3);
+    expect(res.body.data.limitReductionReporters).toBe(2);
+    expect(res.body.data.bookmaker).toBe('draftkings');
+    expect(res.body.data.windowDays).toBe(30);
+    // calculatedAt lets the panel show how stale the derived Uptime is
+    expect(res.body.data.calculatedAt).toBe('2026-08-20T02:00:00.000Z');
+  });
+
+  it('returns zeroes and a null uptime for a bookmaker with no reports or analytics row', async () => {
+    (mockPrisma.bookmakerReport.findMany as any).mockResolvedValue([]);
+    (mockPrisma.bookmakerAnalytics.findUnique as any).mockResolvedValue(null);
+
+    const res = await request(app).get('/api/analytics/bookmakers/newbook/reports/summary');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.outageReporterDays).toBe(0);
+    expect(res.body.data.limitReductionReporters).toBe(0);
+    expect(res.body.data.uptimePercentage).toBeNull();
+    expect(res.body.data.accountLimitReports).toBe(0);
+    expect(res.body.data.calculatedAt).toBeNull();
   });
 });

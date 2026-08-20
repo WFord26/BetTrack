@@ -33,10 +33,8 @@ jest.mock('../../src/services/bookmaker-analytics.service', () => ({
 }));
 
 import { prisma } from '../../src/config/database';
-import { bookmakerAnalyticsService } from '../../src/services/bookmaker-analytics.service';
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
-const mockService = bookmakerAnalyticsService as jest.Mocked<typeof bookmakerAnalyticsService>;
 
 describe('bookmaker-analytics.job', () => {
   beforeEach(() => {
@@ -44,70 +42,51 @@ describe('bookmaker-analytics.job', () => {
     jest.resetModules();
   });
 
-  it('calls runBatchCalculation which processes each distinct bookmaker', async () => {
-    const { BookmakerAnalyticsService } = await import('../../src/services/bookmaker-analytics.service');
+  it('records the batch outcome in job status after an immediate run', async () => {
+    // Resolve prisma and the service from the live registry: beforeEach calls
+    // resetModules, so the top-level imports point at a stale module instance.
+    const livePrisma = (await import('../../src/config/database')).prisma as any;
+    const liveService = (await import('../../src/services/bookmaker-analytics.service'))
+      .bookmakerAnalyticsService as any;
 
-    // Re-import the service class directly to test runBatchCalculation in isolation
-    jest.mock('../../src/config/database', () => ({
-      prisma: {
-        currentOdds: {
-          findMany: jest.fn().mockResolvedValue([
-            { bookmaker: 'draftkings' },
-            { bookmaker: 'fanduel' },
-          ] as any),
-        },
-        bookmakerAnalytics: {
-          upsert: jest.fn().mockImplementation(async ({ create }: any) => ({ id: 'x', ...create })),
-          findFirst: jest.fn().mockResolvedValue(null),
-          findMany: jest.fn().mockResolvedValue([]),
-        },
-        marketConsensus: { findMany: jest.fn().mockResolvedValue([]) },
-        bookmakerMovementEvent: { findMany: jest.fn().mockResolvedValue([]) },
-        oddsSnapshot: { findMany: jest.fn().mockResolvedValue([]) },
-      },
-    }));
-
-    // The key contract: runBatchCalculation processes distinct bookmakers
-    mockPrisma.currentOdds.findMany.mockResolvedValue([
-      { bookmaker: 'draftkings' } as any,
-      { bookmaker: 'fanduel' } as any,
-    ]);
-
-    mockService.runBatchCalculation.mockResolvedValue({
-      bookmakersProcessed: 2,
-      errors: [],
+    // Empty table => startBookmakerAnalyticsJob kicks off an immediate run
+    livePrisma.bookmakerAnalytics.findFirst.mockResolvedValue(null);
+    liveService.runBatchCalculation.mockResolvedValue({
+      bookmakersProcessed: 3,
+      errors: ['fanduel: boom'],
     });
 
-    const result = await bookmakerAnalyticsService.runBatchCalculation();
+    const job = await import('../../src/jobs/bookmaker-analytics.job');
+    await job.startBookmakerAnalyticsJob();
+    // executeBookmakerAnalytics is fired without await inside the job
+    await new Promise((resolve) => setImmediate(resolve));
 
-    expect(result.bookmakersProcessed).toBe(2);
-    expect(result.errors).toHaveLength(0);
+    const status = job.getBookmakerAnalyticsJobStatus();
+
+    expect(liveService.runBatchCalculation).toHaveBeenCalled();
+    expect(status.lastResult).toEqual({ bookmakersProcessed: 3, errors: ['fanduel: boom'] });
+    expect(status.lastRunTime).toBeInstanceOf(Date);
+    // The run must release its lock even when it reported errors
+    expect(status.isRunning).toBe(false);
   });
 
-  it('errors from individual bookmakers are aggregated and do not abort the batch', async () => {
-    mockService.runBatchCalculation.mockResolvedValue({
-      bookmakersProcessed: 2,
-      errors: ['draftkings: some error'],
-    });
+  it('schedules the daily cron even when the table is already fresh', async () => {
+    // Live registry instances — beforeEach calls resetModules, so the top-level
+    // imports are stale by the time the job module is loaded.
+    const livePrisma = (await import('../../src/config/database')).prisma as any;
+    const liveService = (await import('../../src/services/bookmaker-analytics.service'))
+      .bookmakerAnalyticsService as any;
 
-    const result = await bookmakerAnalyticsService.runBatchCalculation();
-
-    expect(result.bookmakersProcessed).toBe(2);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain('draftkings');
-  });
-
-  it('startBookmakerAnalyticsJob triggers immediate run when table is empty', async () => {
-    mockPrisma.bookmakerAnalytics.findFirst.mockResolvedValue(null as any);
+    // Fresh row (well inside the 48h staleness threshold) => no immediate run
+    livePrisma.bookmakerAnalytics.findFirst.mockResolvedValue({ calculatedAt: new Date() });
+    liveService.runBatchCalculation.mockResolvedValue({ bookmakersProcessed: 1, errors: [] });
 
     const { startBookmakerAnalyticsJob } = await import('../../src/jobs/bookmaker-analytics.job');
 
-    mockService.runBatchCalculation.mockResolvedValue({
-      bookmakersProcessed: 1,
-      errors: [],
-    });
-
     await startBookmakerAnalyticsJob();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(liveService.runBatchCalculation).not.toHaveBeenCalled();
 
     // Job was started (cron.schedule called)
     const cron = await import('node-cron');
