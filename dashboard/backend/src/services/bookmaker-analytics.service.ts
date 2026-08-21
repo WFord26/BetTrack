@@ -65,6 +65,19 @@ export class BookmakerAnalyticsService {
     coverage: 0.15,
     sharpness: 0.1,
   } as const;
+  // averageCLVOffered is a CLV percentage, so it has to be mapped onto the same
+  // 0-100 scale as the other valueScore inputs: 0% CLV is neutral, and +/-10%
+  // saturates the range.
+  private readonly CLV_SCORE_BASELINE = 50;
+  private readonly CLV_SCORE_SCALE = 5;
+  // valueScore weights. When a bookmaker has no attributed CLV data its weight is
+  // redistributed over the other two, which reduces to the plain mean of them --
+  // books without bet legs are not penalised for the missing signal.
+  private readonly VALUE_WEIGHTS = {
+    bestOddsFrequency: 0.35,
+    marginVsConsensus: 0.35,
+    averageCLV: 0.3,
+  } as const;
   private readonly COVERAGE_MARKET_TARGET = 200;
   private readonly SHARP_RATING_HIGH_THRESHOLD = 8;
   private readonly SHARP_RATING_MEDIUM_THRESHOLD = 5;
@@ -125,7 +138,7 @@ export class BookmakerAnalyticsService {
     const gameIds = Array.from(new Set(currentOdds.map((row) => row.gameId)));
     const offeredMarketTypes = Array.from(new Set(currentOdds.map((row) => row.marketType)));
 
-    const [consensusRows, movementEvents, snapshots, reports] = await Promise.all([
+    const [consensusRows, movementEvents, snapshots, reports, clvAggregate] = await Promise.all([
       prisma.marketConsensus.findMany({
         where: {
           calculatedAt: { gte: cutoff },
@@ -159,6 +172,19 @@ export class BookmakerAnalyticsService {
           userId: true,
           reportType: true,
           createdAt: true,
+        },
+      }),
+      // BetLeg.bookmaker is user-entered, so it is matched case-insensitively
+      // against the normalized key. Legs with no bookmaker or no computed CLV are
+      // excluded at the DB layer rather than averaged in as zeroes.
+      // Distinct from ClvService.groupByBookmaker, which buckets one user's already
+      // fetched legs for their own CLV breakdown; this is a global per-book mean.
+      prisma.betLeg.aggregate({
+        _avg: { clv: true },
+        where: {
+          bookmaker: { equals: normalizedBookmaker, mode: 'insensitive' },
+          clv: { not: null },
+          createdAt: { gte: cutoff },
         },
       }),
     ]);
@@ -342,7 +368,10 @@ export class BookmakerAnalyticsService {
       ? Math.max(0, Math.round((now.getTime() - latestSnapshot.getTime()) / 1000))
       : 0;
 
-    const averageCLVOffered = null; // TODO(betleg-bookmaker): populate from BetLeg.bookmaker once Phase D lands
+    // null (not 0) when no bet leg placed at this book has a CLV in the window, so
+    // "no CLV data" stays distinguishable from "breaks even against the close".
+    const rawAverageCLV = clvAggregate._avg.clv;
+    const averageCLVOffered = rawAverageCLV == null ? null : round2(Number(rawAverageCLV));
 
     const limitProfile =
       sharpBookRating >= this.SHARP_RATING_HIGH_THRESHOLD
@@ -357,15 +386,25 @@ export class BookmakerAnalyticsService {
           ? this.MAX_BET_MEDIUM_LIMIT
           : this.MAX_BET_LOW_LIMIT;
 
-    const valueScore =
-      (bestOddsFrequency +
-        (100 -
-          clamp(
-            marginVsConsensus * this.EFFICIENCY_MARGIN_MULTIPLIER,
+    const marginScore =
+      100 - clamp(marginVsConsensus * this.EFFICIENCY_MARGIN_MULTIPLIER, 0, 100);
+    const clvScore =
+      averageCLVOffered === null
+        ? null
+        : clamp(
+            this.CLV_SCORE_BASELINE + averageCLVOffered * this.CLV_SCORE_SCALE,
             0,
             100
-          ))) /
-      2;
+          );
+    const valueWeightTotal =
+      this.VALUE_WEIGHTS.bestOddsFrequency +
+      this.VALUE_WEIGHTS.marginVsConsensus +
+      (clvScore === null ? 0 : this.VALUE_WEIGHTS.averageCLV);
+    const valueScore =
+      (bestOddsFrequency * this.VALUE_WEIGHTS.bestOddsFrequency +
+        marginScore * this.VALUE_WEIGHTS.marginVsConsensus +
+        (clvScore === null ? 0 : clvScore * this.VALUE_WEIGHTS.averageCLV)) /
+      valueWeightTotal;
     // Falls back to half-range only when there is no uptime signal; blends both once populated.
     const reliabilityScore =
       uptimePercentage === null
@@ -397,7 +436,7 @@ export class BookmakerAnalyticsService {
       },
       create: {
         bookmaker: normalizedBookmaker,
-        averageCLVOffered: averageCLVOffered,
+        averageCLVOffered: averageCLVOffered === null ? null : toDecimal(averageCLVOffered),
         bestOddsFrequency: toDecimal(bestOddsFrequency),
         marginVsConsensus: toDecimal(marginVsConsensus),
         outlierFrequency: toDecimal(outlierFrequency),
@@ -421,7 +460,7 @@ export class BookmakerAnalyticsService {
         recommendationScore,
       },
       update: {
-        averageCLVOffered: averageCLVOffered,
+        averageCLVOffered: averageCLVOffered === null ? null : toDecimal(averageCLVOffered),
         bestOddsFrequency: toDecimal(bestOddsFrequency),
         marginVsConsensus: toDecimal(marginVsConsensus),
         outlierFrequency: toDecimal(outlierFrequency),
@@ -475,7 +514,12 @@ export class BookmakerAnalyticsService {
     const normalizedCriteria = criteria.toLowerCase() as RankCriteria;
 
     const orderByMap: Record<RankCriteria, any[]> = {
-      value: [{ bestOddsFrequency: 'desc' }, { averageCLVOffered: 'desc' }],
+      // nulls last: now that averageCLVOffered is populated, a DESC tiebreak would
+      // otherwise float books with no CLV data above books that beat the close.
+      value: [
+        { bestOddsFrequency: 'desc' },
+        { averageCLVOffered: { sort: 'desc', nulls: 'last' } },
+      ],
       sharpness: [{ sharpBookRating: 'desc' }, { firstMoverFrequency: 'desc' }],
       // nulls last: Postgres orders DESC as NULLS FIRST, which would put unreported books on top.
       reliability: [

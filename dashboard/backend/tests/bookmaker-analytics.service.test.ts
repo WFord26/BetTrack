@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { Decimal } from '@prisma/client/runtime/library';
 import { BookmakerAnalyticsService } from '../src/services/bookmaker-analytics.service';
 
 jest.mock('../src/config/database', () => ({
@@ -86,6 +87,53 @@ describe('BookmakerAnalyticsService', () => {
     }));
   }
 
+  interface BetLegFixture {
+    bookmaker: string | null;
+    clv: number | null;
+    createdAt: Date;
+  }
+
+  /**
+   * Stands in for `prisma.betLeg.aggregate({ _avg: { clv: true } })`, applying the
+   * same where-clause semantics Postgres would (case-insensitive equals, `not: null`,
+   * `gte` cutoff) and returning a Decimal `_avg` — or null when nothing matches, as
+   * Prisma does. Fixtures therefore exercise the real filtering instead of a canned
+   * average.
+   */
+  function fakeBetLegAggregate(legs: BetLegFixture[]) {
+    return jest.fn(async ({ where }: any) => {
+      const matched = legs.filter((leg) => {
+        const expected = where?.bookmaker?.equals;
+        if (expected != null) {
+          if (leg.bookmaker == null) return false;
+          const actual =
+            where.bookmaker.mode === 'insensitive' ? leg.bookmaker.toLowerCase() : leg.bookmaker;
+          const target =
+            where.bookmaker.mode === 'insensitive' ? expected.toLowerCase() : expected;
+          if (actual !== target) return false;
+        }
+        if (where?.clv?.not === null && leg.clv === null) return false;
+        if (where?.createdAt?.gte && leg.createdAt < where.createdAt.gte) return false;
+        return true;
+      });
+
+      const values = matched
+        .map((leg) => leg.clv)
+        .filter((value): value is number => value !== null);
+
+      return {
+        _avg: {
+          clv:
+            values.length === 0
+              ? null
+              : new Decimal(
+                  (values.reduce((sum, value) => sum + value, 0) / values.length).toString()
+                ),
+        },
+      };
+    });
+  }
+
   it('calculates and upserts bookmaker analytics metrics', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-05-14T11:00:00.000Z').getTime());
 
@@ -171,24 +219,103 @@ describe('BookmakerAnalyticsService', () => {
     // recommendationScore is computable when all primary inputs are present
     expect(result.recommendationScore).not.toBeNull();
     expect(result.recommendationScore).toBeGreaterThan(1);
-    // averageCLVOffered is null until BetLeg.bookmaker column lands (Phase D)
+    // averageCLVOffered is null because this run has no BetLeg CLV data
     expect(result.averageCLVOffered).toBeNull();
     // uptimePercentage is null — no data source yet
     expect(result.uptimePercentage).toBeNull();
   });
 
-  it('averageCLVOffered is null when no BetLeg.bookmaker data exists', async () => {
-    // Need at least one odds row to pass the "bookmaker not found" guard
-    mockPrisma.currentOdds.findMany.mockResolvedValue([
-      { gameId: 'g1', marketType: 'h2h', homePrice: -110, homeSpread: null, totalLine: null, game: { sport: { key: 'basketball_nba' } } },
-    ] as any);
-    mockPrisma.marketConsensus.findMany.mockResolvedValue([] as any);
-    mockPrisma.bookmakerMovementEvent.findMany.mockResolvedValue([] as any);
-    mockPrisma.oddsSnapshot.findMany.mockResolvedValue([] as any);
-    mockPrisma.bookmakerAnalytics.upsert.mockImplementation(async ({ create }: any) => ({ id: 'x', ...create }));
+  it('averages this bookmaker\'s BetLeg.clv into averageCLVOffered', async () => {
+    arrangeMetrics(1);
+    (mockPrisma.betLeg as any).aggregate = fakeBetLegAggregate([
+      // BetLeg.bookmaker is user-entered, so casing varies row to row
+      { bookmaker: 'DraftKings', clv: 3, createdAt: new Date() },
+      { bookmaker: 'draftkings', clv: 2, createdAt: new Date() },
+      { bookmaker: 'fanduel', clv: -9, createdAt: new Date() },
+    ]);
+
+    const result = await service.calculateBookmakerMetrics('DraftKings');
+
+    // (3 + 2) / 2 — the FanDuel leg belongs to a different book
+    expect(result.averageCLVOffered?.toString()).toBe('2.5');
+  });
+
+  it('excludes legs with no bookmaker attribution and legs with no computed CLV', async () => {
+    arrangeMetrics(1);
+    (mockPrisma.betLeg as any).aggregate = fakeBetLegAggregate([
+      { bookmaker: 'draftkings', clv: 4, createdAt: new Date() },
+      // legacy row written before BetLeg.bookmaker existed
+      { bookmaker: null, clv: -20, createdAt: new Date() },
+      // leg whose game has not closed yet, so CLV is not computed
+      { bookmaker: 'draftkings', clv: null, createdAt: new Date() },
+    ]);
 
     const result = await service.calculateBookmakerMetrics('draftkings');
+
+    // Only the attributed, settled leg counts; neither excluded row averages in as 0
+    expect(result.averageCLVOffered?.toString()).toBe('4');
+  });
+
+  it('ignores bet legs older than the lookback window', async () => {
+    arrangeMetrics(1);
+    // The service windows off `new Date()`, which an earlier test's Date.now spy
+    // does not affect, so anchor the fixtures to the same real clock.
+    const now = new Date().getTime();
+    (mockPrisma.betLeg as any).aggregate = fakeBetLegAggregate([
+      { bookmaker: 'draftkings', clv: 6, createdAt: new Date(now - 5 * 24 * 60 * 60 * 1000) },
+      { bookmaker: 'draftkings', clv: -30, createdAt: new Date(now - 45 * 24 * 60 * 60 * 1000) },
+    ]);
+
+    const result = await service.calculateBookmakerMetrics('draftkings');
+
+    expect(result.averageCLVOffered?.toString()).toBe('6');
+  });
+
+  it('leaves averageCLVOffered null when no leg matches, without disturbing the other scores', async () => {
+    arrangeMetrics(1);
+    (mockPrisma.betLeg as any).aggregate = fakeBetLegAggregate([
+      { bookmaker: 'fanduel', clv: 5, createdAt: new Date() },
+    ]);
+
+    const result = await service.calculateBookmakerMetrics('draftkings');
+
+    // null, not 0 — "no CLV data" is not "breaks even against the close"
     expect(result.averageCLVOffered).toBeNull();
+    // valueScore redistributes the CLV weight, so the score is unchanged from the
+    // pre-CLV formula: value 50 * 0.4 + reliability 50 * 0.35 + coverage 0.5 * 0.15
+    // + sharpness 20 * 0.1 = 39.575
+    expect(result.recommendationScore).toBe(40);
+  });
+
+  it('folds CLV into valueScore, so beating the close raises the recommendation score', async () => {
+    arrangeMetrics(1);
+    (mockPrisma.betLeg as any).aggregate = fakeBetLegAggregate([
+      { bookmaker: 'draftkings', clv: 8, createdAt: new Date() },
+    ]);
+    const beatsClose = await service.calculateBookmakerMetrics('draftkings');
+
+    (mockPrisma.betLeg as any).aggregate = fakeBetLegAggregate([
+      { bookmaker: 'draftkings', clv: -8, createdAt: new Date() },
+    ]);
+    const losesToClose = await service.calculateBookmakerMetrics('draftkings');
+
+    // +8% CLV scores 90/100, so valueScore = (0*.35 + 100*.35 + 90*.3) = 62 -> 44.375
+    expect(beatsClose.recommendationScore).toBe(44);
+    // -8% CLV scores 10/100, so valueScore = 38 -> 34.775
+    expect(losesToClose.recommendationScore).toBe(35);
+  });
+
+  it('queries BetLeg with the same lookback cutoff used for the rest of the metrics', async () => {
+    arrangeMetrics(1);
+    const aggregate = fakeBetLegAggregate([]);
+    (mockPrisma.betLeg as any).aggregate = aggregate;
+
+    await service.calculateBookmakerMetrics('draftkings');
+
+    const oddsCutoff = (mockPrisma.currentOdds.findMany.mock.calls[0][0] as any).where.game
+      .commenceTime.gte;
+    const legCutoff = (aggregate.mock.calls[0][0] as any).where.createdAt.gte;
+    expect(legCutoff.getTime()).toBe(oddsCutoff.getTime());
   });
 
   it('uptimePercentage stays null and accountLimitReports 0 when there are no reports', async () => {
@@ -440,6 +567,16 @@ describe('BookmakerAnalyticsService', () => {
     await service.rankBookmakers('sharpness');
     expect(mockPrisma.bookmakerAnalytics.findMany).toHaveBeenLastCalledWith({
       orderBy: [{ sharpBookRating: 'desc' }, { firstMoverFrequency: 'desc' }],
+      take: 50,
+    });
+
+    // nulls last, or books with no CLV data would top "Best Value" on the tiebreak
+    await service.rankBookmakers('value');
+    expect(mockPrisma.bookmakerAnalytics.findMany).toHaveBeenLastCalledWith({
+      orderBy: [
+        { bestOddsFrequency: 'desc' },
+        { averageCLVOffered: { sort: 'desc', nulls: 'last' } },
+      ],
       take: 50,
     });
 
